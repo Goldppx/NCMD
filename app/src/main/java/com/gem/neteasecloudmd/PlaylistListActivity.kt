@@ -226,7 +226,7 @@ fun PlaylistListScreen(
                 }
             }
             
-            PlaybackBar(showPlayBar = true)
+            // PlaybackBar removed in single-Activity architecture
         }
     }
 }

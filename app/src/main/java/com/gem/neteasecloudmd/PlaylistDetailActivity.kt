@@ -262,7 +262,7 @@ fun PlaylistDetailScreen(
                 }
             }
             
-            PlaybackBar(showPlayBar = true)
+            // PlaybackBar removed in single-Activity architecture
         }
     }
 }
