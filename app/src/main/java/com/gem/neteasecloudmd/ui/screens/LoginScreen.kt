@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.SessionManager
@@ -38,11 +39,15 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(horizontal = 32.dp, vertical = 16.dp)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .windowInsetsPadding(WindowInsets.displayCutout),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier = Modifier.weight(0.3f))
+        
         Text(
             text = "NCMD",
             style = MaterialTheme.typography.headlineLarge
@@ -63,7 +68,6 @@ fun LoginScreen(
         
         when (loginMode) {
             LoginMode.PASSWORD -> {
-                // 密码登录
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -167,7 +171,6 @@ fun LoginScreen(
             }
             
             LoginMode.CAPTCHA -> {
-                // 验证码登录
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -230,7 +233,6 @@ fun LoginScreen(
             }
             
             LoginMode.COOKIE -> {
-                // Cookie登录
                 OutlinedTextField(
                     value = cookie,
                     onValueChange = { cookie = it },
@@ -298,5 +300,7 @@ fun LoginScreen(
                 }
             }
         }
+        
+        Spacer(modifier = Modifier.weight(0.7f))
     }
 }
