@@ -1,0 +1,825 @@
+package com.gem.neteasecloudmd
+
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberDrawerState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import coil.compose.AsyncImage
+import com.gem.neteasecloudmd.api.NeteaseApiService
+import com.gem.neteasecloudmd.api.PlaylistItem
+import com.gem.neteasecloudmd.api.SessionManager
+import com.gem.neteasecloudmd.api.rememberPlayerManager
+import com.gem.neteasecloudmd.ui.theme.NeteaseCloudMDTheme
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+
+class MainActivity : ComponentActivity() {
+    private var refreshKey = 0L
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            NeteaseCloudMDTheme {
+                HomeScreen(
+                    refreshKey = refreshKey,
+                    onRefresh = { refreshKey++ },
+                    onLoginClick = {
+                        startActivity(Intent(this, LoginActivity::class.java))
+                    },
+                    onSearchClick = {
+                        startActivity(Intent(this, SearchActivity::class.java))
+                    }
+                )
+            }
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        refreshKey++
+        setContent {
+            NeteaseCloudMDTheme {
+                HomeScreen(
+                    refreshKey = refreshKey,
+                    onRefresh = { refreshKey++ },
+                    onLoginClick = {
+                        startActivity(Intent(this, LoginActivity::class.java))
+                    },
+                    onSearchClick = {
+                        startActivity(Intent(this, SearchActivity::class.java))
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    refreshKey: Long = 0,
+    onRefresh: () -> Unit = {},
+    onLoginClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    
+    val sessionManager by remember(refreshKey) { mutableStateOf(SessionManager(context)) }
+    val apiService = remember { NeteaseApiService() }
+    val player = rememberPlayerManager(context)
+    
+    val isLoggedIn = sessionManager.isLoggedIn()
+    val nickname = sessionManager.getNickname()
+    val avatarUrl = sessionManager.getAvatarUrl()
+    val userId = sessionManager.getUserId()
+    val cookie = sessionManager.getCookie()
+    
+    var playlists by remember(refreshKey) { mutableStateOf<List<PlaylistItem>>(emptyList()) }
+    var isLoading by remember(refreshKey) { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var errorMessage by remember(refreshKey) { mutableStateOf<String?>(null) }
+    
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    
+    LaunchedEffect(Unit) {
+        player.setApiService(apiService)
+    }
+    
+    fun loadPlaylists(showToast: Boolean = false) {
+        if (isLoggedIn && userId > 0 && cookie.isNotEmpty()) {
+            scope.launch {
+                val result = withTimeoutOrNull(10000L) {
+                    apiService.getUserPlaylists(userId, cookie)
+                }
+                result?.fold(
+                    onSuccess = { response ->
+                        playlists = response.playlist ?: emptyList()
+                        isLoading = false
+                        isRefreshing = false
+                        if (showToast) {
+                            Toast.makeText(context, "刷新成功，共${playlists.size}个歌单", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onFailure = { e ->
+                        errorMessage = e.message
+                        isLoading = false
+                        isRefreshing = false
+                        if (showToast) {
+                            Toast.makeText(context, "刷新失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) ?: run {
+                    isLoading = false
+                    isRefreshing = false
+                    if (showToast) {
+                        Toast.makeText(context, "请求超时", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        } else {
+            isLoading = false
+            isRefreshing = false
+        }
+    }
+    
+    LaunchedEffect(refreshKey) {
+        loadPlaylists()
+    }
+    
+    val drawerValue by drawerState.currentValue.collectAsStateWithLifecycle()
+    
+    if (drawerValue == DrawerValue.Open) {
+        ModalDrawerSheet(modifier = Modifier.width(280.dp)) {
+            DrawerContent(
+                onLoginClick = {
+                    scope.launch { drawerState.close() }
+                    onLoginClick()
+                },
+                onLogoutClick = {
+                    sessionManager.logout()
+                    scope.launch { drawerState.close() }
+                    onRefresh()
+                },
+                onCopyCookieClick = {
+                    val clip = android.content.ClipData.newPlainText("cookie", cookie)
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(context, "Cookie已复制", Toast.LENGTH_SHORT).show()
+                    scope.launch { drawerState.close() }
+                },
+                onNavigate = {
+                    scope.launch { drawerState.close() }
+                },
+                refreshKey = refreshKey
+            )
+        }
+    }
+    
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            LargeTopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "NCMD",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (isLoggedIn) {
+                            Text(
+                                text = nickname,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        isRefreshing = true
+                        loadPlaylists(showToast = true)
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = onSearchClick) {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
+            )
+        }
+    ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = { loadPlaylists(showToast = true) },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        when {
+                            !isLoggedIn -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = "请先登录",
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        FilledTonalButton(onClick = onLoginClick) {
+                                            Text("登录")
+                                        }
+                                    }
+                                }
+                            }
+                            isLoading && playlists.isEmpty() -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                            else -> {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    item {
+                                        SectionHeader(
+                                            title = "我的歌单",
+                                            onExpandClick = {
+                                                val intent = Intent(context, PlaylistListActivity::class.java)
+                                                intent.putExtra("cookie", cookie)
+                                                intent.putExtra("userId", userId)
+                                                context.startActivity(intent)
+                                            }
+                                        )
+                                    }
+                                    
+                                    item {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            playlists.take(3).forEach { playlist ->
+                                                PreviewPlaylistCard(
+                                                    playlist = playlist,
+                                                    onClick = {
+                                                        val intent = Intent(context, PlaylistDetailActivity::class.java)
+                                                        intent.putExtra("playlistId", playlist.id)
+                                                        intent.putExtra("playlistName", playlist.name)
+                                                        intent.putExtra("cookie", cookie)
+                                                        context.startActivity(intent)
+                                                    },
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (playlists.isEmpty()) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(32.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "暂无歌单",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                PlaybackBar()
+            }
+        }
+        
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(2f)
+        ) {
+            PlaybackBar()
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DrawerContent(
+    onLoginClick: () -> Unit,
+    onLogoutClick: () -> Unit,
+    onCopyCookieClick: () -> Unit,
+    onNavigate: () -> Unit,
+    refreshKey: Long = 0
+) {
+    val context = LocalContext.current
+    val sessionManager by remember(refreshKey) { mutableStateOf(SessionManager(context)) }
+    val isLoggedIn = sessionManager.isLoggedIn()
+    val nickname = sessionManager.getNickname()
+    val avatarUrl = sessionManager.getAvatarUrl()
+    val userId = sessionManager.getUserId()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        ListItem(
+            headlineContent = {
+                Text(
+                    text = if (isLoggedIn) nickname else "未登录",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            supportingContent = if (isLoggedIn) {
+                { Text("UID: $userId") }
+            } else null,
+            leadingContent = {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (avatarUrl != null && isLoggedIn) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "Avatar",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = "Default Avatar",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (!isLoggedIn) {
+            Button(
+                onClick = onLoginClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("登录")
+            }
+        } else {
+            FilledTonalButton(
+                onClick = onCopyCookieClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("复制Cookie")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            FilledTonalButton(
+                onClick = onLogoutClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("退出登录")
+            }
+        }
+    }
+}
+
+@Composable
+fun SectionHeader(
+    title: String,
+    onExpandClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
+        FilledTonalButton(onClick = onExpandClick) {
+            Text("展开")
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun PreviewPlaylistCard(
+    playlist: PlaylistItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                if (playlist.coverImgUrl != null) {
+                    AsyncImage(
+                        model = playlist.coverImgUrl,
+                        contentDescription = playlist.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("♪", style = MaterialTheme.typography.headlineMedium)
+                    }
+                }
+            }
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    text = playlist.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${playlist.trackCount}首",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PlaybackBar() {
+    val context = LocalContext.current
+    val player = rememberPlayerManager(context)
+    
+    val hasPlaylist = player.currentPlaylist.isNotEmpty()
+    val currentTrack = player.currentTrack
+    val currentPosition = player.currentPosition
+    val duration = player.duration
+    val progress = if (duration > 0) {
+        currentPosition.toFloat() / duration.toFloat()
+    } else 0f
+    
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 8.dp,
+            shadowElevation = 8.dp
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatTime(currentPosition),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (hasPlaylist) currentTrack?.name ?: "未播放" else "未播放",
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = if (hasPlaylist) currentTrack?.artists ?: "" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    
+                    if (hasPlaylist) {
+                        FilledIconButton(
+                            onClick = { player.previous() },
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.SkipPrevious,
+                                contentDescription = "Previous"
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(4.dp))
+                        
+                        FilledIconButton(
+                            onClick = { player.togglePlayPause() },
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                if (player.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (player.isPlaying) "Pause" else "Play",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(4.dp))
+                        
+                        FilledIconButton(
+                            onClick = { player.next() },
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.SkipNext,
+                                contentDescription = "Next"
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Text(
+                        text = formatTime(duration),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                if (player.isLoading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                    )
+                } else if (hasPlaylist) {
+                    Slider(
+                        value = progress,
+                        onValueChange = { newValue ->
+                            player.seekTo((newValue * duration).toInt())
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        strokeWidth = 4.dp,
+                    )
+                }
+            }
+        }
+        
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset(x = 16.dp, y = (-20).dp)
+                .zIndex(1f)
+        ) {
+            Surface(
+                modifier = Modifier.size(64.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shadowElevation = 8.dp
+            ) {
+                if (currentTrack?.albumPicUrl != null) {
+                    AsyncImage(
+                        model = currentTrack.albumPicUrl,
+                        contentDescription = "Album Art",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("♪", style = MaterialTheme.typography.headlineMedium)
+                    }
+                }
+            }
+        }
+    }
+}
+        }
+        
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 4.dp,
+            shadowElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .zIndex(1f)
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shadowElevation = 6.dp
+                    ) {
+                        if (currentTrack?.albumPicUrl != null) {
+                            AsyncImage(
+                                model = currentTrack.albumPicUrl,
+                                contentDescription = "Album Art",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("♪")
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (hasPlaylist) currentTrack?.name ?: "未播放" else "未播放",
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (hasPlaylist) currentTrack?.artists ?: "" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                
+                if (hasPlaylist) {
+                    FilledIconButton(
+                        onClick = { player.previous() },
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.SkipPrevious,
+                            contentDescription = "Previous"
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(4.dp))
+                    
+                    FilledIconButton(
+                        onClick = { player.togglePlayPause() },
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            if (player.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (player.isPlaying) "Pause" else "Play",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(4.dp))
+                    
+                    FilledIconButton(
+                        onClick = { player.next() },
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.SkipNext,
+                            contentDescription = "Next"
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatTime(milliseconds: Int): String {
+    val totalSeconds = milliseconds / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
+}
