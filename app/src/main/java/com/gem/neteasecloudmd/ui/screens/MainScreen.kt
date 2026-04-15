@@ -93,10 +93,7 @@ fun MainScreen(
     ) {
         Scaffold(
             modifier = Modifier
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .pointerInput(Unit) {
-                    detectDragGestures { _, _ -> }
-                },
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
             topBar = {
                 LargeTopAppBar(
                     title = {

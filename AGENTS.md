@@ -1,176 +1,61 @@
 # NCMD Agent Guidelines
 
-Guidelines for agentic coding agents working on the NCMD Android music player (Jetbrains-based).
+Guidelines for coding agents working on NCMD (Android, Kotlin, Compose, Material 3).
 
-## 1. Build & Test Commands
+## 1. Project Snapshot
 
-### Building
-- **Build project**: `jetbrains_build_project` (preferred)
-- **Gradle**: `./gradlew build` or `./gradlew clean build`
-- **Rebuild specific file**: `jetbrains_build_project` with `filesToRebuild` parameter
+- Architecture: single-Activity + Compose Navigation
+- Entry: `MainActivity` -> `NCMDApp()`
+- Navigation host: `ui/navigation/NavGraph.kt`
+- Core screens: `ui/screens/*`
+- Playback state: `api/PlayerManager.kt` (singleton)
+- Session/theme settings: `api/SessionManager.kt`
+- Local data: Room (`data/local/*`, `data/repository/*`)
 
-### Testing  
-- **All unit tests**: `jetbrains_execute_run_configuration` or `./gradlew testDebugUnitTest`
-- **Single test class**: `./gradlew testDebugUnitTest --tests com.gem.neteasecloudmd.ClassName`
-- **Single test method**: `./gradlew testDebugUnitTest --tests com.gem.neteasecloudmd.ClassName.methodName`
-- **Instrumented tests**: `jetbrains_execute_run_configuration` with Android test config
-- **With coverage**: `./gradlew testDebugUnitTestCoverage`
+## 2. Build / Test / Run
 
-### Running & Debugging
-- **Install & run app**: `jetbrains_execute_run_configuration` with "app" config
-- **View logs**: `jetbrains_execute_terminal_command` + `adb logcat` (NOT bash)
-- **Filter logs**: `adb logcat com.gem.neteasecloudmd:I`
+- Preferred build: `jetbrains_build_project`
+- Gradle build: `./gradlew build`
+- Unit tests: `./gradlew testDebugUnitTest`
+- Single test: `./gradlew testDebugUnitTest --tests com.gem.neteasecloudmd.YourTest`
 
-**NOTE**: Use JetBrains tools for all build/run/test operations. Avoid bash for these.
+Use JetBrains tools for build/run/test when available.
 
----
+## 3. Current UX Rules (Do Not Break)
 
-## 2. Code Style Guidelines
+- Playback bar is global overlay and hidden only on login route.
+- Playback gestures:
+  - Horizontal swipe on bar: switch songs
+  - Vertical swipe: no-op
+  - Long-press + hold: haptic feedback, then horizontal drag to seek
+  - While long-press seeking: cover/info/controls fade out; progress guide shows
+- Cover overflow behavior is configurable in Settings.
 
-### 2.1 Kotlin Conventions (Official Style)
-- **Naming**: camelCase for variables/functions, PascalCase for classes
-- **Singletons**: Use `object CryptoUtil` for utility classes
-- **Imports**: Organized in groups (kotlin.*, android.*, androidx.*, third-party, project), alphabetically sorted, no wildcards
-- **Strings**: Hardcoded for now; use triple quotes or `.trimIndent()` for multi-line strings
-- **Lambdas**: Single-line on same line; multi-line on separate lines
+## 4. Coding Conventions
 
-### 2.2 Compose UI Conventions
-- **Modifiers**: Always last parameter, use dot notation
-- **Spacing**: Material Design 3 (4dp, 8dp, 12dp, 16dp, 24dp, 32dp)
-- **Colors**: Use `MaterialTheme.colorScheme.*` instead of hardcoding
-- **State**: Prefer `remember { mutableStateOf(...) }` for local state
-- **Annotations**: Use `@Composable`, `@OptIn(ExperimentalMaterial3Api::class)` as needed
+- Follow official Kotlin style (`kotlin.code.style=official`).
+- Use Material 3 components and `MaterialTheme.colorScheme`.
+- Keep composables stateless where possible; move screen state/network to ViewModel.
+- Use `Result<T>` for API outcomes and show user-facing errors.
+- Keep imports clean; no wildcard imports.
 
-### 2.3 Type System
-- Explicit types for public API functions; infer for obvious local variables
-- Nullable types: Use `.let { }` or `?.` operator over explicit null checks
-- Data classes: Add `@Serializable` for API responses
-- Sealed classes for exhaustive when expressions
+## 5. Architecture Rules
 
-### 2.4 Error Handling
-- Use `Result<T>` pattern: `Result.success(value)` / `Result.failure(exception)`
-- Log errors with `Log.e(tag, message, exception)` before propagating
-- Meaningful error messages always
-- Network timeouts handled gracefully with user-facing messages
+- Keep single-Activity architecture. Do not reintroduce multi-Activity flow.
+- New screens must be added through `Screen.kt` and `NavGraph.kt`.
+- Route params that may contain special characters must be URI-encoded.
+- Avoid business/network logic directly inside large composables.
 
-### 2.5 API & Networking
-- All API responses: `@Serializable` data classes
-- Use `withContext(Dispatchers.IO)` for network calls
-- Wrap with `try/catch` and convert to Result types
-- Cookies via headers: `Cookie: <cookie-string>`
-- Tag OkHttpClient requests for debugging
+## 6. Security / Data
 
-### 2.6 Coroutines
-- `CoroutineScope(Dispatchers.Main)` for UI operations
-- `withContext(Dispatchers.IO)` for I/O operations
-- `withTimeoutOrNull(timeoutMs)` for operations with timeouts
-- Cancel scopes to prevent memory leaks (auto-handled in Compose)
+- Never log full cookies or secrets.
+- Session data lives in `SessionManager`.
+- If adding settings, persist in `SessionManager` and wire to UI reactively.
 
-### 2.7 File Organization
-```
-app/src/main/java/com/gem/neteasecloudmd/
-├── LoginActivity.kt              # Login UI
-├── MainActivity.kt               # Home/player UI
-├── PlaylistDetailActivity.kt     # Playlist view
-├── PlaylistListActivity.kt       # Playlist browse
-├── RecentPlaysActivity.kt        # Recently played
-├── api/
-│   ├── CryptoUtil.kt            # AES + RSA encryption
-│   ├── NeteaseApiService.kt     # HTTP API client
-│   ├── SessionManager.kt         # Cookies & persistence
-│   └── PlayerManager.kt          # ExoPlayer integration
-├── data/
-│   ├── local/entity/             # Room entities
-│   ├── local/dao/                # Room DAOs
-│   └── repository/               # Data repositories
-└── ui/theme/
-    ├── Theme.kt
-    ├── Color.kt
-    └── Type.kt
-```
+## 7. PR / Commit Checklist
 
-### 2.8 Naming Conventions
-- **API methods**: camelCase (e.g., `getUserPlaylists()`)
-- **State variables**: Present tense (e.g., `isLoading`, `currentTrack`)
-- **Event callbacks**: "on" prefix (e.g., `onLoginClick`, `onRefresh`)
-- **Colors**: Semantic names (e.g., `primary`, `onSurfaceVariant`)
-- **Log tags**: Use class name (e.g., `Log.e("PlayerManager", ...)`)
-
----
-
-## 3. Project-Specific Guidelines
-
-### 3.1 Netease API
-- **Base URL**: `https://music.163.com/weapi/*`
-- **Encryption**: All request bodies must use `CryptoUtil.weapi(jsonData)`
-- **Response format**: Wrap in `LoginResult`, `PlaylistResponse`, etc.
-- **Error codes**: 200 = success, 400 = security verification, others = display error
-
-### 3.2 Authentication
-- **Login methods**: 1) Phone + password 2) SMS captcha (phone only)
-- **Session storage**: Use `SessionManager` for cookie & profile persistence
-- **Logout**: Clear SharedPreferences and reset UI state
-
-### 3.3 ExoPlayer Integration
-- **Thread safety**: Access ExoPlayer only on main thread
-- **State tracking**: Update `currentPosition` and `duration` every 1 second
-- **Lifecycle**: Release player in `onDestroy()` to prevent memory leaks
-
-### 3.4 UI/UX Principles
-- Follow Material Design 3 specifications
-- Use MD3 components (Scaffold, TopAppBar, Surface, etc.)
-- Implement proper loading states (progress indicators)
-- Show error messages via Toast or inline text
-
----
-
-## 4. Common Patterns
-
-### 4.1 API Call Pattern
-```kotlin
-suspend fun fetchData(): Result<DataType> = withContext(Dispatchers.IO) {
-    return@withContext try {
-        val response = apiClient.makeRequest()
-        Result.success(response.data)
-    } catch (e: Exception) {
-        Log.e("Tag", "Error fetching data", e)
-        Result.failure(e)
-    }
-}
-```
-
-### 4.2 State Management Pattern
-```kotlin
-var data by remember { mutableStateOf<List<Item>>(emptyList()) }
-var isLoading by remember { mutableStateOf(false) }
-
-LaunchedEffect(refreshKey) {
-    isLoading = true
-    val result = fetchData()
-    result.onSuccess { data = it }
-    isLoading = false
-}
-```
-
-### 4.3 Error Handling in UI
-```kotlin
-result.fold(
-    onSuccess = { value -> /* update UI */ },
-    onFailure = { e -> errorMessage = e.message }
-)
-```
-
----
-
-## 5. Code Review Checklist
-
-Before committing changes:
-- [ ] Compiled successfully with `jetbrains_build_project`
-- [ ] Imports organized and unused imports removed
-- [ ] Used Material 3 components and themes
-- [ ] Error messages are user-friendly
-- [ ] Coroutines use correct Dispatchers
-- [ ] No hardcoded strings longer than reasonable
-- [ ] Null safety handled explicitly
-- [ ] Comments added for complex logic
-- [ ] Follows naming conventions
+- Build passes (`jetbrains_build_project`).
+- Navigation works for changed routes.
+- Playback bar behavior unchanged unless requested.
+- No obsolete/dead files from old architecture.
+- README and AGENTS updated when behavior/architecture changes.
