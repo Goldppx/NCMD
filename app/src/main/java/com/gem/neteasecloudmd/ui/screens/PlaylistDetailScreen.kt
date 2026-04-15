@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -41,6 +43,7 @@ fun PlaylistDetailScreen(
     
     var refreshKey by remember { mutableLongStateOf(0L) }
     var tracks by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
+    var likedSongIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -60,6 +63,7 @@ fun PlaylistDetailScreen(
                 result?.fold(
                     onSuccess = { trackList ->
                         tracks = trackList
+                        likedSongIds = apiService.getLikedSongIds(sessionManager.getUserId(), cookie).getOrDefault(emptySet())
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
@@ -109,7 +113,6 @@ fun PlaylistDetailScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        isRefreshing = true
                         refreshKey++
                         loadTracks(showToast = true)
                     }) {
@@ -194,6 +197,7 @@ fun PlaylistDetailScreen(
                                 SongCard(
                                     track = track,
                                     index = index + 1,
+                                    isLiked = likedSongIds.contains(track.id),
                                     onClick = {
                                         player.setCookie(cookie)
                                         player.setPlaylist(tracks, index)
@@ -264,6 +268,7 @@ private fun PlayAllCard(
 private fun SongCard(
     track: TrackItem,
     index: Int,
+    isLiked: Boolean,
     onClick: () -> Unit
 ) {
     Card(
@@ -324,9 +329,9 @@ private fun SongCard(
             }
             
             Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = "Play",
-                tint = MaterialTheme.colorScheme.primary
+                imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = if (isLiked) "已喜欢" else "未喜欢",
+                tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -13,6 +13,7 @@ import com.gem.neteasecloudmd.ui.screens.MainScreen
 import com.gem.neteasecloudmd.ui.screens.PlaylistDetailScreen
 import com.gem.neteasecloudmd.ui.screens.PlaylistListScreen
 import com.gem.neteasecloudmd.ui.screens.RecentPlaysScreen
+import com.gem.neteasecloudmd.ui.screens.SearchDetailScreen
 import com.gem.neteasecloudmd.ui.screens.SearchScreen
 import com.gem.neteasecloudmd.ui.screens.SettingsScreen
 
@@ -91,6 +92,28 @@ fun NavGraph(
 
         composable(Screen.Search.route) {
             SearchScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToSearchDetail = { type, id, name ->
+                    navController.navigate(Screen.SearchDetail.createRoute(type, id, name))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.SearchDetail.route,
+            arguments = listOf(
+                navArgument("type") { type = NavType.StringType },
+                navArgument("id") { type = NavType.LongType },
+                navArgument("name") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val type = backStackEntry.arguments?.getString("type") ?: "playlist"
+            val id = backStackEntry.arguments?.getLong("id") ?: 0L
+            val name = Uri.decode(backStackEntry.arguments?.getString("name") ?: "详情")
+            SearchDetailScreen(
+                type = type,
+                id = id,
+                name = name,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

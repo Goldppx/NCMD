@@ -30,6 +30,12 @@ data class TrackItem(
     val duration: Int = 0
 )
 
+enum class PlayMode {
+    SEQUENTIAL,
+    SHUFFLE,
+    REPEAT_ONE
+}
+
 class PlayerManager private constructor(private val context: Context) {
     var isPlaying by mutableStateOf(false)
         private set
@@ -49,9 +55,16 @@ class PlayerManager private constructor(private val context: Context) {
     var duration by mutableIntStateOf(0)
         private set
 
+    var themeSeedArgb by mutableIntStateOf(0)
+        private set
+
+    var playMode by mutableStateOf(PlayMode.SEQUENTIAL)
+        private set
+
     private var exoPlayer: ExoPlayer? = null
     private var currentCookie: String = ""
     private var currentApiService: NeteaseApiService? = null
+    private var isPersonalFmMode: Boolean = false
     private val mainHandler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
         override fun run() {
@@ -121,9 +134,14 @@ class PlayerManager private constructor(private val context: Context) {
     fun setCookie(cookie: String) {
         currentCookie = cookie
     }
+
+    fun setThemeSeedColor(argb: Int) {
+        themeSeedArgb = argb
+    }
     
     fun setPlaylist(tracks: List<TrackItem>, startIndex: Int = 0) {
         Log.d("PlayerManager", "setPlaylist: ${tracks.size} tracks, startIndex: $startIndex")
+        isPersonalFmMode = false
         currentPlaylist = tracks
         currentTrackIndex = startIndex.coerceIn(0, maxOf(0, tracks.size - 1))
         isPlaying = true
@@ -134,6 +152,16 @@ class PlayerManager private constructor(private val context: Context) {
             musicRepository.saveCurrentPlaylist(tracks, currentTrackIndex)
         }
         
+        loadAndPlayCurrentTrack()
+    }
+
+    fun setPersonalFmPlaylist(tracks: List<TrackItem>, startIndex: Int = 0) {
+        isPersonalFmMode = true
+        currentPlaylist = tracks
+        currentTrackIndex = startIndex.coerceIn(0, maxOf(0, tracks.size - 1))
+        isPlaying = true
+        currentPosition = 0
+        duration = 0
         loadAndPlayCurrentTrack()
     }
     
@@ -230,6 +258,39 @@ class PlayerManager private constructor(private val context: Context) {
     }
     
     fun next() {
+        if (currentPlaylist.isEmpty()) return
+
+        if (playMode == PlayMode.REPEAT_ONE) {
+            currentPosition = 0
+            duration = 0
+            loadAndPlayCurrentTrack()
+            return
+        }
+
+        if (playMode == PlayMode.SHUFFLE && currentPlaylist.size > 1) {
+            val oldIndex = currentTrackIndex
+            var newIndex = oldIndex
+            repeat(5) {
+                newIndex = (currentPlaylist.indices).random()
+                if (newIndex != oldIndex) return@repeat
+            }
+            if (newIndex == oldIndex) {
+                newIndex = (oldIndex + 1) % currentPlaylist.size
+            }
+
+            currentTrackIndex = newIndex
+            currentPosition = 0
+            duration = 0
+            CoroutineScope(Dispatchers.IO).launch {
+                musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
+                currentTrack?.let { track ->
+                    musicRepository.addRecentPlay(track)
+                }
+            }
+            loadAndPlayCurrentTrack()
+            return
+        }
+
         if (currentTrackIndex < currentPlaylist.size - 1) {
             currentTrackIndex++
             currentPosition = 0
@@ -244,11 +305,86 @@ class PlayerManager private constructor(private val context: Context) {
             
             loadAndPlayCurrentTrack()
         } else {
+            if (isPersonalFmMode) {
+                fetchMorePersonalFmAndPlay()
+            } else {
+                isPlaying = false
+            }
+        }
+    }
+
+    private fun fetchMorePersonalFmAndPlay() {
+        val apiService = currentApiService ?: run {
             isPlaying = false
+            return
+        }
+        if (currentCookie.isBlank()) {
+            isPlaying = false
+            return
+        }
+
+        isLoading = true
+        CoroutineScope(Dispatchers.IO).launch {
+            val result = apiService.getPersonalFm(currentCookie, 6)
+            result.fold(
+                onSuccess = { newTracks ->
+                    if (newTracks.isNotEmpty()) {
+                        val dedupedNewTracks = newTracks.filter { newTrack ->
+                            currentPlaylist.none { it.id == newTrack.id }
+                        }
+                        if (dedupedNewTracks.isNotEmpty()) {
+                            currentPlaylist = currentPlaylist + dedupedNewTracks
+                            currentTrackIndex = (currentTrackIndex + 1).coerceAtMost(currentPlaylist.lastIndex)
+                            loadAndPlayCurrentTrack()
+                        } else {
+                            currentPlaylist = currentPlaylist + newTracks
+                            currentTrackIndex = (currentTrackIndex + 1).coerceAtMost(currentPlaylist.lastIndex)
+                            loadAndPlayCurrentTrack()
+                        }
+                    } else {
+                        isLoading = false
+                        isPlaying = false
+                    }
+                },
+                onFailure = {
+                    isLoading = false
+                    isPlaying = false
+                }
+            )
         }
     }
     
     fun previous() {
+        if (currentPlaylist.isEmpty()) return
+
+        if (playMode == PlayMode.REPEAT_ONE) {
+            currentPosition = 0
+            duration = 0
+            loadAndPlayCurrentTrack()
+            return
+        }
+
+        if (playMode == PlayMode.SHUFFLE && currentPlaylist.size > 1) {
+            val oldIndex = currentTrackIndex
+            var newIndex = oldIndex
+            repeat(5) {
+                newIndex = (currentPlaylist.indices).random()
+                if (newIndex != oldIndex) return@repeat
+            }
+            if (newIndex == oldIndex) {
+                newIndex = (oldIndex - 1).coerceAtLeast(0)
+            }
+
+            currentTrackIndex = newIndex
+            currentPosition = 0
+            duration = 0
+            CoroutineScope(Dispatchers.IO).launch {
+                musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
+            }
+            loadAndPlayCurrentTrack()
+            return
+        }
+
         if (currentTrackIndex > 0) {
             currentTrackIndex--
             currentPosition = 0
@@ -269,6 +405,57 @@ class PlayerManager private constructor(private val context: Context) {
         mainHandler.post {
             exoPlayer?.seekTo(position.toLong())
             currentPosition = position
+        }
+    }
+
+    fun updatePlayMode(mode: PlayMode) {
+        playMode = mode
+    }
+
+    fun clearPlaylist() {
+        currentPlaylist = emptyList()
+        currentTrackIndex = 0
+        currentUrl = null
+        isPlaying = false
+        isLoading = false
+        currentPosition = 0
+        duration = 0
+        mainHandler.post {
+            exoPlayer?.stop()
+            exoPlayer?.clearMediaItems()
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            musicRepository.clearCurrentPlaylist()
+        }
+    }
+
+    fun removeTrackAt(index: Int) {
+        if (index !in currentPlaylist.indices) return
+
+        val mutable = currentPlaylist.toMutableList()
+        val removingCurrent = index == currentTrackIndex
+        mutable.removeAt(index)
+
+        if (mutable.isEmpty()) {
+            clearPlaylist()
+            return
+        }
+
+        currentPlaylist = mutable
+
+        if (index < currentTrackIndex) {
+            currentTrackIndex -= 1
+        } else if (removingCurrent) {
+            if (currentTrackIndex >= currentPlaylist.size) {
+                currentTrackIndex = currentPlaylist.lastIndex
+            }
+            currentPosition = 0
+            duration = 0
+            loadAndPlayCurrentTrack()
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
         }
     }
     

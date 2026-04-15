@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,8 +19,13 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -39,6 +45,11 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import androidx.core.graphics.drawable.toBitmap
+import androidx.palette.graphics.Palette
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
@@ -550,6 +561,7 @@ fun PlaybackBar(
     val player = rememberPlayerManager(context)
     val hapticFeedback = androidx.compose.ui.platform.LocalHapticFeedback.current
     val disableCoverOverflow = sessionManager.isCoverOverflowDisabled()
+    val enableCoverPalette = sessionManager.isCoverPaletteEnabled()
 
     val hasPlaylist = player.currentPlaylist.isNotEmpty()
     val currentTrack = player.currentTrack
@@ -572,6 +584,43 @@ fun PlaybackBar(
     var accumulatedDeltaY by remember { mutableFloatStateOf(0f) }
     var hasReachedThreshold by remember { mutableStateOf(false) }
     var gestureDirection by remember { mutableStateOf<GestureDirection>(GestureDirection.NONE) }
+    var showQueueSheet by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentTrack?.albumPicUrl, enableCoverPalette) {
+        if (!enableCoverPalette) {
+            player.setThemeSeedColor(0)
+            return@LaunchedEffect
+        }
+
+        val coverUrl = currentTrack?.albumPicUrl
+        if (coverUrl.isNullOrBlank()) {
+            player.setThemeSeedColor(0)
+            return@LaunchedEffect
+        }
+
+        try {
+            val request = ImageRequest.Builder(context)
+                .data(coverUrl)
+                .allowHardware(false)
+                .build()
+            val result = context.imageLoader.execute(request)
+            val bitmap = (result as? SuccessResult)?.drawable?.toBitmap()
+            if (bitmap == null) {
+                player.setThemeSeedColor(0)
+                return@LaunchedEffect
+            }
+
+            val palette = Palette.from(bitmap).generate()
+            val pickedColor = palette.vibrantSwatch?.rgb
+                ?: palette.lightVibrantSwatch?.rgb
+                ?: palette.darkVibrantSwatch?.rgb
+                ?: palette.mutedSwatch?.rgb
+                ?: palette.getDominantColor(0)
+            player.setThemeSeedColor(pickedColor)
+        } catch (_: Exception) {
+            player.setThemeSeedColor(0)
+        }
+    }
 
     LaunchedEffect(progress) {
         if (!isAdjustingProgress) {
@@ -624,6 +673,13 @@ fun PlaybackBar(
                                             GestureDirection.LEFT
                                         }
                                     }
+                                    absY > absX * 2.0f -> {
+                                        gestureDirection = if (accumulatedDeltaY > 0) {
+                                            GestureDirection.DOWN
+                                        } else {
+                                            GestureDirection.UP
+                                        }
+                                    }
                                     else -> {
                                         gestureDirection = GestureDirection.NONE
                                     }
@@ -646,7 +702,11 @@ fun PlaybackBar(
                                         player.previous()
                                     }
                                 }
-                                GestureDirection.UP -> {}
+                                GestureDirection.UP -> {
+                                    if (kotlin.math.abs(accumulatedDeltaY) > 100) {
+                                        showQueueSheet = true
+                                    }
+                                }
                                 GestureDirection.DOWN -> {}
                                 GestureDirection.NONE -> {}
                             }
@@ -815,6 +875,196 @@ fun PlaybackBar(
                         if (player.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (player.isPlaying) "Pause" else "Play"
                     )
+                }
+            }
+        }
+
+        if (showQueueSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showQueueSheet = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "播放队列",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "${player.currentPlaylist.size} 首",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilledTonalIconButton(
+                        onClick = { player.updatePlayMode(com.gem.neteasecloudmd.api.PlayMode.SEQUENTIAL) },
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.SEQUENTIAL) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            },
+                            contentColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.SEQUENTIAL) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    ) {
+                        Icon(Icons.Default.Repeat, contentDescription = "顺序播放")
+                    }
+                    FilledTonalIconButton(
+                        onClick = { player.updatePlayMode(com.gem.neteasecloudmd.api.PlayMode.SHUFFLE) },
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.SHUFFLE) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            },
+                            contentColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.SHUFFLE) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    ) {
+                        Icon(Icons.Default.Shuffle, contentDescription = "随机播放")
+                    }
+                    FilledTonalIconButton(
+                        onClick = { player.updatePlayMode(com.gem.neteasecloudmd.api.PlayMode.REPEAT_ONE) },
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.REPEAT_ONE) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            },
+                            contentColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.REPEAT_ONE) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    ) {
+                        Icon(Icons.Default.RepeatOne, contentDescription = "单曲循环")
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    TextButton(
+                        onClick = {
+                            player.clearPlaylist()
+                            showQueueSheet = false
+                        }
+                    ) {
+                        Icon(Icons.Default.DeleteSweep, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("清空")
+                    }
+                }
+
+                if (player.currentPlaylist.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "暂无播放队列",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                )
+                {
+                    itemsIndexed(player.currentPlaylist) { index, track ->
+                        val isCurrent = index == player.currentTrackIndex
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isCurrent) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerLow
+                                }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isCurrent) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    modifier = Modifier.width(28.dp)
+                                )
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = track.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = if (isCurrent) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = track.artists,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (isCurrent) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                IconButton(onClick = { player.removeTrackAt(index) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "删除",
+                                        tint = if (isCurrent) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

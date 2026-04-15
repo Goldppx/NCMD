@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gem.neteasecloudmd.api.SessionManager
+import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.navigation.NavGraph
 import com.gem.neteasecloudmd.ui.navigation.Screen
 import com.gem.neteasecloudmd.ui.screens.PlaybackBar
@@ -27,6 +28,7 @@ fun NCMDApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    val player = rememberPlayerManager(context)
     var themeMode by remember { mutableIntStateOf(sessionManager.getThemeMode()) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -43,7 +45,13 @@ fun NCMDApp() {
         else -> isSystemInDarkTheme()
     }
 
-    NeteaseCloudMDTheme(darkTheme = useDarkTheme) {
+    val seedArgb = if (sessionManager.isCoverPaletteEnabled() && player.themeSeedArgb != 0) {
+        player.themeSeedArgb
+    } else {
+        null
+    }
+
+    NeteaseCloudMDTheme(darkTheme = useDarkTheme, seedArgb = seedArgb) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background

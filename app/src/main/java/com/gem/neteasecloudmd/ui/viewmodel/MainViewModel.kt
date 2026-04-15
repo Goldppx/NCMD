@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicInteger
 
 data class MainUiState(
     val isLoggedIn: Boolean = false,
@@ -23,6 +24,12 @@ data class MainUiState(
     val cookie: String = "",
     val playlists: List<PlaylistItem> = emptyList(),
     val recentPlays: List<TrackItem> = emptyList(),
+    val personalFmTracks: List<TrackItem> = emptyList(),
+    val likedSongIds: Set<Long> = emptySet(),
+    val useLocalRecentPlays: Boolean = true,
+    val isRecentLoading: Boolean = false,
+    val isPlaylistLoading: Boolean = false,
+    val isFmLoading: Boolean = false,
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null
@@ -39,7 +46,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             nickname = sessionManager.getNickname(),
             avatarUrl = sessionManager.getAvatarUrl(),
             userId = sessionManager.getUserId(),
-            cookie = sessionManager.getCookie()
+            cookie = sessionManager.getCookie(),
+            useLocalRecentPlays = sessionManager.useLocalRecentPlays()
         )
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -49,7 +57,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refresh() {
+        if (_uiState.value.isLoading) return
         loadHomeData(isRefresh = true)
+    }
+
+    fun setUseLocalRecentPlays(useLocal: Boolean) {
+        sessionManager.setUseLocalRecentPlays(useLocal)
+        _uiState.update { it.copy(useLocalRecentPlays = useLocal) }
+        loadHomeData(isRefresh = true)
+    }
+
+    fun toggleSongLike(songId: Long) {
+        val state = _uiState.value
+        if (!state.isLoggedIn || state.cookie.isBlank() || state.userId <= 0) return
+
+        val currentlyLiked = state.likedSongIds.contains(songId)
+        viewModelScope.launch {
+            val result = apiService.setSongLiked(songId, !currentlyLiked, state.cookie)
+            result.onSuccess {
+                val ids = apiService.getLikedSongIds(state.userId, state.cookie).getOrNull() ?: emptySet()
+                _uiState.update { it.copy(likedSongIds = ids) }
+            }
+        }
+    }
+
+    fun startPersonalFm() {
+        val state = _uiState.value
+        if (state.personalFmTracks.isNotEmpty()) {
+            val playerManager = PlayerManager.getInstance(appContext)
+            playerManager.setApiService(apiService)
+            playerManager.setCookie(state.cookie)
+            playerManager.setPersonalFmPlaylist(state.personalFmTracks, 0)
+        }
     }
 
     private fun loadHomeData(isRefresh: Boolean) {
@@ -64,8 +103,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 avatarUrl = sessionManager.getAvatarUrl(),
                 userId = userId,
                 cookie = cookie,
+                useLocalRecentPlays = sessionManager.useLocalRecentPlays(),
+                isRecentLoading = true,
+                isPlaylistLoading = true,
+                isFmLoading = true,
                 isRefreshing = isRefresh,
-                isLoading = !isRefresh,
+                isLoading = true,
                 errorMessage = null
             )
         }
@@ -75,6 +118,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 it.copy(
                     playlists = emptyList(),
                     recentPlays = emptyList(),
+                    personalFmTracks = emptyList(),
+                    likedSongIds = emptySet(),
+                    isRecentLoading = false,
+                    isPlaylistLoading = false,
+                    isFmLoading = false,
                     isLoading = false,
                     isRefreshing = false
                 )
@@ -82,9 +130,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        viewModelScope.launch {
-            val recentPlays = PlayerManager.getInstance(appContext).getRecentPlays().take(3)
+        val pendingSections = AtomicInteger(3)
+        val markSectionDone = {
+            if (pendingSections.decrementAndGet() <= 0) {
+                _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
+            }
+        }
 
+        viewModelScope.launch {
+            val useLocalRecentPlays = sessionManager.useLocalRecentPlays()
+            val localRecent = PlayerManager.getInstance(appContext).getRecentPlays()
+            val recentPlays = if (useLocalRecentPlays) {
+                localRecent.take(3)
+            } else {
+                apiService.getUserPlayRecord(userId, cookie, 30).getOrDefault(emptyList()).take(3)
+            }
+
+            _uiState.update {
+                it.copy(
+                    recentPlays = recentPlays,
+                    isRecentLoading = false
+                )
+            }
+            markSectionDone()
+        }
+
+        viewModelScope.launch {
+            val personalFmTracks = apiService.getPersonalFm(cookie, 6).getOrDefault(emptyList())
+
+            _uiState.update {
+                it.copy(
+                    personalFmTracks = personalFmTracks,
+                    isFmLoading = false
+                )
+            }
+            markSectionDone()
+        }
+
+        viewModelScope.launch {
+            val likedSongIds = apiService.getLikedSongIds(userId, cookie).getOrDefault(emptySet())
+            _uiState.update { it.copy(likedSongIds = likedSongIds) }
+        }
+
+        viewModelScope.launch {
             val playlistsResult = withTimeoutOrNull(10000L) {
                 apiService.getUserPlaylists(userId, cookie)
             }
@@ -94,32 +182,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             playlists = response.playlist ?: emptyList(),
-                            recentPlays = recentPlays,
-                            isLoading = false,
-                            isRefreshing = false,
+                            isPlaylistLoading = false,
                             errorMessage = null
                         )
                     }
+                    markSectionDone()
                 },
                 onFailure = { e ->
                     _uiState.update {
                         it.copy(
-                            recentPlays = recentPlays,
-                            isLoading = false,
-                            isRefreshing = false,
+                            isPlaylistLoading = false,
                             errorMessage = e.message
                         )
                     }
+                    markSectionDone()
                 }
             ) ?: run {
                 _uiState.update {
                     it.copy(
-                        recentPlays = recentPlays,
-                        isLoading = false,
-                        isRefreshing = false,
+                        isPlaylistLoading = false,
                         errorMessage = "请求超时"
                     )
                 }
+                markSectionDone()
             }
         }
     }

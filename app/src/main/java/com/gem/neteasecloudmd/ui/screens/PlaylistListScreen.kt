@@ -1,6 +1,5 @@
 package com.gem.neteasecloudmd.ui.screens
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -96,7 +95,6 @@ fun PlaylistListScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        isRefreshing = true
                         refreshKey++
                         loadPlaylists(showToast = true)
                     }) {

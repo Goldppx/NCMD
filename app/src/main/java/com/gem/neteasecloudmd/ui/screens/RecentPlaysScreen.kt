@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.rememberPlayerManager
@@ -30,17 +31,24 @@ fun RecentPlaysScreen(
     val context = LocalContext.current
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
+    val apiService = remember { NeteaseApiService() }
     val scope = rememberCoroutineScope()
     
     var recentPlays by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     
     val cookie = sessionManager.getCookie()
+    val userId = sessionManager.getUserId()
+    val useLocalRecentPlays = sessionManager.useLocalRecentPlays()
     
     fun loadRecentPlays() {
         scope.launch {
             isLoading = true
-            recentPlays = player.getRecentPlays()
+            recentPlays = if (useLocalRecentPlays) {
+                player.getRecentPlays()
+            } else {
+                apiService.getUserPlayRecord(userId, cookie, 100).getOrDefault(emptyList())
+            }
             isLoading = false
         }
     }

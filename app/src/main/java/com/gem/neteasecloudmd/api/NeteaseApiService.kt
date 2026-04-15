@@ -7,10 +7,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
@@ -454,6 +458,665 @@ class NeteaseApiService {
             Result.failure(e)
         }
     }
+
+    suspend fun getUserPlayRecord(uid: Long, cookie: String, limit: Int = 100): Result<List<TrackItem>> = withContext(Dispatchers.IO) {
+        try {
+            val params = mapOf(
+                "uid" to uid.toString(),
+                "type" to "0",
+                "limit" to limit.toString(),
+                "offset" to "0"
+            )
+
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/v1/play/record")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = json.decodeFromString<UserPlayRecordResponse>(body)
+            if (result.code != 200) {
+                return@withContext Result.failure(Exception(result.message ?: "Failed to get user play record"))
+            }
+
+            val tracksFromWeapi = (result.allData ?: result.weekData ?: emptyList())
+                .mapNotNull { it.song }
+                .map { song ->
+                    TrackItem(
+                        id = song.id,
+                        name = song.name ?: "未知",
+                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
+                        albumName = song.al?.name ?: "未知专辑",
+                        albumPicUrl = song.al?.picUrl,
+                        duration = song.dt ?: 0
+                    )
+                }
+
+            if (tracksFromWeapi.isNotEmpty()) {
+                return@withContext Result.success(tracksFromWeapi)
+            }
+
+            val fallbackRequest = Request.Builder()
+                .url("$BASE_URL/api/v1/play/record?uid=$uid&type=0")
+                .get()
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val fallbackResponse = client.newCall(fallbackRequest).execute()
+            val fallbackBody = fallbackResponse.body?.string() ?: ""
+            if (fallbackBody.isEmpty()) {
+                return@withContext Result.success(emptyList())
+            }
+
+            val fallbackResult = json.decodeFromString<UserPlayRecordResponse>(fallbackBody)
+            val fallbackTracks = (fallbackResult.allData ?: fallbackResult.weekData ?: emptyList())
+                .mapNotNull { it.song }
+                .map { song ->
+                    TrackItem(
+                        id = song.id,
+                        name = song.name ?: "未知",
+                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
+                        albumName = song.al?.name ?: "未知专辑",
+                        albumPicUrl = song.al?.picUrl,
+                        duration = song.dt ?: 0
+                    )
+                }
+
+            Result.success(fallbackTracks)
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPersonalFm(cookie: String, limit: Int = 6): Result<List<TrackItem>> = withContext(Dispatchers.IO) {
+        try {
+            val params = mapOf("csrf_token" to "")
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/v1/radio/get")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = json.decodeFromString<PersonalFmResponse>(body)
+            if (result.code != 200) {
+                return@withContext Result.failure(Exception("Failed to get personal FM"))
+            }
+
+            val tracks = result.data
+                ?.take(limit)
+                ?.map { track ->
+                    TrackItem(
+                        id = track.id,
+                        name = track.name ?: "未知",
+                        artists = track.artists?.joinToString(", ") { it.name ?: "" }
+                            ?: track.ar?.joinToString(", ") { it.name ?: "" }
+                            ?: "未知艺术家",
+                        albumName = track.album?.name ?: track.al?.name ?: "未知专辑",
+                        albumPicUrl = track.album?.picUrl ?: track.al?.picUrl,
+                        duration = track.duration ?: track.dt ?: 0
+                    )
+                }
+                ?: emptyList()
+
+            Result.success(tracks)
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRecentPlaySongs(cookie: String, limit: Int = 100): Result<List<TrackItem>> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("$BASE_URL/api/record/recent/song")
+                .get()
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = json.decodeFromString<RecentPlaySongsResponse>(body)
+            if (result.code != 200) {
+                return@withContext Result.failure(Exception("Failed to get recent play songs"))
+            }
+
+            val tracks = result.data?.list
+                ?.take(limit)
+                ?.mapNotNull { it.data }
+                ?.map { song ->
+                    TrackItem(
+                        id = song.id,
+                        name = song.name ?: "未知",
+                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
+                        albumName = song.al?.name ?: "未知专辑",
+                        albumPicUrl = song.al?.picUrl,
+                        duration = song.dt ?: 0
+                    )
+                }
+                ?: emptyList()
+
+            Result.success(tracks)
+        } catch (_: Exception) {
+            Result.failure(Exception("Failed to get recent play songs"))
+        }
+    }
+
+    suspend fun getLikedSongIds(uid: Long, cookie: String): Result<Set<Long>> = withContext(Dispatchers.IO) {
+        try {
+            val params = mapOf("uid" to uid.toString())
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/song/like/get")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = json.decodeFromString<LikedSongIdsResponse>(body)
+            if (result.code != 200) {
+                return@withContext Result.failure(Exception("Failed to get liked songs"))
+            }
+
+            Result.success((result.ids ?: emptyList()).toSet())
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun setSongLiked(songId: Long, like: Boolean, cookie: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val now = System.currentTimeMillis()
+            val directLikeUrls = listOf(
+                "$BASE_URL/api/like?id=$songId&like=$like&timestamp=$now",
+                "$BASE_URL/api/song/like?id=$songId&like=$like&timestamp=$now",
+                "$BASE_URL/like?id=$songId&like=$like&timestamp=$now"
+            )
+
+            for (url in directLikeUrls) {
+                val request = Request.Builder()
+                    .url(url)
+                    .get()
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .header("Cookie", cookie)
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: ""
+                if (body.isNotEmpty()) {
+                    runCatching { json.decodeFromString<SimpleCodeResponse>(body) }
+                        .getOrNull()
+                        ?.let { result ->
+                            if (result.code == 200) return@withContext Result.success(true)
+                        }
+                }
+            }
+
+            val params = mapOf(
+                "id" to songId.toString(),
+                "like" to like.toString(),
+                "time" to "3"
+            )
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val weapiLikeUrls = listOf(
+                "$BASE_URL/weapi/song/like",
+                "$BASE_URL/weapi/like"
+            )
+
+            for (url in weapiLikeUrls) {
+                val request = Request.Builder()
+                    .url(url)
+                    .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .header("Cookie", cookie)
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: ""
+                if (body.isNotEmpty()) {
+                    runCatching { json.decodeFromString<SimpleCodeResponse>(body) }
+                        .getOrNull()
+                        ?.let { result ->
+                            if (result.code == 200) return@withContext Result.success(true)
+                        }
+                }
+            }
+
+            Result.failure(Exception("Like operation failed"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun searchSongs(keywords: String, limit: Int = 30): Result<List<TrackItem>> = withContext(Dispatchers.IO) {
+        try {
+            val urls = listOf(
+                "$BASE_URL/api/search",
+                "$BASE_URL/api/search/get/web",
+                "$BASE_URL/search"
+            )
+
+            for (base in urls) {
+                val httpUrl = base.toHttpUrl().newBuilder()
+                    .addQueryParameter("keywords", keywords)
+                    .addQueryParameter("s", keywords)
+                    .addQueryParameter("type", "1")
+                    .addQueryParameter("limit", limit.toString())
+                    .build()
+
+                val request = Request.Builder()
+                    .url(httpUrl)
+                    .get()
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: ""
+                if (body.isEmpty()) continue
+
+                val result = runCatching { json.decodeFromString<SearchSongResponse>(body) }.getOrNull() ?: continue
+                val tracks = result.result?.songs?.map { song ->
+                    TrackItem(
+                        id = song.id,
+                        name = song.name ?: "未知",
+                        artists = (song.artists ?: song.ar)?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
+                        albumName = (song.album ?: song.al)?.name ?: "未知专辑",
+                        albumPicUrl = (song.album ?: song.al)?.picUrl,
+                        duration = song.duration ?: song.dt ?: 0
+                    )
+                } ?: emptyList()
+
+                if (tracks.isNotEmpty()) return@withContext Result.success(tracks)
+            }
+
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun searchPlaylists(keywords: String, limit: Int = 30): Result<List<PlaylistItem>> = withContext(Dispatchers.IO) {
+        try {
+            val urls = listOf(
+                "$BASE_URL/api/search",
+                "$BASE_URL/api/search/get/web",
+                "$BASE_URL/search"
+            )
+
+            for (base in urls) {
+                val httpUrl = base.toHttpUrl().newBuilder()
+                    .addQueryParameter("keywords", keywords)
+                    .addQueryParameter("s", keywords)
+                    .addQueryParameter("type", "1000")
+                    .addQueryParameter("limit", limit.toString())
+                    .build()
+
+                val request = Request.Builder()
+                    .url(httpUrl)
+                    .get()
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: ""
+                if (body.isEmpty()) continue
+
+                val result = runCatching { json.decodeFromString<SearchPlaylistResponse>(body) }.getOrNull() ?: continue
+                val playlists = result.result?.playlists?.map { playlist ->
+                    PlaylistItem(
+                        id = playlist.id,
+                        name = playlist.name ?: "未知歌单",
+                        coverImgUrl = playlist.coverImgUrl,
+                        trackCount = playlist.trackCount ?: 0
+                    )
+                } ?: emptyList()
+
+                if (playlists.isNotEmpty()) return@withContext Result.success(playlists)
+            }
+
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun searchAlbums(keywords: String, limit: Int = 30): Result<List<SearchAlbumItem>> = withContext(Dispatchers.IO) {
+        try {
+            val urls = listOf(
+                "$BASE_URL/api/search",
+                "$BASE_URL/api/search/get/web",
+                "$BASE_URL/search"
+            )
+
+            for (base in urls) {
+                val httpUrl = base.toHttpUrl().newBuilder()
+                    .addQueryParameter("keywords", keywords)
+                    .addQueryParameter("s", keywords)
+                    .addQueryParameter("type", "10")
+                    .addQueryParameter("limit", limit.toString())
+                    .build()
+
+                val request = Request.Builder()
+                    .url(httpUrl)
+                    .get()
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: ""
+                if (body.isEmpty()) continue
+
+                val result = runCatching { json.decodeFromString<SearchAlbumResponse>(body) }.getOrNull() ?: continue
+                val albums = result.result?.albums?.map { album ->
+                    SearchAlbumItem(
+                        id = album.id,
+                        name = album.name ?: "未知专辑",
+                        artist = (album.artist ?: album.artists?.firstOrNull())?.name ?: "未知艺术家",
+                        picUrl = album.picUrl,
+                        size = album.size ?: 0
+                    )
+                } ?: emptyList()
+
+                if (albums.isNotEmpty()) return@withContext Result.success(albums)
+            }
+
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun searchSuggest(keywords: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            val urls = listOf(
+                "$BASE_URL/api/search/suggest",
+                "$BASE_URL/search/suggest"
+            )
+
+            for (base in urls) {
+                val httpUrl = base.toHttpUrl().newBuilder()
+                    .addQueryParameter("keywords", keywords)
+                    .addQueryParameter("type", "mobile")
+                    .build()
+
+                val request = Request.Builder()
+                    .url(httpUrl)
+                    .get()
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: ""
+                if (body.isEmpty()) continue
+
+                val suggestions = parseSuggestKeywords(body)
+                if (suggestions.isNotEmpty()) return@withContext Result.success(suggestions)
+            }
+
+            val params = mapOf(
+                "s" to keywords,
+                "csrf_token" to ""
+            )
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val weapiRequest = Request.Builder()
+                .url("$BASE_URL/weapi/search/suggest/web")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .build()
+
+            val weapiResponse = client.newCall(weapiRequest).execute()
+            val weapiBody = weapiResponse.body?.string() ?: ""
+            val weapiSuggestions = parseSuggestKeywords(weapiBody)
+            if (weapiSuggestions.isNotEmpty()) {
+                return@withContext Result.success(weapiSuggestions)
+            }
+
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getHotSearchList(): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            val urls = listOf(
+                "$BASE_URL/api/search/hot/detail",
+                "$BASE_URL/search/hot/detail",
+                "$BASE_URL/api/search/hot"
+            )
+
+            for (url in urls) {
+                val request = Request.Builder()
+                    .url(url)
+                    .get()
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: ""
+                if (body.isEmpty()) continue
+
+                val words = parseHotWords(body)
+                if (words.isNotEmpty()) return@withContext Result.success(words)
+            }
+
+            val params = mapOf("csrf_token" to "")
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val weapiRequest = Request.Builder()
+                .url("$BASE_URL/weapi/search/hot/detail")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .build()
+
+            val weapiResponse = client.newCall(weapiRequest).execute()
+            val weapiBody = weapiResponse.body?.string() ?: ""
+            val weapiWords = parseHotWords(weapiBody)
+            if (weapiWords.isNotEmpty()) {
+                return@withContext Result.success(weapiWords)
+            }
+
+            Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAlbumTracks(albumId: Long, cookie: String = ""): Result<List<TrackItem>> = withContext(Dispatchers.IO) {
+        try {
+            val urls = listOf(
+                "$BASE_URL/api/album?id=$albumId",
+                "$BASE_URL/album?id=$albumId",
+                "$BASE_URL/api/v1/album/$albumId"
+            )
+
+            for (url in urls) {
+                val request = Request.Builder()
+                    .url(url)
+                    .get()
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .apply {
+                        if (cookie.isNotBlank()) header("Cookie", cookie)
+                    }
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: ""
+                if (body.isEmpty()) continue
+
+                val tracks = parseAlbumTracks(body)
+                if (tracks.isNotEmpty()) return@withContext Result.success(tracks)
+            }
+
+            Result.failure(Exception("Failed to get album tracks"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun parseAlbumTracks(body: String): List<TrackItem> {
+        return runCatching {
+            val root = json.parseToJsonElement(body).jsonObject
+            val songs = root["songs"]?.jsonArray ?: return emptyList()
+            songs.mapNotNull { songElement ->
+                val songObj = songElement.jsonObject
+                val id = songObj["id"]?.jsonPrimitive?.content?.toLongOrNull() ?: return@mapNotNull null
+                val name = songObj["name"]?.jsonPrimitive?.content ?: "未知"
+                val duration = songObj["dt"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+                val artists = songObj["ar"]?.jsonArray
+                    ?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.content }
+                    ?.joinToString(", ")
+                    ?: "未知艺术家"
+                val albumObj = songObj["al"]?.jsonObject
+                val albumName = albumObj?.get("name")?.jsonPrimitive?.content ?: "未知专辑"
+                val albumPicUrl = albumObj?.get("picUrl")?.jsonPrimitive?.content
+
+                TrackItem(
+                    id = id,
+                    name = name,
+                    artists = artists,
+                    albumName = albumName,
+                    albumPicUrl = albumPicUrl,
+                    duration = duration
+                )
+            }
+        }.getOrElse { emptyList() }
+    }
+
+    private fun parseSuggestKeywords(body: String): List<String> {
+        return try {
+            val root = json.parseToJsonElement(body).jsonObject
+            val result = root["result"]?.jsonObject ?: return emptyList()
+
+            val allMatch = result["allMatch"]?.jsonArray?.mapNotNull { item ->
+                item.jsonObject["keyword"]?.jsonPrimitive?.content
+            } ?: emptyList()
+            if (allMatch.isNotEmpty()) return allMatch
+
+            val songs = result["songs"]?.jsonArray?.mapNotNull { item ->
+                item.jsonObject["name"]?.jsonPrimitive?.content
+            } ?: emptyList()
+            if (songs.isNotEmpty()) return songs
+
+            val albums = result["albums"]?.jsonArray?.mapNotNull { item ->
+                item.jsonObject["name"]?.jsonPrimitive?.content
+            } ?: emptyList()
+            if (albums.isNotEmpty()) return albums
+
+            emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun parseHotWords(body: String): List<String> {
+        return try {
+            val root = json.parseToJsonElement(body).jsonObject
+
+            val dataWords = root["data"]?.jsonArray?.mapNotNull { item ->
+                item.jsonObject["searchWord"]?.jsonPrimitive?.content
+            } ?: emptyList()
+            if (dataWords.isNotEmpty()) return dataWords
+
+            val hotWords = root["result"]
+                ?.jsonObject
+                ?.get("hots")
+                ?.jsonArray
+                ?.mapNotNull { item -> item.jsonObject["first"]?.jsonPrimitive?.content }
+                ?: emptyList()
+            if (hotWords.isNotEmpty()) return hotWords
+
+            emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
 }
 
 @Serializable
@@ -537,4 +1200,176 @@ data class SongAlbum(
     val id: Long,
     val name: String? = null,
     val picUrl: String? = null
+)
+
+@Serializable
+data class UserPlayRecordResponse(
+    val code: Int,
+    val allData: List<UserPlayRecordItem>? = null,
+    val weekData: List<UserPlayRecordItem>? = null,
+    val message: String? = null
+)
+
+@Serializable
+data class UserPlayRecordItem(
+    val song: SongDetail? = null,
+    val playCount: Int? = null,
+    val score: Int? = null
+)
+
+@Serializable
+data class PersonalFmResponse(
+    val code: Int,
+    val data: List<PersonalFmTrack>? = null
+)
+
+@Serializable
+data class PersonalFmTrack(
+    val id: Long,
+    val name: String? = null,
+    val artists: List<SongArtist>? = null,
+    val ar: List<SongArtist>? = null,
+    val album: SongAlbum? = null,
+    val al: SongAlbum? = null,
+    val duration: Int? = null,
+    val dt: Int? = null
+)
+
+@Serializable
+data class LikedSongIdsResponse(
+    val code: Int,
+    val ids: List<Long>? = null
+)
+
+@Serializable
+data class SimpleCodeResponse(
+    val code: Int,
+    val msg: String? = null,
+    val message: String? = null
+)
+
+@Serializable
+data class RecentPlaySongsResponse(
+    val code: Int,
+    val data: RecentPlaySongsData? = null
+)
+
+@Serializable
+data class RecentPlaySongsData(
+    val list: List<RecentPlaySongItem>? = null
+)
+
+@Serializable
+data class RecentPlaySongItem(
+    val data: SongDetail? = null
+)
+
+@Serializable
+data class SearchSongResponse(
+    val code: Int,
+    val result: SearchSongResult? = null
+)
+
+@Serializable
+data class SearchSongResult(
+    val songs: List<SearchSongItem>? = null
+)
+
+@Serializable
+data class SearchSongItem(
+    val id: Long,
+    val name: String? = null,
+    @SerialName("artists")
+    val artists: List<SongArtist>? = null,
+    @SerialName("ar")
+    val ar: List<SongArtist>? = null,
+    @SerialName("album")
+    val album: SongAlbum? = null,
+    @SerialName("al")
+    val al: SongAlbum? = null,
+    @SerialName("duration")
+    val duration: Int? = null,
+    @SerialName("dt")
+    val dt: Int? = null
+)
+
+@Serializable
+data class SearchPlaylistResponse(
+    val code: Int,
+    val result: SearchPlaylistResult? = null
+)
+
+@Serializable
+data class SearchPlaylistResult(
+    val playlists: List<SearchPlaylistItem>? = null
+)
+
+@Serializable
+data class SearchPlaylistItem(
+    val id: Long,
+    val name: String? = null,
+    val coverImgUrl: String? = null,
+    val trackCount: Int? = null
+)
+
+@Serializable
+data class SearchAlbumResponse(
+    val code: Int,
+    val result: SearchAlbumResult? = null
+)
+
+@Serializable
+data class SearchAlbumResult(
+    val albums: List<SearchAlbumRaw>? = null
+)
+
+@Serializable
+data class SearchAlbumRaw(
+    val id: Long,
+    val name: String? = null,
+    val picUrl: String? = null,
+    val size: Int? = null,
+    val artist: SongArtist? = null,
+    val artists: List<SongArtist>? = null
+)
+
+data class SearchAlbumItem(
+    val id: Long,
+    val name: String,
+    val artist: String,
+    val picUrl: String?,
+    val size: Int
+)
+
+@Serializable
+data class SearchSuggestResponse(
+    val code: Int,
+    val result: SearchSuggestResult? = null
+)
+
+@Serializable
+data class SearchSuggestResult(
+    val allMatch: List<SearchSuggestItem>? = null
+)
+
+@Serializable
+data class SearchSuggestItem(
+    val keyword: String? = null
+)
+
+@Serializable
+data class HotSearchResponse(
+    val code: Int,
+    val data: List<HotSearchItem>? = null
+)
+
+@Serializable
+data class HotSearchItem(
+    val searchWord: String? = null
+)
+
+@Serializable
+data class AlbumDetailResponse(
+    val code: Int,
+    val songs: List<SongDetail>? = null
 )

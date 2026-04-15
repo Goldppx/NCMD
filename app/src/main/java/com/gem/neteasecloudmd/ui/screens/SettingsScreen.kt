@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ExpandLess
@@ -39,8 +38,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -71,7 +72,9 @@ fun SettingsScreen(
 
     var expandedSections by remember { mutableStateOf(emptySet<SettingsSection>()) }
     var disableCoverOverflow by remember { mutableStateOf(sessionManager.isCoverOverflowDisabled()) }
-    var themeMode by remember { mutableStateOf(sessionManager.getThemeMode()) }
+    var themeMode by remember { mutableIntStateOf(sessionManager.getThemeMode()) }
+    var useLocalRecentPlays by remember { mutableStateOf(sessionManager.useLocalRecentPlays()) }
+    var enableCoverPalette by remember { mutableStateOf(sessionManager.isCoverPaletteEnabled()) }
 
     fun toggleSection(section: SettingsSection) {
         expandedSections = if (expandedSections.contains(section)) {
@@ -89,7 +92,11 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
             )
         }
     ) { innerPadding ->
@@ -109,6 +116,16 @@ fun SettingsScreen(
                     onDisableCoverOverflowChanged = { disabled ->
                         disableCoverOverflow = disabled
                         sessionManager.setCoverOverflowDisabled(disabled)
+                    },
+                    useLocalRecentPlays = useLocalRecentPlays,
+                    onUseLocalRecentPlaysChanged = { useLocal ->
+                        useLocalRecentPlays = useLocal
+                        sessionManager.setUseLocalRecentPlays(useLocal)
+                    },
+                    enableCoverPalette = enableCoverPalette,
+                    onEnableCoverPaletteChanged = { enabled ->
+                        enableCoverPalette = enabled
+                        sessionManager.setCoverPaletteEnabled(enabled)
                     },
                     themeMode = themeMode,
                     onThemeModeChanged = { mode ->
@@ -146,6 +163,10 @@ private fun SettingsSectionCard(
     onToggle: () -> Unit,
     disableCoverOverflow: Boolean,
     onDisableCoverOverflowChanged: (Boolean) -> Unit,
+    useLocalRecentPlays: Boolean,
+    onUseLocalRecentPlaysChanged: (Boolean) -> Unit,
+    enableCoverPalette: Boolean,
+    onEnableCoverPaletteChanged: (Boolean) -> Unit,
     themeMode: Int,
     onThemeModeChanged: (Int) -> Unit,
     onCopyCookieClick: () -> Unit,
@@ -156,7 +177,7 @@ private fun SettingsSectionCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
             modifier = Modifier
@@ -220,6 +241,34 @@ private fun SettingsSectionCard(
                     }
 
                     SettingsSection.Feature -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "使用本地最近播放记录",
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Switch(
+                                checked = useLocalRecentPlays,
+                                onCheckedChange = onUseLocalRecentPlaysChanged
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "启用歌曲封面取色",
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Switch(
+                                checked = enableCoverPalette,
+                                onCheckedChange = onEnableCoverPaletteChanged
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically

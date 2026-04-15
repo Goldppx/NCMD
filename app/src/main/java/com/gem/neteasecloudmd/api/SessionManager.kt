@@ -27,6 +27,8 @@ class SessionManager(context: Context) {
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_DISABLE_COVER_OVERFLOW = "disable_cover_overflow"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_USE_LOCAL_RECENT_PLAYS = "use_local_recent_plays"
+        private const val KEY_ENABLE_COVER_PALETTE = "enable_cover_palette"
     }
 
     fun saveLoginResult(result: LoginResult, cookie: String) {
@@ -60,6 +62,18 @@ class SessionManager(context: Context) {
 
     fun setThemeMode(mode: Int) {
         prefs.edit().putInt(KEY_THEME_MODE, mode).apply()
+    }
+
+    fun useLocalRecentPlays(): Boolean = prefs.getBoolean(KEY_USE_LOCAL_RECENT_PLAYS, true)
+
+    fun setUseLocalRecentPlays(useLocal: Boolean) {
+        prefs.edit().putBoolean(KEY_USE_LOCAL_RECENT_PLAYS, useLocal).apply()
+    }
+
+    fun isCoverPaletteEnabled(): Boolean = prefs.getBoolean(KEY_ENABLE_COVER_PALETTE, false)
+
+    fun setCoverPaletteEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ENABLE_COVER_PALETTE, enabled).apply()
     }
 
     fun logout() {
