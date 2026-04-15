@@ -46,8 +46,8 @@ fun NavGraph(
                 onNavigateToSearch = {
                     navController.navigate(Screen.Search.route)
                 },
-                onNavigateToPlaylistDetail = { playlistId ->
-                    navController.navigate(Screen.PlaylistDetail.createRoute(playlistId))
+                onNavigateToPlaylistDetail = { playlistId, playlistName ->
+                    navController.navigate(Screen.PlaylistDetail.createRoute(playlistId, playlistName))
                 }
             )
         }
@@ -55,8 +55,8 @@ fun NavGraph(
         composable(Screen.PlaylistList.route) {
             PlaylistListScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToPlaylistDetail = { playlistId ->
-                    navController.navigate(Screen.PlaylistDetail.createRoute(playlistId))
+                onNavigateToPlaylistDetail = { playlistId, playlistName ->
+                    navController.navigate(Screen.PlaylistDetail.createRoute(playlistId, playlistName))
                 }
             )
         }
@@ -64,12 +64,15 @@ fun NavGraph(
         composable(
             route = Screen.PlaylistDetail.route,
             arguments = listOf(
-                navArgument("playlistId") { type = NavType.LongType }
+                navArgument("playlistId") { type = NavType.LongType },
+                navArgument("playlistName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
+            val playlistName = backStackEntry.arguments?.getString("playlistName") ?: "歌单"
             PlaylistDetailScreen(
                 playlistId = playlistId,
+                playlistName = playlistName,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
