@@ -1,10 +1,10 @@
 package com.gem.neteasecloudmd.ui.screens
 
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -18,14 +18,16 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -34,14 +36,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.rememberPlayerManager
+import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,82 +52,21 @@ fun MainScreen(
     onNavigateToPlaylistList: () -> Unit,
     onNavigateToRecentPlays: () -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onNavigateToPlaylistDetail: (Long, String) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val mainViewModel: MainViewModel = viewModel()
+    val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     
-    val sessionManager by remember { mutableStateOf(SessionManager(context)) }
-    val apiService = remember { NeteaseApiService() }
     val player = rememberPlayerManager(context)
-    
-    val isLoggedIn = sessionManager.isLoggedIn()
-    val nickname = sessionManager.getNickname()
-    val avatarUrl = sessionManager.getAvatarUrl()
-    val userId = sessionManager.getUserId()
-    val cookie = sessionManager.getCookie()
-    
-    var playlists by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
-    var recentPlays by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     
     LaunchedEffect(Unit) {
-        player.setApiService(apiService)
-    }
-    
-    fun loadRecentPlays() {
-        scope.launch {
-            recentPlays = player.getRecentPlays().take(3)
-        }
-    }
-    
-    fun loadPlaylists(showToast: Boolean = false) {
-        if (isLoggedIn && userId > 0 && cookie.isNotEmpty()) {
-            scope.launch {
-                val result = withTimeoutOrNull(10000L) {
-                    apiService.getUserPlaylists(userId, cookie)
-                }
-                result?.fold(
-                    onSuccess = { response ->
-                        playlists = response.playlist ?: emptyList()
-                        isLoading = false
-                        isRefreshing = false
-                        if (showToast) {
-                            Toast.makeText(context, "刷新成功，共${playlists.size}个歌单", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onFailure = { e ->
-                        errorMessage = e.message
-                        isLoading = false
-                        isRefreshing = false
-                        if (showToast) {
-                            Toast.makeText(context, "刷新失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                ) ?: run {
-                    isLoading = false
-                    isRefreshing = false
-                    if (showToast) {
-                        Toast.makeText(context, "请求超时", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        } else {
-            isLoading = false
-            isRefreshing = false
-        }
-    }
-    
-    LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) {
-            loadPlaylists()
-            loadRecentPlays()
-        }
+        player.setApiService(mainViewModel.apiService)
     }
     
     ModalNavigationDrawer(
@@ -137,25 +79,13 @@ fun MainScreen(
                         scope.launch { drawerState.close() }
                         onNavigateToSearch()
                     },
-                    onLogoutClick = {
-                        sessionManager.logout()
-                        scope.launch { drawerState.close() }
-                        playlists = emptyList()
-                        recentPlays = emptyList()
-                    },
-                    onCopyCookieClick = {
-                        val clip = android.content.ClipData.newPlainText("cookie", cookie)
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, "Cookie已复制", Toast.LENGTH_SHORT).show()
-                        scope.launch { drawerState.close() }
-                    },
-                    onNavigate = {
-                        scope.launch { drawerState.close() }
-                    },
                     onRecentPlaysClick = {
                         scope.launch { drawerState.close() }
                         onNavigateToRecentPlays()
+                    },
+                    onSettingsClick = {
+                        scope.launch { drawerState.close() }
+                        onNavigateToSettings()
                     }
                 )
             }
@@ -176,9 +106,9 @@ fun MainScreen(
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            if (isLoggedIn) {
+                            if (uiState.isLoggedIn) {
                                 Text(
-                                    text = nickname,
+                                    text = uiState.nickname,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -191,12 +121,6 @@ fun MainScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = {
-                            isRefreshing = true
-                            loadPlaylists(showToast = true)
-                        }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                        }
                         IconButton(onClick = onNavigateToSearch) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }
@@ -216,12 +140,12 @@ fun MainScreen(
             ) {
                 Box(modifier = Modifier.weight(1f)) {
                     PullToRefreshBox(
-                        isRefreshing = isRefreshing,
-                        onRefresh = { loadPlaylists(showToast = true) },
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { mainViewModel.refresh() },
                         modifier = Modifier.fillMaxSize()
                     ) {
                         when {
-                            !isLoggedIn -> {
+                            !uiState.isLoggedIn -> {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
@@ -238,12 +162,23 @@ fun MainScreen(
                                     }
                                 }
                             }
-                            isLoading && playlists.isEmpty() -> {
+                            uiState.isLoading && uiState.playlists.isEmpty() -> {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     CircularProgressIndicator()
+                                }
+                            }
+                            uiState.errorMessage != null && uiState.playlists.isEmpty() -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = uiState.errorMessage ?: "加载失败",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 }
                             }
                             else -> {
@@ -252,7 +187,7 @@ fun MainScreen(
                                     contentPadding = PaddingValues(16.dp),
                                     verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    if (recentPlays.isNotEmpty()) {
+                                    if (uiState.recentPlays.isNotEmpty()) {
                                         item {
                                             SectionHeader(
                                                 title = "最近播放",
@@ -265,13 +200,13 @@ fun MainScreen(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
-                                                recentPlays.take(3).forEachIndexed { index, track ->
+                                                uiState.recentPlays.take(3).forEachIndexed { index, track ->
                                                     if (index == 0) {
                                                         PreviewRecentPlayLargeCard(
                                                             track = track,
                                                             onClick = {
-                                                                player.setCookie(cookie)
-                                                                player.setPlaylist(recentPlays, recentPlays.indexOf(track))
+                                                                player.setCookie(uiState.cookie)
+                                                                player.setPlaylist(uiState.recentPlays, uiState.recentPlays.indexOf(track))
                                                                 Toast.makeText(context, "播放: ${track.name}", Toast.LENGTH_SHORT).show()
                                                             }
                                                         )
@@ -279,8 +214,8 @@ fun MainScreen(
                                                         PreviewRecentPlaySmallCard(
                                                             track = track,
                                                             onClick = {
-                                                                player.setCookie(cookie)
-                                                                player.setPlaylist(recentPlays, recentPlays.indexOf(track))
+                                                                player.setCookie(uiState.cookie)
+                                                                player.setPlaylist(uiState.recentPlays, uiState.recentPlays.indexOf(track))
                                                                 Toast.makeText(context, "播放: ${track.name}", Toast.LENGTH_SHORT).show()
                                                             }
                                                         )
@@ -304,7 +239,7 @@ fun MainScreen(
                                                 .horizontalScroll(rememberScrollState()),
                                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            playlists.take(5).forEach { playlist ->
+                                            uiState.playlists.take(5).forEach { playlist ->
                                                 PreviewPlaylistCard(
                                                     playlist = playlist,
                                                     onClick = {
@@ -316,7 +251,7 @@ fun MainScreen(
                                         }
                                     }
                                     
-                                    if (playlists.isEmpty()) {
+                                    if (uiState.playlists.isEmpty()) {
                                         item {
                                             Box(
                                                 modifier = Modifier
@@ -346,10 +281,8 @@ fun MainScreen(
 @Composable
 private fun DrawerContent(
     onLoginClick: () -> Unit,
-    onLogoutClick: () -> Unit,
-    onCopyCookieClick: () -> Unit,
-    onNavigate: () -> Unit,
-    onRecentPlaysClick: () -> Unit = {}
+    onRecentPlaysClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val sessionManager by remember { mutableStateOf(SessionManager(context)) }
@@ -415,26 +348,22 @@ private fun DrawerContent(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
+        FilledTonalButton(
+            onClick = onSettingsClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Settings, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("设置")
+        }
+
         if (!isLoggedIn) {
+            Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = onLoginClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("登录")
-            }
-        } else {
-            FilledTonalButton(
-                onClick = onCopyCookieClick,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("复制Cookie")
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            FilledTonalButton(
-                onClick = onLogoutClick,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("退出登录")
             }
         }
     }
@@ -620,24 +549,30 @@ fun PlaybackBar(
     if (!showPlayBar) return
 
     val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
     val player = rememberPlayerManager(context)
+    val hapticFeedback = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val disableCoverOverflow = sessionManager.isCoverOverflowDisabled()
 
     val hasPlaylist = player.currentPlaylist.isNotEmpty()
     val currentTrack = player.currentTrack
     val currentPosition = player.currentPosition
     val duration = player.duration
     val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+    val latestProgress by rememberUpdatedState(progress)
+    val latestDuration by rememberUpdatedState(duration)
 
-    val coverSize = 56.dp
+    val coverSize = if (disableCoverOverflow) 56.dp else 64.dp
     val coverOffset = 12.dp
+    val coverAlignment = if (disableCoverOverflow) Alignment.CenterStart else Alignment.BottomStart
+    val coverYOffset = if (disableCoverOverflow) 0.dp else (-8).dp
 
     var isAdjustingProgress by remember { mutableStateOf(false) }
-    var adjustedProgress by remember { mutableStateOf(progress) }
+    var adjustedProgress by remember { mutableFloatStateOf(progress) }
+    var longPressStartProgress by remember { mutableFloatStateOf(progress) }
 
-    var dragStartX by remember { mutableStateOf(0f) }
-    var dragStartY by remember { mutableStateOf(0f) }
-    var accumulatedDeltaX by remember { mutableStateOf(0f) }
-    var accumulatedDeltaY by remember { mutableStateOf(0f) }
+    var accumulatedDeltaX by remember { mutableFloatStateOf(0f) }
+    var accumulatedDeltaY by remember { mutableFloatStateOf(0f) }
     var hasReachedThreshold by remember { mutableStateOf(false) }
     var gestureDirection by remember { mutableStateOf<GestureDirection>(GestureDirection.NONE) }
 
@@ -647,6 +582,12 @@ fun PlaybackBar(
         }
     }
 
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isAdjustingProgress) 0f else 1f,
+        animationSpec = tween(durationMillis = 180),
+        label = "playbackBarContentAlpha"
+    )
+
     val barShape = MaterialTheme.shapes.medium
 
     Box(
@@ -654,12 +595,10 @@ fun PlaybackBar(
             .fillMaxWidth()
             .height(72.dp)
             .zIndex(10f)
-            .pointerInput(Unit) {
+            .pointerInput(hasPlaylist, isAdjustingProgress) {
                 detectDragGestures(
-                    onDragStart = { offset ->
-                        if (!isAdjustingProgress) {
-                            dragStartX = offset.x
-                            dragStartY = offset.y
+                    onDragStart = {
+                        if (hasPlaylist && !isAdjustingProgress) {
                             accumulatedDeltaX = 0f
                             accumulatedDeltaY = 0f
                             hasReachedThreshold = false
@@ -667,7 +606,9 @@ fun PlaybackBar(
                         }
                     },
                     onDrag = { change, dragAmount ->
-                        if (isAdjustingProgress) return@detectDragGestures
+                        if (!hasPlaylist || isAdjustingProgress) return@detectDragGestures
+
+                        change.consume()
                         
                         accumulatedDeltaX += dragAmount.x
                         accumulatedDeltaY += dragAmount.y
@@ -686,13 +627,6 @@ fun PlaybackBar(
                                             GestureDirection.LEFT
                                         }
                                     }
-                                    absY > absX * 2.0f -> {
-                                        gestureDirection = if (accumulatedDeltaY > 0) {
-                                            GestureDirection.DOWN
-                                        } else {
-                                            GestureDirection.UP
-                                        }
-                                    }
                                     else -> {
                                         gestureDirection = GestureDirection.NONE
                                     }
@@ -701,6 +635,8 @@ fun PlaybackBar(
                         }
                     },
                     onDragEnd = {
+                        if (!hasPlaylist || isAdjustingProgress) return@detectDragGestures
+
                         if (hasReachedThreshold) {
                             when (gestureDirection) {
                                 GestureDirection.LEFT -> {
@@ -713,11 +649,7 @@ fun PlaybackBar(
                                         player.previous()
                                     }
                                 }
-                                GestureDirection.UP -> {
-                                    if (kotlin.math.abs(accumulatedDeltaY) > 100) {
-                                        player.next()
-                                    }
-                                }
+                                GestureDirection.UP -> {}
                                 GestureDirection.DOWN -> {}
                                 GestureDirection.NONE -> {}
                             }
@@ -727,6 +659,33 @@ fun PlaybackBar(
                         accumulatedDeltaY = 0f
                         hasReachedThreshold = false
                         gestureDirection = GestureDirection.NONE
+                    }
+                )
+            }
+            .pointerInput(hasPlaylist) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        if (!hasPlaylist) return@detectDragGesturesAfterLongPress
+                        isAdjustingProgress = true
+                        longPressStartProgress = latestProgress
+                        adjustedProgress = latestProgress
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    onDrag = { change, dragAmount ->
+                        if (!isAdjustingProgress || !hasPlaylist) return@detectDragGesturesAfterLongPress
+                        change.consume()
+                        adjustedProgress = (adjustedProgress + dragAmount.x / size.width).coerceIn(0f, 1f)
+                    },
+                    onDragEnd = {
+                        if (isAdjustingProgress && hasPlaylist && latestDuration > 0) {
+                            val newPosition = (adjustedProgress * latestDuration).toInt()
+                            player.seekTo(newPosition)
+                        }
+                        isAdjustingProgress = false
+                    },
+                    onDragCancel = {
+                        adjustedProgress = longPressStartProgress
+                        isAdjustingProgress = false
                     }
                 )
             }
@@ -764,27 +723,6 @@ fun PlaybackBar(
                     .fillMaxWidth()
                     .height(8.dp)
                     .padding(horizontal = 16.dp)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                isAdjustingProgress = true
-                                adjustedProgress = (offset.x / size.width).coerceIn(0f, 1f)
-                            },
-                            onDrag = { change, dragAmount ->
-                                if (!isAdjustingProgress) return@detectDragGestures
-                                change.consume()
-                                adjustedProgress = (adjustedProgress + dragAmount.x / size.width).coerceIn(0f, 1f)
-                            },
-                            onDragEnd = {
-                                if (isAdjustingProgress) {
-                                    val newPosition = (adjustedProgress * duration).toInt()
-                                    player.seekTo(newPosition)
-                                    isAdjustingProgress = false
-                                    adjustedProgress = progress
-                                }
-                            }
-                        )
-                    }
             ) {
                 if (isAdjustingProgress) {
                     Box(
@@ -820,10 +758,11 @@ fun PlaybackBar(
         if (hasPlaylist) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .offset(x = coverOffset + 16.dp, y = (-8).dp)
+                    .align(coverAlignment)
+                    .offset(x = coverOffset + 16.dp, y = coverYOffset)
                     .size(coverSize)
                     .zIndex(11f)
+                    .alpha(contentAlpha)
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -851,7 +790,8 @@ fun PlaybackBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(72.dp)
-                .padding(start = if (hasPlaylist) coverOffset + coverSize + 28.dp else 32.dp, end = 28.dp),
+                .padding(start = if (hasPlaylist) coverOffset + coverSize + 24.dp else 32.dp, end = 28.dp)
+                .alpha(contentAlpha),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(

@@ -6,7 +6,6 @@ import com.gem.neteasecloudmd.data.local.entity.CurrentPlaylistEntity
 import com.gem.neteasecloudmd.data.local.entity.RecentPlayEntity
 import com.gem.neteasecloudmd.api.TrackItem
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 class MusicRepository(
     private val recentPlayDao: RecentPlayDao,
@@ -38,21 +37,7 @@ class MusicRepository(
         
         val count = recentPlayDao.getCount()
         if (count > MAX_RECENT_PLAYS) {
-            val excess = count - MAX_RECENT_PLAYS
-            deleteOldestPlays(excess)
-        }
-    }
-    
-    private suspend fun deleteOldestPlays(count: Int) {
-        val allPlays = recentPlayDao.getRecentPlays(MAX_RECENT_PLAYS)
-        allPlays.collect { plays ->
-            if (plays.size > MAX_RECENT_PLAYS) {
-                val toDelete = plays.drop(MAX_RECENT_PLAYS)
-                toDelete.forEach { play ->
-                    recentPlayDao.deleteRecentPlay(play.id)
-                }
-            }
-            return@collect
+            recentPlayDao.trimToLatest(MAX_RECENT_PLAYS)
         }
     }
     

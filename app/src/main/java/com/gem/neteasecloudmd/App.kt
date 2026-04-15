@@ -3,11 +3,14 @@ package com.gem.neteasecloudmd
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +27,7 @@ fun NCMDApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    var themeMode by remember { mutableIntStateOf(sessionManager.getThemeMode()) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     
@@ -33,7 +37,13 @@ fun NCMDApp() {
         Screen.Login.route
     }
 
-    NeteaseCloudMDTheme {
+    val useDarkTheme = when (themeMode) {
+        SessionManager.THEME_MODE_LIGHT -> false
+        SessionManager.THEME_MODE_DARK -> true
+        else -> isSystemInDarkTheme()
+    }
+
+    NeteaseCloudMDTheme(darkTheme = useDarkTheme) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
@@ -44,6 +54,9 @@ fun NCMDApp() {
                 NavGraph(
                     navController = navController,
                     startDestination = startDestination,
+                    onThemeModeChanged = { mode ->
+                        themeMode = mode
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
 

@@ -23,6 +23,9 @@ interface RecentPlayDao {
     
     @Query("DELETE FROM recent_plays WHERE playedAt < :timestamp")
     suspend fun deleteOldPlays(timestamp: Long)
+
+    @Query("DELETE FROM recent_plays WHERE id NOT IN (SELECT id FROM recent_plays ORDER BY playedAt DESC LIMIT :limit)")
+    suspend fun trimToLatest(limit: Int)
     
     @Query("SELECT COUNT(*) FROM recent_plays")
     suspend fun getCount(): Int

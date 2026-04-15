@@ -1,5 +1,6 @@
 package com.gem.neteasecloudmd.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -13,11 +14,13 @@ import com.gem.neteasecloudmd.ui.screens.PlaylistDetailScreen
 import com.gem.neteasecloudmd.ui.screens.PlaylistListScreen
 import com.gem.neteasecloudmd.ui.screens.RecentPlaysScreen
 import com.gem.neteasecloudmd.ui.screens.SearchScreen
+import com.gem.neteasecloudmd.ui.screens.SettingsScreen
 
 @Composable
 fun NavGraph(
     navController: NavHostController,
     startDestination: String,
+    onThemeModeChanged: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -46,6 +49,9 @@ fun NavGraph(
                 onNavigateToSearch = {
                     navController.navigate(Screen.Search.route)
                 },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
+                },
                 onNavigateToPlaylistDetail = { playlistId, playlistName ->
                     navController.navigate(Screen.PlaylistDetail.createRoute(playlistId, playlistName))
                 }
@@ -69,7 +75,7 @@ fun NavGraph(
             )
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
-            val playlistName = backStackEntry.arguments?.getString("playlistName") ?: "歌单"
+            val playlistName = Uri.decode(backStackEntry.arguments?.getString("playlistName") ?: "歌单")
             PlaylistDetailScreen(
                 playlistId = playlistId,
                 playlistName = playlistName,
@@ -86,6 +92,18 @@ fun NavGraph(
         composable(Screen.Search.route) {
             SearchScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onThemeModeChanged = onThemeModeChanged,
+                onLoggedOut = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Main.route) { inclusive = true }
+                    }
+                }
             )
         }
     }
