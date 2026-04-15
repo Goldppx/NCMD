@@ -1,9 +1,11 @@
 package com.gem.neteasecloudmd.api
 
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -11,9 +13,17 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.app.NotificationManagerCompat
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
+import androidx.media3.ui.PlayerNotificationManager
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.data.local.AppDatabase
 import com.gem.neteasecloudmd.data.repository.MusicRepository
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +46,7 @@ enum class PlayMode {
     REPEAT_ONE
 }
 
+@UnstableApi
 class PlayerManager private constructor(private val context: Context) {
     var isPlaying by mutableStateOf(false)
         private set
@@ -62,9 +73,13 @@ class PlayerManager private constructor(private val context: Context) {
         private set
 
     private var exoPlayer: ExoPlayer? = null
+    private var mediaSession: MediaSession? = null
+    private var notificationManager: PlayerNotificationManager? = null
+    private var notificationPlayer: Player? = null
     private var currentCookie: String = ""
     private var currentApiService: NeteaseApiService? = null
     private var isPersonalFmMode: Boolean = false
+    private var configuredAudioBufferMs: Int = SessionManager(context).getAudioBufferMs()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
         override fun run() {
@@ -88,7 +103,21 @@ class PlayerManager private constructor(private val context: Context) {
     
     private fun getOrCreatePlayer(): ExoPlayer {
         if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context).build().apply {
+            val audioBufferMs = configuredAudioBufferMs
+            val networkBufferMs = (audioBufferMs * 60).coerceIn(8000, 70000)
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    networkBufferMs,
+                    networkBufferMs,
+                    audioBufferMs,
+                    audioBufferMs
+                )
+                .build()
+
+            exoPlayer = ExoPlayer.Builder(context)
+                .setLoadControl(loadControl)
+                .build()
+                .apply {
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         when (playbackState) {
@@ -122,9 +151,141 @@ class PlayerManager private constructor(private val context: Context) {
                     }
                 })
             }
+            setupMediaNotification(exoPlayer!!)
             mainHandler.post(updateRunnable)
         }
         return exoPlayer!!
+    }
+
+    fun setAudioBufferMs(bufferMs: Int) {
+        val clamped = bufferMs.coerceIn(
+            SessionManager.AUDIO_BUFFER_MIN_MS,
+            SessionManager.AUDIO_BUFFER_MAX_MS
+        )
+        if (configuredAudioBufferMs == clamped) return
+        configuredAudioBufferMs = clamped
+
+        val wasPlaying = isPlaying
+        val savedPosition = currentPosition
+        val savedTrackIndex = currentTrackIndex
+        val savedPlaylist = currentPlaylist
+
+        releasePlayer()
+
+        if (savedPlaylist.isNotEmpty()) {
+            currentPlaylist = savedPlaylist
+            currentTrackIndex = savedTrackIndex.coerceIn(0, savedPlaylist.lastIndex)
+            loadAndPlayCurrentTrack()
+            if (!wasPlaying) {
+                mainHandler.postDelayed({
+                    seekTo(savedPosition)
+                    pause()
+                }, 450)
+            } else {
+                mainHandler.postDelayed({ seekTo(savedPosition) }, 350)
+            }
+        }
+    }
+
+    private fun setupMediaNotification(player: ExoPlayer) {
+        if (notificationPlayer == null) {
+            notificationPlayer = object : ForwardingPlayer(player) {
+                private fun canSkipNext(): Boolean {
+                    if (currentPlaylist.isEmpty()) return false
+                    if (isPersonalFmMode) return true
+                    return when (playMode) {
+                        PlayMode.REPEAT_ONE -> true
+                        PlayMode.SHUFFLE -> currentPlaylist.size > 1
+                        PlayMode.SEQUENTIAL -> currentTrackIndex < currentPlaylist.lastIndex
+                    }
+                }
+
+                private fun canSkipPrevious(): Boolean {
+                    if (currentPlaylist.isEmpty()) return false
+                    return when (playMode) {
+                        PlayMode.REPEAT_ONE -> true
+                        PlayMode.SHUFFLE -> currentPlaylist.size > 1
+                        PlayMode.SEQUENTIAL -> currentTrackIndex > 0
+                    }
+                }
+
+                override fun getAvailableCommands(): Player.Commands {
+                    val base = super.getAvailableCommands().buildUpon()
+                    if (canSkipNext()) {
+                        base.add(Player.COMMAND_SEEK_TO_NEXT)
+                        base.add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                    }
+                    if (canSkipPrevious()) {
+                        base.add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                        base.add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                    }
+                    return base.build()
+                }
+
+                override fun seekToNext() {
+                    this@PlayerManager.next()
+                }
+
+                override fun seekToPrevious() {
+                    this@PlayerManager.previous()
+                }
+
+                override fun seekToNextMediaItem() {
+                    this@PlayerManager.next()
+                }
+
+                override fun seekToPreviousMediaItem() {
+                    this@PlayerManager.previous()
+                }
+            }
+        }
+
+        if (notificationManager != null) {
+            notificationManager?.setPlayer(notificationPlayer)
+            return
+        }
+
+        mediaSession = MediaSession.Builder(context, notificationPlayer ?: player).build()
+
+        notificationManager = PlayerNotificationManager.Builder(
+            context,
+            NOTIFICATION_ID,
+            NOTIFICATION_CHANNEL_ID
+        )
+            .setChannelNameResourceId(R.string.app_name)
+            .setChannelDescriptionResourceId(R.string.app_name)
+            .setSmallIconResourceId(R.drawable.ic_home)
+            .setMediaDescriptionAdapter(
+                object : PlayerNotificationManager.MediaDescriptionAdapter {
+                    override fun getCurrentContentTitle(player: Player): CharSequence {
+                        return currentTrack?.name ?: "NCMD"
+                    }
+
+                    override fun createCurrentContentIntent(player: Player) = null
+
+                    override fun getCurrentContentText(player: Player): CharSequence {
+                        return currentTrack?.artists ?: ""
+                    }
+
+                    override fun getCurrentLargeIcon(
+                        player: Player,
+                        callback: PlayerNotificationManager.BitmapCallback
+                    ) = null
+                }
+            )
+            .build()
+            .apply {
+                setUseFastForwardAction(false)
+                setUseRewindAction(false)
+                setUseStopAction(false)
+                setUsePreviousAction(true)
+                setUseNextAction(true)
+                setUseNextActionInCompactView(true)
+                setUsePreviousActionInCompactView(true)
+                setPlayer(notificationPlayer)
+            }
+
+        NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
     
     fun setApiService(service: NeteaseApiService) {
@@ -215,7 +376,21 @@ class PlayerManager private constructor(private val context: Context) {
         mainHandler.post {
             try {
                 val player = getOrCreatePlayer()
-                val mediaItem = MediaItem.fromUri(url)
+                val track = currentTrack
+                val metadataBuilder = MediaMetadata.Builder()
+                    .setTitle(track?.name)
+                    .setArtist(track?.artists)
+                    .setAlbumTitle(track?.albumName)
+
+                if (!track?.albumPicUrl.isNullOrBlank()) {
+                    metadataBuilder.setArtworkUri(Uri.parse(track?.albumPicUrl))
+                }
+
+                val mediaItem = MediaItem.Builder()
+                    .setMediaId(track?.id?.toString() ?: "")
+                    .setUri(url)
+                    .setMediaMetadata(metadataBuilder.build())
+                    .build()
                 player.setMediaItem(mediaItem)
                 player.prepare()
                 player.play()
@@ -461,6 +636,11 @@ class PlayerManager private constructor(private val context: Context) {
     
     private fun releasePlayer() {
         mainHandler.removeCallbacks(updateRunnable)
+        notificationManager?.setPlayer(null)
+        notificationManager = null
+        notificationPlayer = null
+        mediaSession?.release()
+        mediaSession = null
         exoPlayer?.apply {
             try {
                 if (isPlaying) stop()
@@ -527,6 +707,8 @@ class PlayerManager private constructor(private val context: Context) {
     }
     
     companion object {
+        private const val NOTIFICATION_ID = 1001
+        private const val NOTIFICATION_CHANNEL_ID = "ncmd_playback"
         private var instance: PlayerManager? = null
         
         fun getInstance(context: Context): PlayerManager {
@@ -538,6 +720,7 @@ class PlayerManager private constructor(private val context: Context) {
     }
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 fun rememberPlayerManager(context: Context): PlayerManager {
     val manager = remember { PlayerManager.getInstance(context) }

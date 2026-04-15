@@ -79,7 +79,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
     implementation(libs.media3.exoplayer)
-implementation(libs.androidx.navigation.compose)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.session)
+    implementation(libs.androidx.navigation.compose)
     
     // Room
     val room_version = "2.8.4"

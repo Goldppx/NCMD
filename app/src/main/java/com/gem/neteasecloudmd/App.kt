@@ -4,6 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -56,7 +60,7 @@ fun NCMDApp() {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            val showPlaybackBar = currentRoute != Screen.Login.route
+            val showPlaybackBar = currentRoute != Screen.Login.route && player.currentPlaylist.isNotEmpty()
 
             Box(modifier = Modifier.fillMaxSize()) {
                 NavGraph(
@@ -68,12 +72,17 @@ fun NCMDApp() {
                     modifier = Modifier.fillMaxSize()
                 )
 
-                if (showPlaybackBar) {
+                AnimatedVisibility(
+                    visible = showPlaybackBar,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding(),
+                    enter = fadeIn(animationSpec = tween(140)),
+                    exit = fadeOut(animationSpec = tween(90))
+                ) {
                     PlaybackBar(
                         showPlayBar = true,
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
                     )
                 }
             }
