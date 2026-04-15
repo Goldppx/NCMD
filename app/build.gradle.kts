@@ -23,6 +23,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val splitAbi = (project.findProperty("splitAbi") as String?)?.toBoolean() ?: false
+    val abiFiltersProp = (project.findProperty("abiFilters") as String?)
+        ?.split(",")
+        ?.map { it.trim() }
+        ?.filter { it.isNotEmpty() }
+        ?: emptyList()
+
+    if (splitAbi) {
+        splits {
+            abi {
+                isEnable = true
+                reset()
+                include(*abiFiltersProp.toTypedArray())
+                isUniversalApk = false
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
