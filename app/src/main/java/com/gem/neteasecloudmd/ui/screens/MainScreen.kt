@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Search
@@ -193,12 +194,59 @@ fun MainScreen(
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
+                                    item {
+                                        val fmTracks = uiState.personalFmTracks
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                            )
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                FilledTonalButton(
+                                                    onClick = {
+                                                        if (fmTracks.isNotEmpty()) {
+                                                            player.setCookie(uiState.cookie)
+                                                            mainViewModel.startPersonalFm()
+                                                            Toast.makeText(context, "开始私人 FM", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    },
+                                                    enabled = fmTracks.isNotEmpty() && !uiState.isFmLoading,
+                                                    shape = RoundedCornerShape(14.dp),
+                                                    contentPadding = PaddingValues(0.dp),
+                                                    modifier = Modifier
+                                                        .width(56.dp)
+                                                        .height(44.dp)
+                                                ) {
+                                                    if (uiState.isFmLoading) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(16.dp),
+                                                            strokeWidth = 2.dp
+                                                        )
+                                                    } else {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Radio,
+                                                            contentDescription = "私人 FM",
+                                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                            modifier = Modifier.size(22.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     if (uiState.recentPlays.isNotEmpty()) {
                                         item {
                                             SectionHeader(
-                                                title = "最近播放",
+                                                text = "最近播放",
                                                 onExpandClick = onNavigateToRecentPlays
                                             )
                                         }
@@ -235,7 +283,7 @@ fun MainScreen(
                                     
                                     item {
                                         SectionHeader(
-                                            title = "我的歌单",
+                                            text = "我的歌单",
                                             onExpandClick = onNavigateToPlaylistList
                                         )
                                     }
@@ -281,6 +329,30 @@ fun MainScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(
+    text: String,
+    onExpandClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(onClick = onExpandClick) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "展开"
+            )
         }
     }
 }
@@ -373,30 +445,6 @@ private fun DrawerContent(
             ) {
                 Text("登录")
             }
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(
-    title: String,
-    onExpandClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f)
-        )
-        IconButton(onClick = onExpandClick) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "Expand"
-            )
         }
     }
 }

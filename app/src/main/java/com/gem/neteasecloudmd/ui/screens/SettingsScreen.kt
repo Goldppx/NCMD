@@ -34,7 +34,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,10 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.media3.common.util.UnstableApi
-import kotlin.math.roundToInt
 import com.gem.neteasecloudmd.api.SessionManager
-import com.gem.neteasecloudmd.api.rememberPlayerManager
 
 private enum class SettingsSection(val title: String) {
     Account("账号"),
@@ -63,7 +59,6 @@ private enum class SettingsSection(val title: String) {
     Debug("调试")
 }
 
-@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -73,7 +68,6 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
-    val player = rememberPlayerManager(context)
     val cookie = sessionManager.getCookie()
 
     var expandedSections by remember { mutableStateOf(emptySet<SettingsSection>()) }
@@ -81,7 +75,6 @@ fun SettingsScreen(
     var themeMode by remember { mutableIntStateOf(sessionManager.getThemeMode()) }
     var useLocalRecentPlays by remember { mutableStateOf(sessionManager.useLocalRecentPlays()) }
     var enableCoverPalette by remember { mutableStateOf(sessionManager.isCoverPaletteEnabled()) }
-    var audioBufferMs by remember { mutableIntStateOf(sessionManager.getAudioBufferMs()) }
 
     fun toggleSection(section: SettingsSection) {
         expandedSections = if (expandedSections.contains(section)) {
@@ -134,12 +127,6 @@ fun SettingsScreen(
                         enableCoverPalette = enabled
                         sessionManager.setCoverPaletteEnabled(enabled)
                     },
-                    audioBufferMs = audioBufferMs,
-                    onAudioBufferMsChanged = { bufferMs ->
-                        audioBufferMs = bufferMs
-                        sessionManager.setAudioBufferMs(bufferMs)
-                        player.setAudioBufferMs(bufferMs)
-                    },
                     themeMode = themeMode,
                     onThemeModeChanged = { mode ->
                         themeMode = mode
@@ -180,8 +167,6 @@ private fun SettingsSectionCard(
     onUseLocalRecentPlaysChanged: (Boolean) -> Unit,
     enableCoverPalette: Boolean,
     onEnableCoverPaletteChanged: (Boolean) -> Unit,
-    audioBufferMs: Int,
-    onAudioBufferMsChanged: (Int) -> Unit,
     themeMode: Int,
     onThemeModeChanged: (Int) -> Unit,
     onCopyCookieClick: () -> Unit,
@@ -298,19 +283,6 @@ private fun SettingsSectionCard(
                                 onCheckedChange = onDisableCoverOverflowChanged
                             )
                         }
-
-                        Text(
-                            text = "音频缓冲: ${audioBufferMs} ms",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Slider(
-                            value = audioBufferMs.toFloat(),
-                            onValueChange = { value ->
-                                onAudioBufferMsChanged(value.roundToInt())
-                            },
-                            valueRange = SessionManager.AUDIO_BUFFER_MIN_MS.toFloat()..SessionManager.AUDIO_BUFFER_MAX_MS.toFloat(),
-                            steps = ((SessionManager.AUDIO_BUFFER_MAX_MS - SessionManager.AUDIO_BUFFER_MIN_MS) / 20) - 1
-                        )
                     }
 
                     SettingsSection.Debug -> {

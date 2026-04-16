@@ -19,9 +19,6 @@ class SessionManager(context: Context) {
         const val THEME_MODE_SYSTEM = 0
         const val THEME_MODE_LIGHT = 1
         const val THEME_MODE_DARK = 2
-        const val AUDIO_BUFFER_MIN_MS = 80
-        const val AUDIO_BUFFER_MAX_MS = 1200
-        const val AUDIO_BUFFER_DEFAULT_MS = 250
 
         private const val KEY_USER_ID = "user_id"
         private const val KEY_NICKNAME = "nickname"
@@ -32,7 +29,6 @@ class SessionManager(context: Context) {
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_USE_LOCAL_RECENT_PLAYS = "use_local_recent_plays"
         private const val KEY_ENABLE_COVER_PALETTE = "enable_cover_palette"
-        private const val KEY_AUDIO_BUFFER_MS = "audio_buffer_ms"
     }
 
     fun saveLoginResult(result: LoginResult, cookie: String) {
@@ -78,16 +74,6 @@ class SessionManager(context: Context) {
 
     fun setCoverPaletteEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_ENABLE_COVER_PALETTE, enabled).apply()
-    }
-
-    fun getAudioBufferMs(): Int {
-        val value = prefs.getInt(KEY_AUDIO_BUFFER_MS, AUDIO_BUFFER_DEFAULT_MS)
-        return value.coerceIn(AUDIO_BUFFER_MIN_MS, AUDIO_BUFFER_MAX_MS)
-    }
-
-    fun setAudioBufferMs(bufferMs: Int) {
-        val value = bufferMs.coerceIn(AUDIO_BUFFER_MIN_MS, AUDIO_BUFFER_MAX_MS)
-        prefs.edit().putInt(KEY_AUDIO_BUFFER_MS, value).apply()
     }
 
     fun logout() {

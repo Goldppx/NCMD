@@ -19,7 +19,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
@@ -79,7 +78,6 @@ class PlayerManager private constructor(private val context: Context) {
     private var currentCookie: String = ""
     private var currentApiService: NeteaseApiService? = null
     private var isPersonalFmMode: Boolean = false
-    private var configuredAudioBufferMs: Int = SessionManager(context).getAudioBufferMs()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
         override fun run() {
@@ -103,21 +101,7 @@ class PlayerManager private constructor(private val context: Context) {
     
     private fun getOrCreatePlayer(): ExoPlayer {
         if (exoPlayer == null) {
-            val audioBufferMs = configuredAudioBufferMs
-            val networkBufferMs = (audioBufferMs * 60).coerceIn(8000, 70000)
-            val loadControl = DefaultLoadControl.Builder()
-                .setBufferDurationsMs(
-                    networkBufferMs,
-                    networkBufferMs,
-                    audioBufferMs,
-                    audioBufferMs
-                )
-                .build()
-
-            exoPlayer = ExoPlayer.Builder(context)
-                .setLoadControl(loadControl)
-                .build()
-                .apply {
+            exoPlayer = ExoPlayer.Builder(context).build().apply {
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         when (playbackState) {
@@ -155,36 +139,6 @@ class PlayerManager private constructor(private val context: Context) {
             mainHandler.post(updateRunnable)
         }
         return exoPlayer!!
-    }
-
-    fun setAudioBufferMs(bufferMs: Int) {
-        val clamped = bufferMs.coerceIn(
-            SessionManager.AUDIO_BUFFER_MIN_MS,
-            SessionManager.AUDIO_BUFFER_MAX_MS
-        )
-        if (configuredAudioBufferMs == clamped) return
-        configuredAudioBufferMs = clamped
-
-        val wasPlaying = isPlaying
-        val savedPosition = currentPosition
-        val savedTrackIndex = currentTrackIndex
-        val savedPlaylist = currentPlaylist
-
-        releasePlayer()
-
-        if (savedPlaylist.isNotEmpty()) {
-            currentPlaylist = savedPlaylist
-            currentTrackIndex = savedTrackIndex.coerceIn(0, savedPlaylist.lastIndex)
-            loadAndPlayCurrentTrack()
-            if (!wasPlaying) {
-                mainHandler.postDelayed({
-                    seekTo(savedPosition)
-                    pause()
-                }, 450)
-            } else {
-                mainHandler.postDelayed({ seekTo(savedPosition) }, 350)
-            }
-        }
     }
 
     private fun setupMediaNotification(player: ExoPlayer) {
