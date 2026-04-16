@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.navigation.NavGraph
@@ -30,6 +32,7 @@ fun NCMDApp() {
     val sessionManager = remember { SessionManager(context) }
     val player = rememberPlayerManager(context)
     var themeMode by remember { mutableIntStateOf(sessionManager.getThemeMode()) }
+    var languageMode by remember { mutableIntStateOf(sessionManager.getLanguageMode()) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     
@@ -64,6 +67,12 @@ fun NCMDApp() {
                     startDestination = startDestination,
                     onThemeModeChanged = { mode ->
                         themeMode = mode
+                    },
+                    onLanguageModeChanged = { mode ->
+                        languageMode = mode
+                        sessionManager.setLanguageMode(mode)
+                        val tag = SessionManager.languageTagFromMode(mode)
+                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
                     },
                     modifier = Modifier.fillMaxSize()
                 )

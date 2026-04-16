@@ -17,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
@@ -36,7 +38,7 @@ fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val apiService = remember { NeteaseApiService() }
+    val apiService = remember { NeteaseApiService(context) }
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
@@ -67,7 +69,7 @@ fun PlaylistDetailScreen(
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
-                            Toast.makeText(context, "已加载 ${trackList.size} 首歌曲", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.playlist_detail_loaded_songs, trackList.size), Toast.LENGTH_SHORT).show()
                         }
                     },
                     onFailure = { e ->
@@ -75,14 +77,14 @@ fun PlaylistDetailScreen(
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
-                            Toast.makeText(context, "加载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.playlist_detail_load_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) ?: run {
                     isLoading = false
                     isRefreshing = false
                     if (showToast) {
-                        Toast.makeText(context, "请求超时", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.common_request_timeout), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -108,7 +110,7 @@ fun PlaylistDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
@@ -116,7 +118,7 @@ fun PlaylistDetailScreen(
                         refreshKey++
                         loadTracks(showToast = true)
                     }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -154,7 +156,7 @@ fun PlaylistDetailScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "错误: $errorMessage",
+                                text = stringResource(R.string.common_error_with_prefix, errorMessage ?: ""),
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
@@ -165,7 +167,7 @@ fun PlaylistDetailScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "歌单为空",
+                                text = stringResource(R.string.playlist_detail_empty),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -183,7 +185,7 @@ fun PlaylistDetailScreen(
                                         if (tracks.isNotEmpty()) {
                                             player.setCookie(cookie)
                                             player.setPlaylist(tracks, 0)
-                                            Toast.makeText(context, "开始播放全部 ${tracks.size} 首", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.playlist_detail_start_play_all, tracks.size), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 )
@@ -201,7 +203,7 @@ fun PlaylistDetailScreen(
                                     onClick = {
                                         player.setCookie(cookie)
                                         player.setPlaylist(tracks, index)
-                                        Toast.makeText(context, "播放: ${track.name}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
@@ -241,7 +243,7 @@ private fun PlayAllCard(
             ) {
                 Icon(
                     Icons.Default.PlayArrow,
-                    contentDescription = "Play All",
+                    contentDescription = stringResource(R.string.playlist_detail_play_all),
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -250,12 +252,12 @@ private fun PlayAllCard(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "播放全部",
+                    text = stringResource(R.string.playlist_detail_play_all),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "$trackCount 首歌曲",
+                    text = stringResource(R.string.playlist_detail_track_count, trackCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
@@ -305,7 +307,7 @@ private fun SongCard(
                     )
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("♪")
+                        Text(stringResource(R.string.main_music_symbol))
                     }
                 }
             }
@@ -330,7 +332,7 @@ private fun SongCard(
             
             Icon(
                 imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = if (isLiked) "已喜欢" else "未喜欢",
+                contentDescription = if (isLiked) stringResource(R.string.playlist_detail_liked) else stringResource(R.string.playlist_detail_unliked),
                 tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

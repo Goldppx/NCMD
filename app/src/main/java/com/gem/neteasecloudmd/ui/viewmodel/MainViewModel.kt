@@ -1,6 +1,7 @@
 package com.gem.neteasecloudmd.ui.viewmodel
 
 import android.app.Application
+import com.gem.neteasecloudmd.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.gem.neteasecloudmd.api.NeteaseApiService
@@ -38,7 +39,7 @@ data class MainUiState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val appContext = application.applicationContext
     private val sessionManager = SessionManager(appContext)
-    val apiService = NeteaseApiService()
+    val apiService = NeteaseApiService(appContext)
 
     private val _uiState = MutableStateFlow(
         MainUiState(
@@ -199,11 +200,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             ) ?: run {
                 _uiState.update {
-                    it.copy(
-                        isPlaylistLoading = false,
-                        errorMessage = "请求超时"
-                    )
-                }
+                        it.copy(
+                            isPlaylistLoading = false,
+                            errorMessage = appContext.getString(R.string.viewmodel_request_timeout)
+                        )
+                    }
                 markSectionDone()
             }
         }

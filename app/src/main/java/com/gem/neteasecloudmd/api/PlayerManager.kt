@@ -22,6 +22,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
+import androidx.core.content.ContextCompat
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.data.local.AppDatabase
 import com.gem.neteasecloudmd.data.repository.MusicRepository
@@ -129,7 +130,10 @@ class PlayerManager private constructor(private val context: Context) {
 
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         Log.e("PlayerManager", "ExoPlayer error: ${error.message}")
-                        this@PlayerManager.errorMessage = "播放错误: ${error.message}"
+                        this@PlayerManager.errorMessage = context.getString(
+                            R.string.player_error_playback,
+                            error.message ?: ""
+                        )
                         this@PlayerManager.isPlaying = false
                         this@PlayerManager.isLoading = false
                     }
@@ -212,7 +216,7 @@ class PlayerManager private constructor(private val context: Context) {
             .setMediaDescriptionAdapter(
                 object : PlayerNotificationManager.MediaDescriptionAdapter {
                     override fun getCurrentContentTitle(player: Player): CharSequence {
-                        return currentTrack?.name ?: "NCMD"
+                        return currentTrack?.name ?: context.getString(R.string.app_name)
                     }
 
                     override fun createCurrentContentIntent(player: Player) = null
@@ -286,7 +290,7 @@ class PlayerManager private constructor(private val context: Context) {
         
         if (currentCookie.isEmpty()) {
             Log.e("PlayerManager", "Cookie is empty!")
-            errorMessage = "未登录或Cookie失效"
+            errorMessage = context.getString(R.string.player_error_not_logged_in)
             return
         }
         
@@ -314,7 +318,10 @@ class PlayerManager private constructor(private val context: Context) {
                     },
                     onFailure = { e ->
                         Log.e("PlayerManager", "Failed to get song URL: ${e.message}")
-                        errorMessage = "获取播放链接失败: ${e.message}"
+                        errorMessage = context.getString(
+                            R.string.player_error_url_failed,
+                            e.message ?: ""
+                        )
                         isLoading = false
                     }
                 )

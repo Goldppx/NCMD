@@ -1,6 +1,8 @@
 package com.gem.neteasecloudmd.api
 
+import android.content.Context
 import android.util.Log
+import com.gem.neteasecloudmd.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -78,7 +80,9 @@ data class UserProfile(
     val avatarUrl: String? = null
 )
 
-class NeteaseApiService {
+class NeteaseApiService(
+    private val context: Context? = null
+) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -89,6 +93,14 @@ class NeteaseApiService {
     companion object {
         private const val TAG = "NeteaseApi"
         private const val BASE_URL = "https://music.163.com"
+    }
+
+    private fun str(id: Int): String = context?.getString(id) ?: when (id) {
+        R.string.api_unknown -> "Unknown"
+        R.string.api_unknown_artist -> "Unknown Artist"
+        R.string.api_unknown_album -> "Unknown Album"
+        R.string.api_unknown_playlist -> "Unknown Playlist"
+        else -> ""
     }
 
     suspend fun sendCaptcha(phone: String): Result<CaptchaSentResult> = withContext(Dispatchers.IO) {
@@ -387,9 +399,9 @@ class NeteaseApiService {
                 val tracks = result.playlist?.tracks?.map { track ->
                     TrackItem(
                         id = track.id,
-                        name = track.name ?: "未知",
-                        artists = track.ar?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
-                        albumName = track.al?.name ?: track.album?.name ?: "未知专辑",
+                        name = track.name ?: str(R.string.api_unknown),
+                        artists = track.ar?.joinToString(", ") { it.name ?: "" } ?: str(R.string.api_unknown_artist),
+                        albumName = track.al?.name ?: track.album?.name ?: str(R.string.api_unknown_album),
                         albumPicUrl = track.al?.picUrl ?: track.album?.picUrl,
                         duration = track.dt ?: 0
                     )
@@ -500,9 +512,9 @@ class NeteaseApiService {
                 .map { song ->
                     TrackItem(
                         id = song.id,
-                        name = song.name ?: "未知",
-                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
-                        albumName = song.al?.name ?: "未知专辑",
+                        name = song.name ?: str(R.string.api_unknown),
+                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: str(R.string.api_unknown_artist),
+                        albumName = song.al?.name ?: str(R.string.api_unknown_album),
                         albumPicUrl = song.al?.picUrl,
                         duration = song.dt ?: 0
                     )
@@ -532,9 +544,9 @@ class NeteaseApiService {
                 .map { song ->
                     TrackItem(
                         id = song.id,
-                        name = song.name ?: "未知",
-                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
-                        albumName = song.al?.name ?: "未知专辑",
+                        name = song.name ?: str(R.string.api_unknown),
+                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: str(R.string.api_unknown_artist),
+                        albumName = song.al?.name ?: str(R.string.api_unknown_album),
                         albumPicUrl = song.al?.picUrl,
                         duration = song.dt ?: 0
                     )
@@ -582,11 +594,11 @@ class NeteaseApiService {
                 ?.map { track ->
                     TrackItem(
                         id = track.id,
-                        name = track.name ?: "未知",
+                        name = track.name ?: str(R.string.api_unknown),
                         artists = track.artists?.joinToString(", ") { it.name ?: "" }
                             ?: track.ar?.joinToString(", ") { it.name ?: "" }
-                            ?: "未知艺术家",
-                        albumName = track.album?.name ?: track.al?.name ?: "未知专辑",
+                            ?: str(R.string.api_unknown_artist),
+                        albumName = track.album?.name ?: track.al?.name ?: str(R.string.api_unknown_album),
                         albumPicUrl = track.album?.picUrl ?: track.al?.picUrl,
                         duration = track.duration ?: track.dt ?: 0
                     )
@@ -627,9 +639,9 @@ class NeteaseApiService {
                 ?.map { song ->
                     TrackItem(
                         id = song.id,
-                        name = song.name ?: "未知",
-                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
-                        albumName = song.al?.name ?: "未知专辑",
+                        name = song.name ?: str(R.string.api_unknown),
+                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: str(R.string.api_unknown_artist),
+                        albumName = song.al?.name ?: str(R.string.api_unknown_album),
                         albumPicUrl = song.al?.picUrl,
                         duration = song.dt ?: 0
                     )
@@ -784,9 +796,9 @@ class NeteaseApiService {
                 val tracks = result.result?.songs?.map { song ->
                     TrackItem(
                         id = song.id,
-                        name = song.name ?: "未知",
-                        artists = (song.artists ?: song.ar)?.joinToString(", ") { it.name ?: "" } ?: "未知艺术家",
-                        albumName = (song.album ?: song.al)?.name ?: "未知专辑",
+                        name = song.name ?: str(R.string.api_unknown),
+                        artists = (song.artists ?: song.ar)?.joinToString(", ") { it.name ?: "" } ?: str(R.string.api_unknown_artist),
+                        albumName = (song.album ?: song.al)?.name ?: str(R.string.api_unknown_album),
                         albumPicUrl = (song.album ?: song.al)?.picUrl,
                         duration = song.duration ?: song.dt ?: 0
                     )
@@ -832,7 +844,7 @@ class NeteaseApiService {
                 val playlists = result.result?.playlists?.map { playlist ->
                     PlaylistItem(
                         id = playlist.id,
-                        name = playlist.name ?: "未知歌单",
+                        name = playlist.name ?: str(R.string.api_unknown_playlist),
                         coverImgUrl = playlist.coverImgUrl,
                         trackCount = playlist.trackCount ?: 0
                     )
@@ -878,8 +890,8 @@ class NeteaseApiService {
                 val albums = result.result?.albums?.map { album ->
                     SearchAlbumItem(
                         id = album.id,
-                        name = album.name ?: "未知专辑",
-                        artist = (album.artist ?: album.artists?.firstOrNull())?.name ?: "未知艺术家",
+                        name = album.name ?: str(R.string.api_unknown_album),
+                        artist = (album.artist ?: album.artists?.firstOrNull())?.name ?: str(R.string.api_unknown_artist),
                         picUrl = album.picUrl,
                         size = album.size ?: 0
                     )
@@ -1047,14 +1059,14 @@ class NeteaseApiService {
             songs.mapNotNull { songElement ->
                 val songObj = songElement.jsonObject
                 val id = songObj["id"]?.jsonPrimitive?.content?.toLongOrNull() ?: return@mapNotNull null
-                val name = songObj["name"]?.jsonPrimitive?.content ?: "未知"
+                val name = songObj["name"]?.jsonPrimitive?.content ?: str(R.string.api_unknown)
                 val duration = songObj["dt"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
                 val artists = songObj["ar"]?.jsonArray
                     ?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.content }
                     ?.joinToString(", ")
-                    ?: "未知艺术家"
+                    ?: str(R.string.api_unknown_artist)
                 val albumObj = songObj["al"]?.jsonObject
-                val albumName = albumObj?.get("name")?.jsonPrimitive?.content ?: "未知专辑"
+                val albumName = albumObj?.get("name")?.jsonPrimitive?.content ?: str(R.string.api_unknown_album)
                 val albumPicUrl = albumObj?.get("picUrl")?.jsonPrimitive?.content
 
                 TrackItem(

@@ -13,10 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
@@ -31,7 +33,7 @@ fun RecentPlaysScreen(
     val context = LocalContext.current
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
-    val apiService = remember { NeteaseApiService() }
+    val apiService = remember { NeteaseApiService(context) }
     val scope = rememberCoroutineScope()
     
     var recentPlays by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
@@ -60,10 +62,10 @@ fun RecentPlaysScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("最近播放") },
+                title = { Text(stringResource(R.string.recent_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -93,7 +95,7 @@ fun RecentPlaysScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "暂无最近播放",
+                                text = stringResource(R.string.recent_empty),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -111,7 +113,7 @@ fun RecentPlaysScreen(
                                         if (recentPlays.isNotEmpty()) {
                                             player.setCookie(cookie)
                                             player.setPlaylist(recentPlays, 0)
-                                            Toast.makeText(context, "开始播放全部 ${recentPlays.size} 首", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.recent_start_play_all, recentPlays.size), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 )
@@ -128,7 +130,7 @@ fun RecentPlaysScreen(
                                     onClick = {
                                         player.setCookie(cookie)
                                         player.setPlaylist(recentPlays, index)
-                                        Toast.makeText(context, "播放: ${track.name}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
@@ -168,7 +170,7 @@ private fun RecentPlayAllCard(
             ) {
                 Icon(
                     Icons.Default.PlayArrow,
-                    contentDescription = "Play All",
+                    contentDescription = stringResource(R.string.playlist_detail_play_all),
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -177,12 +179,12 @@ private fun RecentPlayAllCard(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "播放全部",
+                    text = stringResource(R.string.playlist_detail_play_all),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "$trackCount 首歌曲",
+                    text = stringResource(R.string.playlist_detail_track_count, trackCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
@@ -231,7 +233,7 @@ private fun RecentPlayCard(
                     )
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("♪")
+                        Text(stringResource(R.string.main_music_symbol))
                     }
                 }
             }
@@ -256,7 +258,7 @@ private fun RecentPlayCard(
             
             Icon(
                 Icons.Default.PlayArrow,
-                contentDescription = "Play",
+                contentDescription = stringResource(R.string.common_play),
                 tint = MaterialTheme.colorScheme.primary
             )
         }

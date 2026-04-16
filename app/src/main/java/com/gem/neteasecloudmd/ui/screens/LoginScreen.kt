@@ -8,8 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.SessionManager
 import kotlinx.coroutines.launch
@@ -23,7 +24,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit
 ) {
     val context = LocalContext.current
-    val apiService = remember { NeteaseApiService() }
+    val apiService = remember { NeteaseApiService(context) }
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
 
@@ -49,7 +50,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.weight(0.3f))
         
         Text(
-            text = "NCMD",
+            text = stringResource(R.string.main_title),
             style = MaterialTheme.typography.headlineLarge
         )
         
@@ -58,7 +59,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = phone,
             onValueChange = { phone = it },
-            label = { Text("手机号") },
+            label = { Text(stringResource(R.string.login_phone_label)) },
             modifier = Modifier.fillMaxWidth(),
             enabled = !isLoading,
             singleLine = true
@@ -71,7 +72,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("密码") },
+                    label = { Text(stringResource(R.string.login_password_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true
@@ -87,7 +88,7 @@ fun LoginScreen(
                 Button(
                     onClick = {
                         if (phone.isBlank()) {
-                            errorMessage = "请输入手机号"
+                            errorMessage = context.getString(R.string.login_enter_phone)
                             return@Button
                         }
                         isLoading = true
@@ -101,14 +102,14 @@ fun LoginScreen(
                                     onLoginSuccess()
                                 }.onFailure { e ->
                                     val msg = e.message ?: ""
-                                    if (msg.contains("400") || msg.contains("安全验证")) {
-                                        errorMessage = "需要安全验证，请发送短信验证码登录"
+                                    if (msg.contains("400") || msg.contains("security", ignoreCase = true)) {
+                                        errorMessage = context.getString(R.string.login_need_security_verify)
                                     } else {
                                         errorMessage = msg
                                     }
                                 }
                             } catch (e: Exception) {
-                                errorMessage = e.message ?: "登录失败"
+                                errorMessage = e.message ?: context.getString(R.string.login_failed)
                             } finally {
                                 isLoading = false
                             }
@@ -123,7 +124,7 @@ fun LoginScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("登录")
+                        Text(stringResource(R.string.common_login))
                     }
                 }
                 
@@ -132,7 +133,7 @@ fun LoginScreen(
                 TextButton(
                     onClick = {
                         if (phone.isBlank()) {
-                            errorMessage = "请输入手机号"
+                            errorMessage = context.getString(R.string.login_enter_phone)
                             return@TextButton
                         }
                         isLoading = true
@@ -156,7 +157,7 @@ fun LoginScreen(
                     enabled = !isLoading && phone.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("发送短信验证码登录")
+                    Text(stringResource(R.string.login_send_sms))
                 }
                 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -166,7 +167,7 @@ fun LoginScreen(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("使用Cookie登录")
+                    Text(stringResource(R.string.login_use_cookie))
                 }
             }
             
@@ -179,7 +180,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = captcha,
                         onValueChange = { captcha = it },
-                        label = { Text("验证码") },
+                        label = { Text(stringResource(R.string.login_captcha_label)) },
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading,
                         singleLine = true
@@ -187,7 +188,7 @@ fun LoginScreen(
                     Button(
                         onClick = {
                             if (phone.isBlank()) {
-                                errorMessage = "请输入手机号"
+                                errorMessage = context.getString(R.string.login_enter_phone)
                                 return@Button
                             }
                             isLoading = true
@@ -212,7 +213,7 @@ fun LoginScreen(
                         enabled = !isLoading && captcha.isNotBlank(),
                         modifier = Modifier.height(56.dp)
                     ) {
-                        Text("验证")
+                        Text(stringResource(R.string.login_verify))
                     }
                 }
                 
@@ -228,7 +229,7 @@ fun LoginScreen(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("返回账号密码登录")
+                    Text(stringResource(R.string.login_back_to_password))
                 }
             }
             
@@ -236,13 +237,13 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = cookie,
                     onValueChange = { cookie = it },
-                    label = { Text("Cookie") },
+                    label = { Text(stringResource(R.string.login_cookie_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = false,
                     minLines = 3,
                     maxLines = 5,
-                    placeholder = { Text("请输入Cookie") }
+                    placeholder = { Text(stringResource(R.string.login_cookie_placeholder)) }
                 )
                 
                 errorMessage?.let {
@@ -255,7 +256,7 @@ fun LoginScreen(
                 Button(
                     onClick = {
                         if (cookie.isBlank()) {
-                            errorMessage = "请输入Cookie"
+                            errorMessage = context.getString(R.string.login_enter_cookie)
                             return@Button
                         }
                         isLoading = true
@@ -285,7 +286,7 @@ fun LoginScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("Cookie登录")
+                        Text(stringResource(R.string.login_cookie_login))
                     }
                 }
                 
@@ -296,7 +297,7 @@ fun LoginScreen(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("返回账号密码登录")
+                    Text(stringResource(R.string.login_back_to_password))
                 }
             }
         }

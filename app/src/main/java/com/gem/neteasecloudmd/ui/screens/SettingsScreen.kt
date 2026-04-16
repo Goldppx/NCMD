@@ -48,15 +48,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.SessionManager
 
-private enum class SettingsSection(val title: String) {
-    Account("账号"),
-    UI("界面"),
-    Feature("功能"),
-    Debug("调试")
+private enum class SettingsSection {
+    Account,
+    UI,
+    Feature,
+    Debug
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -64,6 +66,7 @@ private enum class SettingsSection(val title: String) {
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onThemeModeChanged: (Int) -> Unit,
+    onLanguageModeChanged: (Int) -> Unit,
     onLoggedOut: () -> Unit
 ) {
     val context = LocalContext.current
@@ -73,6 +76,7 @@ fun SettingsScreen(
     var expandedSections by remember { mutableStateOf(emptySet<SettingsSection>()) }
     var disableCoverOverflow by remember { mutableStateOf(sessionManager.isCoverOverflowDisabled()) }
     var themeMode by remember { mutableIntStateOf(sessionManager.getThemeMode()) }
+    var languageMode by remember { mutableIntStateOf(sessionManager.getLanguageMode()) }
     var useLocalRecentPlays by remember { mutableStateOf(sessionManager.useLocalRecentPlays()) }
     var enableCoverPalette by remember { mutableStateOf(sessionManager.isCoverPaletteEnabled()) }
 
@@ -87,10 +91,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("设置") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -133,19 +137,25 @@ fun SettingsScreen(
                         sessionManager.setThemeMode(mode)
                         onThemeModeChanged(mode)
                     },
+                    languageMode = languageMode,
+                    onLanguageModeChanged = { mode ->
+                        languageMode = mode
+                        sessionManager.setLanguageMode(mode)
+                        onLanguageModeChanged(mode)
+                    },
                     onCopyCookieClick = {
                         val latestCookie = sessionManager.getCookie()
                         if (latestCookie.isBlank()) {
-                            Toast.makeText(context, "当前没有可复制的 Cookie", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.settings_no_cookie), Toast.LENGTH_SHORT).show()
                         } else {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("cookie", latestCookie))
-                            Toast.makeText(context, "Cookie 已复制", Toast.LENGTH_SHORT).show()
+                            clipboard.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.settings_cookie_key), latestCookie))
+                            Toast.makeText(context, context.getString(R.string.settings_cookie_copied), Toast.LENGTH_SHORT).show()
                         }
                     },
                     onLogoutClick = {
                         sessionManager.logout()
-                        Toast.makeText(context, "已退出登录", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.settings_logged_out), Toast.LENGTH_SHORT).show()
                         onLoggedOut()
                     },
                     cookie = cookie,
@@ -169,6 +179,8 @@ private fun SettingsSectionCard(
     onEnableCoverPaletteChanged: (Boolean) -> Unit,
     themeMode: Int,
     onThemeModeChanged: (Int) -> Unit,
+    languageMode: Int,
+    onLanguageModeChanged: (Int) -> Unit,
     onCopyCookieClick: () -> Unit,
     onLogoutClick: () -> Unit,
     cookie: String,
@@ -188,7 +200,12 @@ private fun SettingsSectionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = section.title,
+                text = when (section) {
+                    SettingsSection.Account -> stringResource(R.string.settings_section_account)
+                    SettingsSection.UI -> stringResource(R.string.settings_section_ui)
+                    SettingsSection.Feature -> stringResource(R.string.settings_section_feature)
+                    SettingsSection.Debug -> stringResource(R.string.settings_section_debug)
+                },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
@@ -196,7 +213,7 @@ private fun SettingsSectionCard(
             IconButton(onClick = onToggle) {
                 Icon(
                     imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "折叠" else "展开"
+                    contentDescription = if (expanded) stringResource(R.string.common_collapse) else stringResource(R.string.common_expand)
                 )
             }
         }
@@ -215,28 +232,55 @@ private fun SettingsSectionCard(
                 when (section) {
                     SettingsSection.Account -> {
                         TextButton(onClick = onCopyCookieClick, modifier = Modifier.fillMaxWidth()) {
-                            Text("复制 Cookie")
+                            Text(stringResource(R.string.settings_copy_cookie))
                         }
                         TextButton(onClick = onLogoutClick, modifier = Modifier.fillMaxWidth()) {
-                            Text("退出登录")
+                            Text(stringResource(R.string.settings_logout))
                         }
                     }
 
                     SettingsSection.UI -> {
                         ThemeModeOption(
-                            title = "浅色模式",
+                            title = stringResource(R.string.settings_theme_light),
                             selected = themeMode == SessionManager.THEME_MODE_LIGHT,
                             onClick = { onThemeModeChanged(SessionManager.THEME_MODE_LIGHT) }
                         )
                         ThemeModeOption(
-                            title = "深色模式",
+                            title = stringResource(R.string.settings_theme_dark),
                             selected = themeMode == SessionManager.THEME_MODE_DARK,
                             onClick = { onThemeModeChanged(SessionManager.THEME_MODE_DARK) }
                         )
                         ThemeModeOption(
-                            title = "跟随系统",
+                            title = stringResource(R.string.settings_theme_system),
                             selected = themeMode == SessionManager.THEME_MODE_SYSTEM,
                             onClick = { onThemeModeChanged(SessionManager.THEME_MODE_SYSTEM) }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.settings_language),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        ThemeModeOption(
+                            title = stringResource(R.string.settings_language_system),
+                            selected = languageMode == SessionManager.LANGUAGE_SYSTEM,
+                            onClick = { onLanguageModeChanged(SessionManager.LANGUAGE_SYSTEM) }
+                        )
+                        ThemeModeOption(
+                            title = stringResource(R.string.settings_language_zh_cn),
+                            selected = languageMode == SessionManager.LANGUAGE_ZH_CN,
+                            onClick = { onLanguageModeChanged(SessionManager.LANGUAGE_ZH_CN) }
+                        )
+                        ThemeModeOption(
+                            title = stringResource(R.string.settings_language_zh_tw),
+                            selected = languageMode == SessionManager.LANGUAGE_ZH_TW,
+                            onClick = { onLanguageModeChanged(SessionManager.LANGUAGE_ZH_TW) }
+                        )
+                        ThemeModeOption(
+                            title = stringResource(R.string.settings_language_en),
+                            selected = languageMode == SessionManager.LANGUAGE_EN,
+                            onClick = { onLanguageModeChanged(SessionManager.LANGUAGE_EN) }
                         )
                     }
 
@@ -246,7 +290,7 @@ private fun SettingsSectionCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "使用本地最近播放记录",
+                                text = stringResource(R.string.settings_use_local_recent),
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -260,7 +304,7 @@ private fun SettingsSectionCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "启用歌曲封面取色",
+                                text = stringResource(R.string.settings_enable_cover_palette),
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -274,7 +318,7 @@ private fun SettingsSectionCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "禁用封面超出控制栏",
+                                text = stringResource(R.string.settings_disable_cover_overflow),
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -287,11 +331,11 @@ private fun SettingsSectionCard(
 
                     SettingsSection.Debug -> {
                         Text(
-                            text = "UID: $userId",
+                            text = stringResource(R.string.main_uid_format, userId),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            text = "Cookie 长度: ${cookie.length}",
+                            text = stringResource(R.string.settings_cookie_length, cookie.length),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

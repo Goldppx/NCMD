@@ -14,9 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SessionManager
@@ -30,7 +32,7 @@ fun PlaylistListScreen(
     onNavigateToPlaylistDetail: (Long, String) -> Unit
 ) {
     val context = LocalContext.current
-    val apiService = remember { NeteaseApiService() }
+    val apiService = remember { NeteaseApiService(context) }
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
     
@@ -55,7 +57,7 @@ fun PlaylistListScreen(
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
-                            Toast.makeText(context, "刷新成功，共${playlists.size}个歌单", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.playlist_refresh_success, playlists.size), Toast.LENGTH_SHORT).show()
                         }
                     },
                     onFailure = { e ->
@@ -63,14 +65,14 @@ fun PlaylistListScreen(
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
-                            Toast.makeText(context, "刷新失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.playlist_refresh_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) ?: run {
                     isLoading = false
                     isRefreshing = false
                     if (showToast) {
-                        Toast.makeText(context, "请求超时", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.common_request_timeout), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -87,10 +89,10 @@ fun PlaylistListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("我的歌单") },
+                title = { Text(stringResource(R.string.playlist_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
@@ -98,7 +100,7 @@ fun PlaylistListScreen(
                         refreshKey++
                         loadPlaylists(showToast = true)
                     }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -136,7 +138,7 @@ fun PlaylistListScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "错误: $errorMessage",
+                                text = stringResource(R.string.common_error_with_prefix, errorMessage ?: ""),
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
@@ -147,7 +149,7 @@ fun PlaylistListScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "暂无歌单",
+                                text = stringResource(R.string.playlist_empty),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -206,7 +208,7 @@ private fun PlaylistListCard(
                     )
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("♪")
+                        Text(stringResource(R.string.main_music_symbol))
                     }
                 }
             }
@@ -221,7 +223,7 @@ private fun PlaylistListCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${playlist.trackCount}首",
+                    text = stringResource(R.string.main_track_count_no_space, playlist.trackCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

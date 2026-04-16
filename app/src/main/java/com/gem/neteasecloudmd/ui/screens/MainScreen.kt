@@ -39,6 +39,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,7 +51,9 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import androidx.core.graphics.drawable.toBitmap
+import androidx.media3.common.util.UnstableApi
 import androidx.palette.graphics.Palette
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
@@ -58,6 +61,7 @@ import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -111,7 +115,7 @@ fun MainScreen(
                     title = {
                         Column {
                             Text(
-                                text = "NCMD",
+                                text = stringResource(R.string.main_title),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -126,12 +130,12 @@ fun MainScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.common_menu))
                         }
                     },
                     actions = {
                         IconButton(onClick = onNavigateToSearch) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
+                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.common_search))
                         }
                     },
                     scrollBehavior = scrollBehavior,
@@ -161,12 +165,12 @@ fun MainScreen(
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text(
-                                            text = "请先登录",
+                                            text = stringResource(R.string.main_login_required),
                                             style = MaterialTheme.typography.bodyLarge
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         FilledTonalButton(onClick = onNavigateToSearch) {
-                                            Text("登录")
+                                            Text(stringResource(R.string.common_login))
                                         }
                                     }
                                 }
@@ -185,7 +189,7 @@ fun MainScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = uiState.errorMessage ?: "加载失败",
+                                        text = uiState.errorMessage ?: stringResource(R.string.common_load_failed),
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }
@@ -215,7 +219,7 @@ fun MainScreen(
                                                         if (fmTracks.isNotEmpty()) {
                                                             player.setCookie(uiState.cookie)
                                                             mainViewModel.startPersonalFm()
-                                                            Toast.makeText(context, "开始私人 FM", Toast.LENGTH_SHORT).show()
+                                                            Toast.makeText(context, context.getString(R.string.main_start_personal_fm), Toast.LENGTH_SHORT).show()
                                                         }
                                                     },
                                                     enabled = fmTracks.isNotEmpty() && !uiState.isFmLoading,
@@ -225,19 +229,12 @@ fun MainScreen(
                                                         .width(56.dp)
                                                         .height(44.dp)
                                                 ) {
-                                                    if (uiState.isFmLoading) {
-                                                        CircularProgressIndicator(
-                                                            modifier = Modifier.size(16.dp),
-                                                            strokeWidth = 2.dp
-                                                        )
-                                                    } else {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Radio,
-                                                            contentDescription = "私人 FM",
-                                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                            modifier = Modifier.size(22.dp)
-                                                        )
-                                                    }
+                                                    Icon(
+                                                        imageVector = Icons.Default.Radio,
+                                                        contentDescription = stringResource(R.string.main_personal_fm),
+                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
                                                 }
                                             }
                                         }
@@ -246,7 +243,7 @@ fun MainScreen(
                                     if (uiState.recentPlays.isNotEmpty()) {
                                         item {
                                             SectionHeader(
-                                                text = "最近播放",
+                                                text = stringResource(R.string.main_recent_plays),
                                                 onExpandClick = onNavigateToRecentPlays
                                             )
                                         }
@@ -263,7 +260,7 @@ fun MainScreen(
                                                             onClick = {
                                                                 player.setCookie(uiState.cookie)
                                                                 player.setPlaylist(uiState.recentPlays, uiState.recentPlays.indexOf(track))
-                                                                Toast.makeText(context, "播放: ${track.name}", Toast.LENGTH_SHORT).show()
+                                                                Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                                             }
                                                         )
                                                     } else {
@@ -272,7 +269,7 @@ fun MainScreen(
                                                             onClick = {
                                                                 player.setCookie(uiState.cookie)
                                                                 player.setPlaylist(uiState.recentPlays, uiState.recentPlays.indexOf(track))
-                                                                Toast.makeText(context, "播放: ${track.name}", Toast.LENGTH_SHORT).show()
+                                                                Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                                             }
                                                         )
                                                     }
@@ -283,7 +280,7 @@ fun MainScreen(
                                     
                                     item {
                                         SectionHeader(
-                                            text = "我的歌单",
+                                            text = stringResource(R.string.main_my_playlists),
                                             onExpandClick = onNavigateToPlaylistList
                                         )
                                     }
@@ -316,7 +313,7 @@ fun MainScreen(
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
-                                                    text = "暂无歌单",
+                                                    text = stringResource(R.string.main_empty_playlists),
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
@@ -351,7 +348,7 @@ private fun SectionHeader(
         IconButton(onClick = onExpandClick) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "展开"
+                contentDescription = stringResource(R.string.common_expand)
             )
         }
     }
@@ -379,13 +376,13 @@ private fun DrawerContent(
         ListItem(
             headlineContent = {
                 Text(
-                    text = if (isLoggedIn) nickname else "未登录",
+                    text = if (isLoggedIn) nickname else stringResource(R.string.main_not_logged_in),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             },
             supportingContent = if (isLoggedIn) {
-                { Text("UID: $userId") }
+                { Text(stringResource(R.string.main_uid_format, userId)) }
             } else null,
             leadingContent = {
                 Surface(
@@ -397,7 +394,7 @@ private fun DrawerContent(
                         if (avatarUrl != null && isLoggedIn) {
                             AsyncImage(
                                 model = avatarUrl,
-                                contentDescription = "Avatar",
+                                contentDescription = stringResource(R.string.main_avatar),
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .clip(CircleShape),
@@ -406,7 +403,7 @@ private fun DrawerContent(
                         } else {
                             Icon(
                                 Icons.Default.Person,
-                                contentDescription = "Default Avatar",
+                                contentDescription = stringResource(R.string.main_default_avatar),
                                 modifier = Modifier.size(24.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -423,7 +420,7 @@ private fun DrawerContent(
                 onClick = onRecentPlaysClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("最近播放")
+                Text(stringResource(R.string.main_recent_plays))
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -434,7 +431,7 @@ private fun DrawerContent(
         ) {
             Icon(Icons.Default.Settings, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("设置")
+            Text(stringResource(R.string.common_settings))
         }
 
         if (!isLoggedIn) {
@@ -443,7 +440,7 @@ private fun DrawerContent(
                 onClick = onLoginClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("登录")
+                Text(stringResource(R.string.common_login))
             }
         }
     }
@@ -478,7 +475,7 @@ private fun PreviewPlaylistCard(
                     )
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("♪", style = MaterialTheme.typography.headlineMedium)
+                        Text(stringResource(R.string.main_music_symbol), style = MaterialTheme.typography.headlineMedium)
                     }
                 }
             }
@@ -490,7 +487,7 @@ private fun PreviewPlaylistCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${playlist.trackCount}首",
+                    text = stringResource(R.string.main_track_count_no_space, playlist.trackCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -528,7 +525,7 @@ private fun PreviewRecentPlayLargeCard(
                     )
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("♪", style = MaterialTheme.typography.headlineMedium)
+                        Text(stringResource(R.string.main_music_symbol), style = MaterialTheme.typography.headlineMedium)
                     }
                 }
             }
@@ -588,7 +585,7 @@ private fun PreviewRecentPlaySmallCard(
             Spacer(modifier = Modifier.width(8.dp))
             Icon(
                 Icons.Default.PlayArrow,
-                contentDescription = "Play",
+                contentDescription = stringResource(R.string.common_play),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
@@ -596,6 +593,7 @@ private fun PreviewRecentPlaySmallCard(
     }
 }
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaybackBar(
@@ -878,13 +876,13 @@ fun PlaybackBar(
                     if (currentTrack?.albumPicUrl != null) {
                         AsyncImage(
                             model = currentTrack.albumPicUrl,
-                            contentDescription = "Album Art",
+                            contentDescription = stringResource(R.string.main_album_art),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     } else {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("♪", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.main_music_symbol), style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
@@ -903,7 +901,7 @@ fun PlaybackBar(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = if (hasPlaylist) currentTrack?.name ?: "未播放" else "未播放",
+                    text = if (hasPlaylist) currentTrack?.name ?: stringResource(R.string.main_unplayed) else stringResource(R.string.main_unplayed),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -921,7 +919,7 @@ fun PlaybackBar(
                 IconButton(onClick = { player.togglePlayPause() }) {
                     Icon(
                         if (player.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (player.isPlaying) "Pause" else "Play"
+                        contentDescription = if (player.isPlaying) stringResource(R.string.common_pause) else stringResource(R.string.common_play)
                     )
                 }
             }
@@ -940,12 +938,12 @@ fun PlaybackBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "播放队列",
+                        text = stringResource(R.string.main_queue_title),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = "${player.currentPlaylist.size} 首",
+                        text = stringResource(R.string.main_queue_count, player.currentPlaylist.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -973,7 +971,7 @@ fun PlaybackBar(
                             }
                         )
                     ) {
-                        Icon(Icons.Default.Repeat, contentDescription = "顺序播放")
+                        Icon(Icons.Default.Repeat, contentDescription = stringResource(R.string.main_play_mode_sequential))
                     }
                     FilledTonalIconButton(
                         onClick = { player.updatePlayMode(com.gem.neteasecloudmd.api.PlayMode.SHUFFLE) },
@@ -990,7 +988,7 @@ fun PlaybackBar(
                             }
                         )
                     ) {
-                        Icon(Icons.Default.Shuffle, contentDescription = "随机播放")
+                        Icon(Icons.Default.Shuffle, contentDescription = stringResource(R.string.main_play_mode_shuffle))
                     }
                     FilledTonalIconButton(
                         onClick = { player.updatePlayMode(com.gem.neteasecloudmd.api.PlayMode.REPEAT_ONE) },
@@ -1007,7 +1005,7 @@ fun PlaybackBar(
                             }
                         )
                     ) {
-                        Icon(Icons.Default.RepeatOne, contentDescription = "单曲循环")
+                        Icon(Icons.Default.RepeatOne, contentDescription = stringResource(R.string.main_play_mode_repeat_one))
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     TextButton(
@@ -1018,7 +1016,7 @@ fun PlaybackBar(
                     ) {
                         Icon(Icons.Default.DeleteSweep, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("清空")
+                        Text(stringResource(R.string.main_clear))
                     }
                 }
 
@@ -1030,7 +1028,7 @@ fun PlaybackBar(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "暂无播放队列",
+                            text = stringResource(R.string.main_queue_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1102,7 +1100,7 @@ fun PlaybackBar(
                                 IconButton(onClick = { player.removeTrackAt(index) }) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
-                                        contentDescription = "删除",
+                                        contentDescription = stringResource(R.string.common_delete),
                                         tint = if (isCurrent) {
                                             MaterialTheme.colorScheme.onPrimaryContainer
                                         } else {

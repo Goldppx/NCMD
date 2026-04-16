@@ -1,0 +1,130 @@
+<resources>
+    <string name="app_name">NCMD</string>
+    <string name="main_title">NCMD</string>
+
+    <string name="common_back">Back</string>
+    <string name="common_menu">Menu</string>
+    <string name="common_search">Search</string>
+    <string name="common_settings">Settings</string>
+    <string name="common_login">Log In</string>
+    <string name="common_expand">Expand</string>
+    <string name="common_collapse">Collapse</string>
+    <string name="common_refresh">Refresh</string>
+    <string name="common_play">Play</string>
+    <string name="common_pause">Pause</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_request_timeout">Request timed out</string>
+    <string name="common_error_with_prefix">Error: %1$s</string>
+    <string name="common_load_failed">Load failed</string>
+    <string name="common_unknown_error">Unknown error</string>
+
+    <string name="main_login_required">Please log in first</string>
+    <string name="main_recent_plays">Recent Plays</string>
+    <string name="main_my_playlists">My Playlists</string>
+    <string name="main_empty_playlists">No playlists yet</string>
+    <string name="main_start_personal_fm">Start Personal FM</string>
+    <string name="main_play_track_toast">Playing: %1$s</string>
+    <string name="main_unplayed">Not playing</string>
+    <string name="main_queue_title">Playback Queue</string>
+    <string name="main_queue_count">%1$d tracks</string>
+    <string name="main_queue_empty">Queue is empty</string>
+    <string name="main_play_mode_sequential">Sequential</string>
+    <string name="main_play_mode_shuffle">Shuffle</string>
+    <string name="main_play_mode_repeat_one">Repeat One</string>
+    <string name="main_clear">Clear</string>
+    <string name="main_not_logged_in">Not logged in</string>
+    <string name="main_uid_format">UID: %1$d</string>
+    <string name="main_avatar">Avatar</string>
+    <string name="main_default_avatar">Default avatar</string>
+    <string name="main_album_art">Album art</string>
+    <string name="main_music_symbol">♪</string>
+    <string name="main_personal_fm">Personal FM</string>
+    <string name="main_track_count_no_space">%1$d tracks</string>
+
+    <string name="playlist_title">My Playlists</string>
+    <string name="playlist_refresh_success">Refreshed successfully, %1$d playlists</string>
+    <string name="playlist_refresh_failed">Refresh failed: %1$s</string>
+    <string name="playlist_empty">No playlists yet</string>
+
+    <string name="playlist_detail_loaded_songs">Loaded %1$d songs</string>
+    <string name="playlist_detail_load_failed">Load failed: %1$s</string>
+    <string name="playlist_detail_empty">Playlist is empty</string>
+    <string name="playlist_detail_play_all">Play All</string>
+    <string name="playlist_detail_start_play_all">Play all %1$d tracks</string>
+    <string name="playlist_detail_liked">Liked</string>
+    <string name="playlist_detail_unliked">Not liked</string>
+    <string name="playlist_detail_track_count">%1$d tracks</string>
+
+    <string name="recent_title">Recent Plays</string>
+    <string name="recent_empty">No recent plays</string>
+    <string name="recent_start_play_all">Play all %1$d tracks</string>
+
+    <string name="search_title">Search</string>
+    <string name="search_hint">Search songs/playlists/albums</string>
+    <string name="search_tap_to_get_results">Tap search to get results</string>
+    <string name="search_suggestions">Suggestions</string>
+    <string name="search_need_login">Please log in first</string>
+    <string name="search_no_song">No matching songs found</string>
+    <string name="search_no_playlist">No matching playlists found</string>
+    <string name="search_no_album">No matching albums found</string>
+    <string name="search_song_tab">Songs</string>
+    <string name="search_playlist_tab">Playlists</string>
+    <string name="search_album_tab">Albums</string>
+
+    <string name="search_detail_load_failed">Load failed: %1$s</string>
+    <string name="search_detail_empty">No songs</string>
+    <string name="search_detail_start_play_all">Play all %1$d tracks</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_account">Account</string>
+    <string name="settings_section_ui">UI</string>
+    <string name="settings_section_feature">Features</string>
+    <string name="settings_section_debug">Debug</string>
+    <string name="settings_copy_cookie">Copy Cookie</string>
+    <string name="settings_logout">Log Out</string>
+    <string name="settings_theme_light">Light mode</string>
+    <string name="settings_theme_dark">Dark mode</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_use_local_recent">Use local recent play history</string>
+    <string name="settings_enable_cover_palette">Enable cover-based theming</string>
+    <string name="settings_disable_cover_overflow">Disable cover overflow from playback bar</string>
+    <string name="settings_no_cookie">No cookie available to copy</string>
+    <string name="settings_cookie_copied">Cookie copied</string>
+    <string name="settings_logged_out">Logged out</string>
+    <string name="settings_cookie_key">cookie</string>
+    <string name="settings_cookie_length">Cookie length: %1$d</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">Follow system</string>
+    <string name="settings_language_zh_cn">Simplified Chinese</string>
+    <string name="settings_language_zh_tw">Traditional Chinese</string>
+    <string name="settings_language_en">English</string>
+
+    <string name="nav_default_playlist_name">Playlist</string>
+    <string name="nav_default_detail_name">Details</string>
+
+    <string name="player_error_playback">Playback error: %1$s</string>
+    <string name="player_error_not_logged_in">Not logged in or cookie expired</string>
+    <string name="player_error_url_failed">Failed to get playback URL: %1$s</string>
+
+    <string name="api_unknown">Unknown</string>
+    <string name="api_unknown_artist">Unknown artist</string>
+    <string name="api_unknown_album">Unknown album</string>
+    <string name="api_unknown_playlist">Unknown playlist</string>
+
+    <string name="viewmodel_request_timeout">Request timed out</string>
+
+    <string name="login_phone_label">Phone number</string>
+    <string name="login_password_label">Password</string>
+    <string name="login_captcha_label">Captcha</string>
+    <string name="login_cookie_label">Cookie</string>
+    <string name="login_cookie_placeholder">Enter cookie</string>
+    <string name="login_enter_phone">Please enter your phone number</string>
+    <string name="login_enter_cookie">Please enter cookie</string>
+    <string name="login_need_security_verify">Security verification required, please log in with SMS captcha</string>
+    <string name="login_failed">Login failed</string>
+    <string name="login_send_sms">Send SMS captcha to log in</string>
+    <string name="login_use_cookie">Log in with cookie</string>
+    <string name="login_verify">Verify</string>
+    <string name="login_back_to_password">Back to account/password login</string>
+    <string name="login_cookie_login">Cookie Login</string>
+</resources>

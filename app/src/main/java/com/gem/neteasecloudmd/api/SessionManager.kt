@@ -19,6 +19,10 @@ class SessionManager(context: Context) {
         const val THEME_MODE_SYSTEM = 0
         const val THEME_MODE_LIGHT = 1
         const val THEME_MODE_DARK = 2
+        const val LANGUAGE_SYSTEM = 0
+        const val LANGUAGE_ZH_CN = 1
+        const val LANGUAGE_ZH_TW = 2
+        const val LANGUAGE_EN = 3
 
         private const val KEY_USER_ID = "user_id"
         private const val KEY_NICKNAME = "nickname"
@@ -27,8 +31,18 @@ class SessionManager(context: Context) {
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_DISABLE_COVER_OVERFLOW = "disable_cover_overflow"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_LANGUAGE_MODE = "language_mode"
         private const val KEY_USE_LOCAL_RECENT_PLAYS = "use_local_recent_plays"
         private const val KEY_ENABLE_COVER_PALETTE = "enable_cover_palette"
+
+        fun languageTagFromMode(mode: Int): String {
+            return when (mode) {
+                LANGUAGE_ZH_CN -> "zh-CN"
+                LANGUAGE_ZH_TW -> "zh-TW"
+                LANGUAGE_EN -> "en"
+                else -> ""
+            }
+        }
     }
 
     fun saveLoginResult(result: LoginResult, cookie: String) {
@@ -62,6 +76,12 @@ class SessionManager(context: Context) {
 
     fun setThemeMode(mode: Int) {
         prefs.edit().putInt(KEY_THEME_MODE, mode).apply()
+    }
+
+    fun getLanguageMode(): Int = prefs.getInt(KEY_LANGUAGE_MODE, LANGUAGE_SYSTEM)
+
+    fun setLanguageMode(mode: Int) {
+        prefs.edit().putInt(KEY_LANGUAGE_MODE, mode).apply()
     }
 
     fun useLocalRecentPlays(): Boolean = prefs.getBoolean(KEY_USE_LOCAL_RECENT_PLAYS, true)

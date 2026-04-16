@@ -2,12 +2,14 @@ package com.gem.neteasecloudmd.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.ui.screens.LoginScreen
 import com.gem.neteasecloudmd.ui.screens.MainScreen
 import com.gem.neteasecloudmd.ui.screens.PlaylistDetailScreen
@@ -22,8 +24,10 @@ fun NavGraph(
     navController: NavHostController,
     startDestination: String,
     onThemeModeChanged: (Int) -> Unit,
+    onLanguageModeChanged: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -76,7 +80,7 @@ fun NavGraph(
             )
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
-            val playlistName = Uri.decode(backStackEntry.arguments?.getString("playlistName") ?: "歌单")
+            val playlistName = Uri.decode(backStackEntry.arguments?.getString("playlistName") ?: context.getString(R.string.nav_default_playlist_name))
             PlaylistDetailScreen(
                 playlistId = playlistId,
                 playlistName = playlistName,
@@ -109,7 +113,7 @@ fun NavGraph(
         ) { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: "playlist"
             val id = backStackEntry.arguments?.getLong("id") ?: 0L
-            val name = Uri.decode(backStackEntry.arguments?.getString("name") ?: "详情")
+            val name = Uri.decode(backStackEntry.arguments?.getString("name") ?: context.getString(R.string.nav_default_detail_name))
             SearchDetailScreen(
                 type = type,
                 id = id,
@@ -122,6 +126,7 @@ fun NavGraph(
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onThemeModeChanged = onThemeModeChanged,
+                onLanguageModeChanged = onLanguageModeChanged,
                 onLoggedOut = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Main.route) { inclusive = true }

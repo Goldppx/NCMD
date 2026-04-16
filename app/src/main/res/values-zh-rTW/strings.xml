@@ -1,0 +1,130 @@
+<resources>
+    <string name="app_name">NCMD</string>
+    <string name="main_title">NCMD</string>
+
+    <string name="common_back">返回</string>
+    <string name="common_menu">選單</string>
+    <string name="common_search">搜尋</string>
+    <string name="common_settings">設定</string>
+    <string name="common_login">登入</string>
+    <string name="common_expand">展開</string>
+    <string name="common_collapse">收起</string>
+    <string name="common_refresh">重新整理</string>
+    <string name="common_play">播放</string>
+    <string name="common_pause">暫停</string>
+    <string name="common_delete">刪除</string>
+    <string name="common_request_timeout">請求逾時</string>
+    <string name="common_error_with_prefix">錯誤: %1$s</string>
+    <string name="common_load_failed">載入失敗</string>
+    <string name="common_unknown_error">未知錯誤</string>
+
+    <string name="main_login_required">請先登入</string>
+    <string name="main_recent_plays">最近播放</string>
+    <string name="main_my_playlists">我的歌單</string>
+    <string name="main_empty_playlists">暫無歌單</string>
+    <string name="main_start_personal_fm">開始私人 FM</string>
+    <string name="main_play_track_toast">播放: %1$s</string>
+    <string name="main_unplayed">未播放</string>
+    <string name="main_queue_title">播放佇列</string>
+    <string name="main_queue_count">%1$d 首</string>
+    <string name="main_queue_empty">暫無播放佇列</string>
+    <string name="main_play_mode_sequential">順序播放</string>
+    <string name="main_play_mode_shuffle">隨機播放</string>
+    <string name="main_play_mode_repeat_one">單曲循環</string>
+    <string name="main_clear">清空</string>
+    <string name="main_not_logged_in">未登入</string>
+    <string name="main_uid_format">UID: %1$d</string>
+    <string name="main_avatar">頭像</string>
+    <string name="main_default_avatar">預設頭像</string>
+    <string name="main_album_art">專輯封面</string>
+    <string name="main_music_symbol">♪</string>
+    <string name="main_personal_fm">私人 FM</string>
+    <string name="main_track_count_no_space">%1$d首</string>
+
+    <string name="playlist_title">我的歌單</string>
+    <string name="playlist_refresh_success">重新整理成功，共%1$d個歌單</string>
+    <string name="playlist_refresh_failed">重新整理失敗: %1$s</string>
+    <string name="playlist_empty">暫無歌單</string>
+
+    <string name="playlist_detail_loaded_songs">已載入 %1$d 首歌曲</string>
+    <string name="playlist_detail_load_failed">載入失敗: %1$s</string>
+    <string name="playlist_detail_empty">歌單為空</string>
+    <string name="playlist_detail_play_all">播放全部</string>
+    <string name="playlist_detail_start_play_all">開始播放全部 %1$d 首</string>
+    <string name="playlist_detail_liked">已喜歡</string>
+    <string name="playlist_detail_unliked">未喜歡</string>
+    <string name="playlist_detail_track_count">%1$d 首歌曲</string>
+
+    <string name="recent_title">最近播放</string>
+    <string name="recent_empty">暫無最近播放</string>
+    <string name="recent_start_play_all">開始播放全部 %1$d 首</string>
+
+    <string name="search_title">搜尋</string>
+    <string name="search_hint">搜尋單曲/歌單/專輯</string>
+    <string name="search_tap_to_get_results">點擊搜尋以取得結果</string>
+    <string name="search_suggestions">搜尋建議</string>
+    <string name="search_need_login">請先登入</string>
+    <string name="search_no_song">未找到匹配單曲</string>
+    <string name="search_no_playlist">未找到匹配歌單</string>
+    <string name="search_no_album">未找到匹配專輯</string>
+    <string name="search_song_tab">單曲</string>
+    <string name="search_playlist_tab">歌單</string>
+    <string name="search_album_tab">專輯</string>
+
+    <string name="search_detail_load_failed">載入失敗: %1$s</string>
+    <string name="search_detail_empty">暫無歌曲</string>
+    <string name="search_detail_start_play_all">開始播放全部 %1$d 首</string>
+
+    <string name="settings_title">設定</string>
+    <string name="settings_section_account">帳號</string>
+    <string name="settings_section_ui">介面</string>
+    <string name="settings_section_feature">功能</string>
+    <string name="settings_section_debug">除錯</string>
+    <string name="settings_copy_cookie">複製 Cookie</string>
+    <string name="settings_logout">登出</string>
+    <string name="settings_theme_light">淺色模式</string>
+    <string name="settings_theme_dark">深色模式</string>
+    <string name="settings_theme_system">跟隨系統</string>
+    <string name="settings_use_local_recent">使用本機最近播放紀錄</string>
+    <string name="settings_enable_cover_palette">啟用歌曲封面取色</string>
+    <string name="settings_disable_cover_overflow">停用封面超出控制欄</string>
+    <string name="settings_no_cookie">目前沒有可複製的 Cookie</string>
+    <string name="settings_cookie_copied">Cookie 已複製</string>
+    <string name="settings_logged_out">已登出</string>
+    <string name="settings_cookie_key">cookie</string>
+    <string name="settings_cookie_length">Cookie 長度: %1$d</string>
+    <string name="settings_language">語言</string>
+    <string name="settings_language_system">跟隨系統</string>
+    <string name="settings_language_zh_cn">簡體中文</string>
+    <string name="settings_language_zh_tw">繁體中文</string>
+    <string name="settings_language_en">English</string>
+
+    <string name="nav_default_playlist_name">歌單</string>
+    <string name="nav_default_detail_name">詳情</string>
+
+    <string name="player_error_playback">播放錯誤: %1$s</string>
+    <string name="player_error_not_logged_in">未登入或Cookie失效</string>
+    <string name="player_error_url_failed">取得播放連結失敗: %1$s</string>
+
+    <string name="api_unknown">未知</string>
+    <string name="api_unknown_artist">未知藝術家</string>
+    <string name="api_unknown_album">未知專輯</string>
+    <string name="api_unknown_playlist">未知歌單</string>
+
+    <string name="viewmodel_request_timeout">請求逾時</string>
+
+    <string name="login_phone_label">手機號</string>
+    <string name="login_password_label">密碼</string>
+    <string name="login_captcha_label">驗證碼</string>
+    <string name="login_cookie_label">Cookie</string>
+    <string name="login_cookie_placeholder">請輸入Cookie</string>
+    <string name="login_enter_phone">請輸入手機號</string>
+    <string name="login_enter_cookie">請輸入Cookie</string>
+    <string name="login_need_security_verify">需要安全驗證，請發送簡訊驗證碼登入</string>
+    <string name="login_failed">登入失敗</string>
+    <string name="login_send_sms">發送簡訊驗證碼登入</string>
+    <string name="login_use_cookie">使用Cookie登入</string>
+    <string name="login_verify">驗證</string>
+    <string name="login_back_to_password">返回帳號密碼登入</string>
+    <string name="login_cookie_login">Cookie登入</string>
+</resources>

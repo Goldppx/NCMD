@@ -44,10 +44,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.TrackItem
@@ -63,7 +65,7 @@ fun SearchDetailScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val apiService = remember { NeteaseApiService() }
+    val apiService = remember { NeteaseApiService(context) }
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
@@ -115,7 +117,7 @@ fun SearchDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -144,13 +146,13 @@ fun SearchDetailScreen(
 
                 errorMessage != null -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = "加载失败: ${errorMessage ?: "未知错误"}", color = MaterialTheme.colorScheme.error)
+                        Text(text = stringResource(R.string.search_detail_load_failed, errorMessage ?: stringResource(R.string.common_unknown_error)), color = MaterialTheme.colorScheme.error)
                     }
                 }
 
                 tracks.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = "暂无歌曲", style = MaterialTheme.typography.bodyLarge)
+                        Text(text = stringResource(R.string.search_detail_empty), style = MaterialTheme.typography.bodyLarge)
                     }
                 }
 
@@ -166,7 +168,7 @@ fun SearchDetailScreen(
                                 onClick = {
                                     player.setCookie(cookie)
                                     player.setPlaylist(tracks, 0)
-                                    Toast.makeText(context, "开始播放全部 ${tracks.size} 首", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.search_detail_start_play_all, tracks.size), Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -180,7 +182,7 @@ fun SearchDetailScreen(
                                 onClick = {
                                     player.setCookie(cookie)
                                     player.setPlaylist(tracks, index)
-                                    Toast.makeText(context, "播放: ${track.name}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -219,7 +221,7 @@ private fun PlayAllCard(
             ) {
                 Icon(
                     Icons.Default.PlayArrow,
-                    contentDescription = "播放全部",
+                    contentDescription = stringResource(R.string.playlist_detail_play_all),
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -228,12 +230,12 @@ private fun PlayAllCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "播放全部",
+                    text = stringResource(R.string.playlist_detail_play_all),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "$trackCount 首歌曲",
+                    text = stringResource(R.string.playlist_detail_track_count, trackCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
@@ -282,7 +284,7 @@ private fun SearchDetailTrackCard(
                     )
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("♪")
+                        Text(stringResource(R.string.main_music_symbol))
                     }
                 }
             }

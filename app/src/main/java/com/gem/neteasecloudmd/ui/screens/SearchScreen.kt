@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -47,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SearchAlbumItem
@@ -56,10 +58,10 @@ import com.gem.neteasecloudmd.api.rememberPlayerManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
-private enum class SearchTab(val title: String) {
-    SONG("单曲"),
-    PLAYLIST("歌单"),
-    ALBUM("专辑")
+private enum class SearchTab {
+    SONG,
+    PLAYLIST,
+    ALBUM
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +73,7 @@ fun SearchScreen(
     val context = LocalContext.current
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
-    val apiService = remember { NeteaseApiService() }
+    val apiService = remember { NeteaseApiService(context) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     val cookie = sessionManager.getCookie()
@@ -121,10 +123,10 @@ fun SearchScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("搜索") },
+                title = { Text(stringResource(R.string.search_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -148,7 +150,7 @@ fun SearchScreen(
                     playlistResults = emptyList()
                     albumResults = emptyList()
                 },
-                label = { Text("搜索单曲/歌单/专辑") },
+                label = { Text(stringResource(R.string.search_hint)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -179,7 +181,7 @@ fun SearchScreen(
                             }
                         }
                     ) {
-                        Text("搜索")
+                        Text(stringResource(R.string.common_search))
                     }
                 },
                 singleLine = true
@@ -195,7 +197,15 @@ fun SearchScreen(
                         onClick = {
                             selectedTab = tab
                         },
-                        text = { Text(tab.title) }
+                        text = {
+                            Text(
+                                when (tab) {
+                                    SearchTab.SONG -> stringResource(R.string.search_song_tab)
+                                    SearchTab.PLAYLIST -> stringResource(R.string.search_playlist_tab)
+                                    SearchTab.ALBUM -> stringResource(R.string.search_album_tab)
+                                }
+                            )
+                        }
                     )
                 }
             }
@@ -219,7 +229,7 @@ fun SearchScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "点击搜索以获取结果",
+                            text = stringResource(R.string.search_tap_to_get_results),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -234,7 +244,7 @@ fun SearchScreen(
                     ) {
                         item {
                             Text(
-                                text = "搜索建议",
+                                text = stringResource(R.string.search_suggestions),
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -263,7 +273,7 @@ fun SearchScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "点击搜索以获取结果",
+                            text = stringResource(R.string.search_tap_to_get_results),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -276,11 +286,11 @@ fun SearchScreen(
                             songs = songResults,
                             onPlaySong = { track ->
                                 if (cookie.isBlank()) {
-                                    Toast.makeText(context, "请先登录", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.search_need_login), Toast.LENGTH_SHORT).show()
                                 } else {
                                     player.setCookie(cookie)
                                     player.setPlaylist(songResults, songResults.indexOf(track))
-                                    Toast.makeText(context, "播放: ${track.name}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )
@@ -317,7 +327,7 @@ private fun SongSearchResults(
         if (songs.isEmpty()) {
             item {
                 Text(
-                    text = "未找到匹配单曲",
+                    text = stringResource(R.string.search_no_song),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -362,7 +372,7 @@ private fun PlaylistSearchResults(
         if (playlists.isEmpty()) {
             item {
                 Text(
-                    text = "未找到匹配歌单",
+                    text = stringResource(R.string.search_no_playlist),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -382,7 +392,7 @@ private fun PlaylistSearchResults(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${playlist.trackCount} 首歌曲",
+                        text = stringResource(R.string.playlist_detail_track_count, playlist.trackCount),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -405,7 +415,7 @@ private fun AlbumSearchResults(
         if (albums.isEmpty()) {
             item {
                 Text(
-                    text = "未找到匹配专辑",
+                    text = stringResource(R.string.search_no_album),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
