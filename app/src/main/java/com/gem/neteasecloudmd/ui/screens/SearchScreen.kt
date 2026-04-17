@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.PlaylistItem
@@ -64,6 +65,7 @@ private enum class SearchTab {
     ALBUM
 }
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -71,6 +73,7 @@ fun SearchScreen(
     onNavigateToSearchDetail: (type: String, id: Long, name: String) -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
     val apiService = remember { NeteaseApiService(context) }
@@ -286,11 +289,11 @@ fun SearchScreen(
                             songs = songResults,
                             onPlaySong = { track ->
                                 if (cookie.isBlank()) {
-                                    Toast.makeText(context, context.getString(R.string.search_need_login), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, resources.getString(R.string.search_need_login), Toast.LENGTH_SHORT).show()
                                 } else {
                                     player.setCookie(cookie)
                                     player.setPlaylist(songResults, songResults.indexOf(track))
-                                    Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )

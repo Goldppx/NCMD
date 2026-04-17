@@ -23,6 +23,12 @@ class SessionManager(context: Context) {
         const val LANGUAGE_ZH_CN = 1
         const val LANGUAGE_ZH_TW = 2
         const val LANGUAGE_EN = 3
+        const val SLEEP_TIMER_PRESET_DISABLED = 0
+        const val SLEEP_TIMER_PRESET_15 = 15
+        const val SLEEP_TIMER_PRESET_30 = 30
+        const val SLEEP_TIMER_PRESET_45 = 45
+        const val SLEEP_TIMER_PRESET_60 = 60
+        const val SLEEP_TIMER_PRESET_CUSTOM = -1
 
         private const val KEY_USER_ID = "user_id"
         private const val KEY_NICKNAME = "nickname"
@@ -34,6 +40,9 @@ class SessionManager(context: Context) {
         private const val KEY_LANGUAGE_MODE = "language_mode"
         private const val KEY_USE_LOCAL_RECENT_PLAYS = "use_local_recent_plays"
         private const val KEY_ENABLE_COVER_PALETTE = "enable_cover_palette"
+        private const val KEY_SLEEP_TIMER_PRESET_MINUTES = "sleep_timer_preset_minutes"
+        private const val KEY_SLEEP_TIMER_CUSTOM_MINUTES = "sleep_timer_custom_minutes"
+        private const val KEY_SLEEP_TIMER_WAIT_FOR_QUEUE_END = "sleep_timer_wait_for_queue_end"
 
         fun languageTagFromMode(mode: Int): String {
             return when (mode) {
@@ -94,6 +103,30 @@ class SessionManager(context: Context) {
 
     fun setCoverPaletteEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_ENABLE_COVER_PALETTE, enabled).apply()
+    }
+
+    fun getSleepTimerPresetMinutes(): Int {
+        return prefs.getInt(KEY_SLEEP_TIMER_PRESET_MINUTES, SLEEP_TIMER_PRESET_DISABLED)
+    }
+
+    fun setSleepTimerPresetMinutes(minutes: Int) {
+        prefs.edit().putInt(KEY_SLEEP_TIMER_PRESET_MINUTES, minutes).apply()
+    }
+
+    fun getSleepTimerCustomMinutes(): Int {
+        return prefs.getInt(KEY_SLEEP_TIMER_CUSTOM_MINUTES, 20).coerceIn(1, 240)
+    }
+
+    fun setSleepTimerCustomMinutes(minutes: Int) {
+        prefs.edit().putInt(KEY_SLEEP_TIMER_CUSTOM_MINUTES, minutes.coerceIn(1, 240)).apply()
+    }
+
+    fun getSleepTimerWaitForQueueEnd(): Boolean {
+        return prefs.getBoolean(KEY_SLEEP_TIMER_WAIT_FOR_QUEUE_END, false)
+    }
+
+    fun setSleepTimerWaitForQueueEnd(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SLEEP_TIMER_WAIT_FOR_QUEUE_END, enabled).apply()
     }
 
     fun logout() {

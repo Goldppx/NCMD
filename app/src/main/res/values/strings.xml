@@ -3,7 +3,6 @@
     <string name="main_title">NCMD</string>
 
     <string name="common_back">返回</string>
-    <string name="common_menu">菜单</string>
     <string name="common_search">搜索</string>
     <string name="common_settings">设置</string>
     <string name="common_login">登录</string>
@@ -40,6 +39,21 @@
     <string name="main_music_symbol">♪</string>
     <string name="main_personal_fm">私人 FM</string>
     <string name="main_track_count_no_space">%1$d首</string>
+    <string name="main_sleep_timer">定时停止播放</string>
+    <string name="main_sleep_timer_title">定时停止播放</string>
+    <string name="main_sleep_timer_disabled">禁用</string>
+    <string name="main_sleep_timer_15">15 分钟</string>
+    <string name="main_sleep_timer_30">30 分钟</string>
+    <string name="main_sleep_timer_45">45 分钟</string>
+    <string name="main_sleep_timer_60">60 分钟</string>
+    <string name="main_sleep_timer_custom">自定义</string>
+    <string name="main_sleep_timer_custom_hint">输入分钟（1-240）</string>
+    <string name="main_sleep_timer_wait_for_end">等待当前播放列表播放完毕后停止</string>
+    <string name="main_confirm">确认</string>
+    <string name="main_cancel">取消</string>
+    <string name="main_sleep_timer_toast_set">已设置 %1$d 分钟后停止播放</string>
+    <string name="main_sleep_timer_toast_set_wait_end">已设置：到时后等待播放列表结束再停止</string>
+    <string name="main_sleep_timer_toast_disabled">已关闭定时停止播放</string>
 
     <string name="playlist_title">我的歌单</string>
     <string name="playlist_refresh_success">刷新成功，共%1$d个歌单</string>
@@ -98,6 +112,7 @@
     <string name="settings_language_zh_cn">简体中文</string>
     <string name="settings_language_zh_tw">繁体中文</string>
     <string name="settings_language_en">English</string>
+    <string name="settings_language_switched_toast">已切换语言，部分界面重启后生效</string>
 
     <string name="nav_default_playlist_name">歌单</string>
     <string name="nav_default_detail_name">详情</string>

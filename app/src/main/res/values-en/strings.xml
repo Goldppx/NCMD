@@ -3,7 +3,6 @@
     <string name="main_title">NCMD</string>
 
     <string name="common_back">Back</string>
-    <string name="common_menu">Menu</string>
     <string name="common_search">Search</string>
     <string name="common_settings">Settings</string>
     <string name="common_login">Log In</string>
@@ -40,6 +39,21 @@
     <string name="main_music_symbol">♪</string>
     <string name="main_personal_fm">Personal FM</string>
     <string name="main_track_count_no_space">%1$d tracks</string>
+    <string name="main_sleep_timer">Sleep timer</string>
+    <string name="main_sleep_timer_title">Sleep timer</string>
+    <string name="main_sleep_timer_disabled">Disable</string>
+    <string name="main_sleep_timer_15">15 min</string>
+    <string name="main_sleep_timer_30">30 min</string>
+    <string name="main_sleep_timer_45">45 min</string>
+    <string name="main_sleep_timer_60">60 min</string>
+    <string name="main_sleep_timer_custom">Custom</string>
+    <string name="main_sleep_timer_custom_hint">Enter minutes (1-240)</string>
+    <string name="main_sleep_timer_wait_for_end">Wait until the current queue ends</string>
+    <string name="main_confirm">Confirm</string>
+    <string name="main_cancel">Cancel</string>
+    <string name="main_sleep_timer_toast_set">Sleep timer set for %1$d minutes</string>
+    <string name="main_sleep_timer_toast_set_wait_end">Set: wait for queue end when timer expires</string>
+    <string name="main_sleep_timer_toast_disabled">Sleep timer disabled</string>
 
     <string name="playlist_title">My Playlists</string>
     <string name="playlist_refresh_success">Refreshed successfully, %1$d playlists</string>
@@ -98,6 +112,7 @@
     <string name="settings_language_zh_cn">Simplified Chinese</string>
     <string name="settings_language_zh_tw">Traditional Chinese</string>
     <string name="settings_language_en">English</string>
+    <string name="settings_language_switched_toast">Language switched, some screens apply after restart</string>
 
     <string name="nav_default_playlist_name">Playlist</string>
     <string name="nav_default_detail_name">Details</string>

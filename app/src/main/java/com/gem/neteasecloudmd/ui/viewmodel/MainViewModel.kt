@@ -4,6 +4,7 @@ import android.app.Application
 import com.gem.neteasecloudmd.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.PlayerManager
 import com.gem.neteasecloudmd.api.PlaylistItem
@@ -36,6 +37,7 @@ data class MainUiState(
     val errorMessage: String? = null
 )
 
+@androidx.annotation.OptIn(UnstableApi::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val appContext = application.applicationContext
     private val sessionManager = SessionManager(appContext)

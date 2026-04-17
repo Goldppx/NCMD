@@ -13,10 +13,12 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.media3.common.util.UnstableApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,6 +32,7 @@ import com.gem.neteasecloudmd.api.rememberPlayerManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistDetailScreen(
@@ -38,6 +41,7 @@ fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val apiService = remember { NeteaseApiService(context) }
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
@@ -69,7 +73,7 @@ fun PlaylistDetailScreen(
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
-                            Toast.makeText(context, context.getString(R.string.playlist_detail_loaded_songs, trackList.size), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(R.string.playlist_detail_loaded_songs, trackList.size), Toast.LENGTH_SHORT).show()
                         }
                     },
                     onFailure = { e ->
@@ -77,14 +81,14 @@ fun PlaylistDetailScreen(
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
-                            Toast.makeText(context, context.getString(R.string.playlist_detail_load_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(R.string.playlist_detail_load_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) ?: run {
                     isLoading = false
                     isRefreshing = false
                     if (showToast) {
-                        Toast.makeText(context, context.getString(R.string.common_request_timeout), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, resources.getString(R.string.common_request_timeout), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -185,7 +189,7 @@ fun PlaylistDetailScreen(
                                         if (tracks.isNotEmpty()) {
                                             player.setCookie(cookie)
                                             player.setPlaylist(tracks, 0)
-                                            Toast.makeText(context, context.getString(R.string.playlist_detail_start_play_all, tracks.size), Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, resources.getString(R.string.playlist_detail_start_play_all, tracks.size), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 )
@@ -203,7 +207,7 @@ fun PlaylistDetailScreen(
                                     onClick = {
                                         player.setCookie(cookie)
                                         player.setPlaylist(tracks, index)
-                                        Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }

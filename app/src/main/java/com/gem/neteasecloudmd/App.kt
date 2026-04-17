@@ -16,8 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
+import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.navigation.NavGraph
@@ -25,6 +24,7 @@ import com.gem.neteasecloudmd.ui.navigation.Screen
 import com.gem.neteasecloudmd.ui.screens.PlaybackBar
 import com.gem.neteasecloudmd.ui.theme.NeteaseCloudMDTheme
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun NCMDApp() {
     val navController = rememberNavController()
@@ -70,9 +70,6 @@ fun NCMDApp() {
                     },
                     onLanguageModeChanged = { mode ->
                         languageMode = mode
-                        sessionManager.setLanguageMode(mode)
-                        val tag = SessionManager.languageTagFromMode(mode)
-                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
                     },
                     modifier = Modifier.fillMaxSize()
                 )

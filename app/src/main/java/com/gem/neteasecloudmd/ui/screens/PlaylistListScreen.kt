@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,7 @@ fun PlaylistListScreen(
     onNavigateToPlaylistDetail: (Long, String) -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val apiService = remember { NeteaseApiService(context) }
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
@@ -57,7 +59,7 @@ fun PlaylistListScreen(
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
-                            Toast.makeText(context, context.getString(R.string.playlist_refresh_success, playlists.size), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(R.string.playlist_refresh_success, playlists.size), Toast.LENGTH_SHORT).show()
                         }
                     },
                     onFailure = { e ->
@@ -65,14 +67,14 @@ fun PlaylistListScreen(
                         isLoading = false
                         isRefreshing = false
                         if (showToast) {
-                            Toast.makeText(context, context.getString(R.string.playlist_refresh_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(R.string.playlist_refresh_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) ?: run {
                     isLoading = false
                     isRefreshing = false
                     if (showToast) {
-                        Toast.makeText(context, context.getString(R.string.common_request_timeout), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, resources.getString(R.string.common_request_timeout), Toast.LENGTH_SHORT).show()
                     }
                 }
             }

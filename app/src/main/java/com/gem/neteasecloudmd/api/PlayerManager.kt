@@ -40,6 +40,13 @@ data class TrackItem(
     val duration: Int = 0
 )
 
+data class SleepTimerState(
+    val isActive: Boolean = false,
+    val remainingMs: Long = 0L,
+    val waitForQueueEnd: Boolean = false,
+    val targetAtMs: Long = 0L
+)
+
 enum class PlayMode {
     SEQUENTIAL,
     SHUFFLE,
@@ -52,7 +59,7 @@ class PlayerManager private constructor(private val context: Context) {
         private set
     var currentPlaylist by mutableStateOf<List<TrackItem>>(emptyList())
         private set
-    var currentTrackIndex by mutableStateOf(0)
+    var currentTrackIndex by mutableIntStateOf(0)
         private set
     var currentUrl by mutableStateOf<String?>(null)
         private set
@@ -71,6 +78,12 @@ class PlayerManager private constructor(private val context: Context) {
 
     var playMode by mutableStateOf(PlayMode.SEQUENTIAL)
         private set
+
+    var sleepTimerState by mutableStateOf(SleepTimerState())
+        private set
+
+    private var sleepTimerRunnable: Runnable? = null
+    private var sleepTimerWaitForQueueEnd: Boolean = false
 
     private var exoPlayer: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
@@ -116,6 +129,14 @@ class PlayerManager private constructor(private val context: Context) {
                             }
                             Player.STATE_ENDED -> {
                                 this@PlayerManager.isPlaying = false
+                                if (sleepTimerWaitForQueueEnd) {
+                                    val isLastSequential = playMode == PlayMode.SEQUENTIAL && currentTrackIndex >= currentPlaylist.lastIndex
+                                    val noMoreTrack = currentPlaylist.isEmpty() || isLastSequential
+                                    if (noMoreTrack) {
+                                        pauseBySleepTimer()
+                                        return
+                                    }
+                                }
                                 this@PlayerManager.next()
                             }
                             Player.STATE_IDLE -> {
@@ -256,6 +277,53 @@ class PlayerManager private constructor(private val context: Context) {
 
     fun setThemeSeedColor(argb: Int) {
         themeSeedArgb = argb
+    }
+
+    fun setSleepTimer(minutes: Int, waitForQueueEnd: Boolean) {
+        clearSleepTimer()
+        if (minutes <= 0) return
+
+        val totalMs = minutes * 60_000L
+        val targetAt = System.currentTimeMillis() + totalMs
+        sleepTimerWaitForQueueEnd = waitForQueueEnd
+        sleepTimerState = SleepTimerState(
+            isActive = true,
+            remainingMs = totalMs,
+            waitForQueueEnd = waitForQueueEnd,
+            targetAtMs = targetAt
+        )
+
+        val runnable = object : Runnable {
+            override fun run() {
+                val remain = (targetAt - System.currentTimeMillis()).coerceAtLeast(0L)
+                sleepTimerState = sleepTimerState.copy(remainingMs = remain)
+                if (remain <= 0L) {
+                    if (sleepTimerWaitForQueueEnd) {
+                        if (currentPlaylist.isEmpty()) {
+                            pauseBySleepTimer()
+                        }
+                    } else {
+                        pauseBySleepTimer()
+                    }
+                    return
+                }
+                mainHandler.postDelayed(this, 1000L)
+            }
+        }
+        sleepTimerRunnable = runnable
+        mainHandler.post(runnable)
+    }
+
+    fun clearSleepTimer() {
+        sleepTimerRunnable?.let { mainHandler.removeCallbacks(it) }
+        sleepTimerRunnable = null
+        sleepTimerWaitForQueueEnd = false
+        sleepTimerState = SleepTimerState()
+    }
+
+    private fun pauseBySleepTimer() {
+        pause()
+        clearSleepTimer()
     }
     
     fun setPlaylist(tracks: List<TrackItem>, startIndex: Int = 0) {
@@ -597,6 +665,7 @@ class PlayerManager private constructor(private val context: Context) {
     
     private fun releasePlayer() {
         mainHandler.removeCallbacks(updateRunnable)
+        clearSleepTimer()
         notificationManager?.setPlayer(null)
         notificationManager = null
         notificationPlayer = null

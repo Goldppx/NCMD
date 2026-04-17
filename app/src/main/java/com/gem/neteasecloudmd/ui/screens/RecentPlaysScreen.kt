@@ -9,10 +9,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.media3.common.util.UnstableApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,12 +27,14 @@ import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import kotlinx.coroutines.launch
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecentPlaysScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
     val apiService = remember { NeteaseApiService(context) }
@@ -113,7 +117,7 @@ fun RecentPlaysScreen(
                                         if (recentPlays.isNotEmpty()) {
                                             player.setCookie(cookie)
                                             player.setPlaylist(recentPlays, 0)
-                                            Toast.makeText(context, context.getString(R.string.recent_start_play_all, recentPlays.size), Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, resources.getString(R.string.recent_start_play_all, recentPlays.size), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 )
@@ -130,7 +134,7 @@ fun RecentPlaysScreen(
                                     onClick = {
                                         player.setCookie(cookie)
                                         player.setPlaylist(recentPlays, index)
-                                        Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }

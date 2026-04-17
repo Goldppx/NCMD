@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gem.neteasecloudmd.R
@@ -24,6 +25,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val apiService = remember { NeteaseApiService(context) }
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
@@ -88,7 +90,7 @@ fun LoginScreen(
                 Button(
                     onClick = {
                         if (phone.isBlank()) {
-                            errorMessage = context.getString(R.string.login_enter_phone)
+                            errorMessage = resources.getString(R.string.login_enter_phone)
                             return@Button
                         }
                         isLoading = true
@@ -103,13 +105,13 @@ fun LoginScreen(
                                 }.onFailure { e ->
                                     val msg = e.message ?: ""
                                     if (msg.contains("400") || msg.contains("security", ignoreCase = true)) {
-                                        errorMessage = context.getString(R.string.login_need_security_verify)
+                                        errorMessage = resources.getString(R.string.login_need_security_verify)
                                     } else {
                                         errorMessage = msg
                                     }
                                 }
                             } catch (e: Exception) {
-                                errorMessage = e.message ?: context.getString(R.string.login_failed)
+                                errorMessage = e.message ?: resources.getString(R.string.login_failed)
                             } finally {
                                 isLoading = false
                             }
@@ -133,7 +135,7 @@ fun LoginScreen(
                 TextButton(
                     onClick = {
                         if (phone.isBlank()) {
-                            errorMessage = context.getString(R.string.login_enter_phone)
+                            errorMessage = resources.getString(R.string.login_enter_phone)
                             return@TextButton
                         }
                         isLoading = true
@@ -188,7 +190,7 @@ fun LoginScreen(
                     Button(
                         onClick = {
                             if (phone.isBlank()) {
-                                errorMessage = context.getString(R.string.login_enter_phone)
+                                errorMessage = resources.getString(R.string.login_enter_phone)
                                 return@Button
                             }
                             isLoading = true
@@ -256,7 +258,7 @@ fun LoginScreen(
                 Button(
                     onClick = {
                         if (cookie.isBlank()) {
-                            errorMessage = context.getString(R.string.login_enter_cookie)
+                            errorMessage = resources.getString(R.string.login_enter_cookie)
                             return@Button
                         }
                         isLoading = true

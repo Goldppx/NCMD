@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
@@ -15,14 +16,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Radio
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Delete
@@ -39,8 +39,10 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -55,11 +57,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.palette.graphics.Palette
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.PlaylistItem
+import com.gem.neteasecloudmd.api.SleepTimerPolicy
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
-import kotlinx.coroutines.launch
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,80 +74,119 @@ fun MainScreen(
     onNavigateToPlaylistDetail: (Long, String) -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val resources = LocalResources.current
+    val sessionManager = remember { SessionManager(context) }
     val mainViewModel: MainViewModel = viewModel()
     val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
-    
+
     val player = rememberPlayerManager(context)
-    
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    
+
+    val showAccountDialog = remember { mutableStateOf(false) }
+    val showSleepTimerDialog = remember { mutableStateOf(false) }
+    var sleepPreset by remember { mutableIntStateOf(sessionManager.getSleepTimerPresetMinutes()) }
+    var sleepCustomMinutes by remember { mutableIntStateOf(sessionManager.getSleepTimerCustomMinutes()) }
+    var waitForQueueEnd by remember { mutableStateOf(sessionManager.getSleepTimerWaitForQueueEnd()) }
+    var customInput by remember { mutableStateOf(sleepCustomMinutes.toString()) }
+
     LaunchedEffect(Unit) {
         player.setApiService(mainViewModel.apiService)
     }
-    
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = true,
-        drawerContent = {
-            ModalDrawerSheet(modifier = Modifier.width(280.dp)) {
-                DrawerContent(
-                    onLoginClick = {
-                        scope.launch { drawerState.close() }
-                        onNavigateToSearch()
-                    },
-                    onRecentPlaysClick = {
-                        scope.launch { drawerState.close() }
-                        onNavigateToRecentPlays()
-                    },
-                    onSettingsClick = {
-                        scope.launch { drawerState.close() }
-                        onNavigateToSettings()
+
+    if (showSleepTimerDialog.value) {
+        SleepTimerDialog(
+            sleepPreset = sleepPreset,
+            onSleepPresetChange = { sleepPreset = it },
+            customInput = customInput,
+            onCustomInputChange = { customInput = it.filter { ch -> ch.isDigit() } },
+            waitForQueueEnd = waitForQueueEnd,
+            onWaitForQueueEndChange = { waitForQueueEnd = it },
+            onDismiss = { showSleepTimerDialog.value = false },
+            onConfirm = {
+                val custom = customInput.toIntOrNull()?.coerceIn(1, 240) ?: sleepCustomMinutes
+                sleepCustomMinutes = custom
+                sessionManager.setSleepTimerCustomMinutes(custom)
+                sessionManager.setSleepTimerPresetMinutes(sleepPreset)
+                sessionManager.setSleepTimerWaitForQueueEnd(waitForQueueEnd)
+
+                val minutes = SleepTimerPolicy.resolveMinutes(sleepPreset, custom)
+                if (minutes <= 0) {
+                    player.clearSleepTimer()
+                    Toast.makeText(context, resources.getString(R.string.main_sleep_timer_toast_disabled), Toast.LENGTH_SHORT).show()
+                } else {
+                    player.setSleepTimer(minutes, waitForQueueEnd)
+                    if (waitForQueueEnd) {
+                        Toast.makeText(context, resources.getString(R.string.main_sleep_timer_toast_set_wait_end), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, resources.getString(R.string.main_sleep_timer_toast_set, minutes), Toast.LENGTH_SHORT).show()
                     }
-                )
+                }
+                showSleepTimerDialog.value = false
             }
-        }
-    ) {
-        Scaffold(
-            modifier = Modifier
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
-            topBar = {
-                LargeTopAppBar(
-                    title = {
-                        Column {
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onNavigateToSearch),
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = stringResource(R.string.main_title),
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
+                                text = stringResource(R.string.search_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (uiState.isLoggedIn) {
-                                Text(
-                                    text = uiState.nickname,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showAccountDialog.value = true }) {
+                        Surface(
+                            modifier = Modifier.size(32.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            val avatarUrl = sessionManager.getAvatarUrl()
+                            if (avatarUrl != null && sessionManager.isLoggedIn()) {
+                                AsyncImage(
+                                    model = avatarUrl,
+                                    contentDescription = stringResource(R.string.main_avatar),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
                                 )
+                            } else {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = stringResource(R.string.main_default_avatar),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.common_menu))
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onNavigateToSearch) {
-                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.common_search))
-                        }
-                    },
-                    scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 )
-            }
-        ) { innerPadding ->
+            )
+        }
+    ) { innerPadding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -212,14 +253,15 @@ fun MainScreen(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .padding(horizontal = 12.dp, vertical = 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
                                                 FilledTonalButton(
                                                     onClick = {
                                                         if (fmTracks.isNotEmpty()) {
                                                             player.setCookie(uiState.cookie)
                                                             mainViewModel.startPersonalFm()
-                                                            Toast.makeText(context, context.getString(R.string.main_start_personal_fm), Toast.LENGTH_SHORT).show()
+                                                            Toast.makeText(context, resources.getString(R.string.main_start_personal_fm), Toast.LENGTH_SHORT).show()
                                                         }
                                                     },
                                                     enabled = fmTracks.isNotEmpty() && !uiState.isFmLoading,
@@ -232,6 +274,22 @@ fun MainScreen(
                                                     Icon(
                                                         imageVector = Icons.Default.Radio,
                                                         contentDescription = stringResource(R.string.main_personal_fm),
+                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                }
+
+                                                FilledTonalButton(
+                                                    onClick = { showSleepTimerDialog.value = true },
+                                                    shape = RoundedCornerShape(14.dp),
+                                                    contentPadding = PaddingValues(0.dp),
+                                                    modifier = Modifier
+                                                        .width(56.dp)
+                                                        .height(44.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Timer,
+                                                        contentDescription = stringResource(R.string.main_sleep_timer),
                                                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                                         modifier = Modifier.size(22.dp)
                                                     )
@@ -260,7 +318,7 @@ fun MainScreen(
                                                             onClick = {
                                                                 player.setCookie(uiState.cookie)
                                                                 player.setPlaylist(uiState.recentPlays, uiState.recentPlays.indexOf(track))
-                                                                Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
+                                                                Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                                             }
                                                         )
                                                     } else {
@@ -269,7 +327,7 @@ fun MainScreen(
                                                             onClick = {
                                                                 player.setCookie(uiState.cookie)
                                                                 player.setPlaylist(uiState.recentPlays, uiState.recentPlays.indexOf(track))
-                                                                Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
+                                                                Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                                             }
                                                         )
                                                     }
@@ -326,7 +384,26 @@ fun MainScreen(
                     }
                 }
             }
-        }
+    }
+
+    if (showAccountDialog.value) {
+        AccountCenterDialog(
+            isLoggedIn = sessionManager.isLoggedIn(),
+            nickname = sessionManager.getNickname(),
+            userId = sessionManager.getUserId(),
+            avatarUrl = sessionManager.getAvatarUrl(),
+            onDismiss = { showAccountDialog.value = false },
+            onSettingsClick = {
+                showAccountDialog.value = false
+                onNavigateToSettings()
+            },
+            onLogoutClick = {
+                sessionManager.logout()
+                Toast.makeText(context, resources.getString(R.string.settings_logged_out), Toast.LENGTH_SHORT).show()
+                showAccountDialog.value = false
+                onNavigateToSearch()
+            }
+        )
     }
 }
 
@@ -356,94 +433,183 @@ private fun SectionHeader(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DrawerContent(
-    onLoginClick: () -> Unit,
-    onRecentPlaysClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {}
+private fun SleepTimerDialog(
+    sleepPreset: Int,
+    onSleepPresetChange: (Int) -> Unit,
+    customInput: String,
+    onCustomInputChange: (String) -> Unit,
+    waitForQueueEnd: Boolean,
+    onWaitForQueueEndChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
 ) {
-    val context = LocalContext.current
-    val sessionManager by remember { mutableStateOf(SessionManager(context)) }
-    val isLoggedIn = sessionManager.isLoggedIn()
-    val nickname = sessionManager.getNickname()
-    val avatarUrl = sessionManager.getAvatarUrl()
-    val userId = sessionManager.getUserId()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        ListItem(
-            headlineContent = {
-                Text(
-                    text = if (isLoggedIn) nickname else stringResource(R.string.main_not_logged_in),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.main_sleep_timer_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val options = listOf(
+                    SessionManager.SLEEP_TIMER_PRESET_DISABLED to stringResource(R.string.main_sleep_timer_disabled),
+                    SessionManager.SLEEP_TIMER_PRESET_15 to stringResource(R.string.main_sleep_timer_15),
+                    SessionManager.SLEEP_TIMER_PRESET_30 to stringResource(R.string.main_sleep_timer_30),
+                    SessionManager.SLEEP_TIMER_PRESET_45 to stringResource(R.string.main_sleep_timer_45),
+                    SessionManager.SLEEP_TIMER_PRESET_60 to stringResource(R.string.main_sleep_timer_60),
+                    SessionManager.SLEEP_TIMER_PRESET_CUSTOM to stringResource(R.string.main_sleep_timer_custom)
                 )
-            },
-            supportingContent = if (isLoggedIn) {
-                { Text(stringResource(R.string.main_uid_format, userId)) }
-            } else null,
-            leadingContent = {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
+
+                options.forEach { (minutes, label) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = sleepPreset == minutes,
+                            onClick = { onSleepPresetChange(minutes) }
+                        )
+                        Text(text = label)
+                    }
+                }
+
+                if (sleepPreset == SessionManager.SLEEP_TIMER_PRESET_CUSTOM) {
+                    OutlinedTextField(
+                        value = customInput,
+                        onValueChange = onCustomInputChange,
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.main_sleep_timer_custom_hint)) }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Switch(
+                        checked = waitForQueueEnd,
+                        onCheckedChange = onWaitForQueueEndChange
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.main_sleep_timer_wait_for_end))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.main_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.main_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun AccountCenterDialog(
+    isLoggedIn: Boolean,
+    nickname: String,
+    userId: Long,
+    avatarUrl: String?,
+    onDismiss: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onLogoutClick: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = null,
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(56.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
                         if (avatarUrl != null && isLoggedIn) {
                             AsyncImage(
                                 model = avatarUrl,
                                 contentDescription = stringResource(R.string.main_avatar),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape),
+                                modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = stringResource(R.string.main_default_avatar),
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = stringResource(R.string.main_default_avatar),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isLoggedIn) nickname else stringResource(R.string.main_not_logged_in),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = if (isLoggedIn) stringResource(R.string.main_uid_format, userId) else stringResource(R.string.main_not_logged_in),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    TextButton(
+                        onClick = onSettingsClick,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.common_settings),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Start
+                        )
+                    }
+
+                    if (isLoggedIn) {
+                        TextButton(
+                            onClick = onLogoutClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_logout),
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Start
                             )
                         }
                     }
                 }
             }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        if (isLoggedIn) {
-            FilledTonalButton(
-                onClick = onRecentPlaysClick,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.main_recent_plays))
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        FilledTonalButton(
-            onClick = onSettingsClick,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Settings, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.common_settings))
-        }
-
-        if (!isLoggedIn) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = onLoginClick,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.common_login))
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.main_confirm))
             }
         }
-    }
+    )
 }
 
 @Composable
@@ -597,8 +763,8 @@ private fun PreviewRecentPlaySmallCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaybackBar(
-    showPlayBar: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showPlayBar: Boolean = false
 ) {
     if (!showPlayBar) return
 
@@ -629,7 +795,7 @@ fun PlaybackBar(
     var accumulatedDeltaX by remember { mutableFloatStateOf(0f) }
     var accumulatedDeltaY by remember { mutableFloatStateOf(0f) }
     var hasReachedThreshold by remember { mutableStateOf(false) }
-    var gestureDirection by remember { mutableStateOf<GestureDirection>(GestureDirection.NONE) }
+    var gestureDirection by remember { mutableStateOf(GestureDirection.NONE) }
     var showQueueSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentTrack?.albumPicUrl, enableCoverPalette) {
@@ -1119,11 +1285,4 @@ fun PlaybackBar(
 
 private enum class GestureDirection {
     NONE, LEFT, RIGHT, UP, DOWN
-}
-
-private fun formatTime(milliseconds: Int): String {
-    val totalSeconds = milliseconds / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
 }

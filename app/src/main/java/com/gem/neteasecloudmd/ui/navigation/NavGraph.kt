@@ -2,8 +2,8 @@ package com.gem.neteasecloudmd.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -27,7 +27,8 @@ fun NavGraph(
     onLanguageModeChanged: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -80,7 +81,11 @@ fun NavGraph(
             )
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
-            val playlistName = Uri.decode(backStackEntry.arguments?.getString("playlistName") ?: context.getString(R.string.nav_default_playlist_name))
+            val playlistName = Uri.decode(
+                backStackEntry.arguments?.getString("playlistName")
+                    ?: resources.getString(R.string.nav_default_playlist_name)
+            )
+
             PlaylistDetailScreen(
                 playlistId = playlistId,
                 playlistName = playlistName,
@@ -113,7 +118,11 @@ fun NavGraph(
         ) { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: "playlist"
             val id = backStackEntry.arguments?.getLong("id") ?: 0L
-            val name = Uri.decode(backStackEntry.arguments?.getString("name") ?: context.getString(R.string.nav_default_detail_name))
+            val name = Uri.decode(
+                backStackEntry.arguments?.getString("name")
+                    ?: resources.getString(R.string.nav_default_detail_name)
+            )
+
             SearchDetailScreen(
                 type = type,
                 id = id,

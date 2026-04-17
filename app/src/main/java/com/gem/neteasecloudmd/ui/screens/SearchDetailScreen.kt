@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +56,9 @@ import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import kotlinx.coroutines.launch
+import androidx.media3.common.util.UnstableApi
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchDetailScreen(
@@ -65,6 +68,7 @@ fun SearchDetailScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val apiService = remember { NeteaseApiService(context) }
     val player = rememberPlayerManager(context)
     val sessionManager = remember { SessionManager(context) }
@@ -168,7 +172,7 @@ fun SearchDetailScreen(
                                 onClick = {
                                     player.setCookie(cookie)
                                     player.setPlaylist(tracks, 0)
-                                    Toast.makeText(context, context.getString(R.string.search_detail_start_play_all, tracks.size), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, resources.getString(R.string.search_detail_start_play_all, tracks.size), Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -182,7 +186,7 @@ fun SearchDetailScreen(
                                 onClick = {
                                     player.setCookie(cookie)
                                     player.setPlaylist(tracks, index)
-                                    Toast.makeText(context, context.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
