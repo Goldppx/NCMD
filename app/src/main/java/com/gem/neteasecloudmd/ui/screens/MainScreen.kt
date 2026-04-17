@@ -1,6 +1,6 @@
 package com.gem.neteasecloudmd.ui.screens
 
-import android.widget.Toast
+import com.gem.neteasecloudmd.ui.common.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -290,6 +291,28 @@ fun MainScreen(
                                                     Icon(
                                                         imageVector = Icons.Default.Timer,
                                                         contentDescription = stringResource(R.string.main_sleep_timer),
+                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                }
+
+                                                FilledTonalButton(
+                                                    onClick = {
+                                                        Toast.makeText(
+                                                            context,
+                                                            resources.getString(R.string.main_audio_match_unavailable),
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    },
+                                                    shape = RoundedCornerShape(14.dp),
+                                                    contentPadding = PaddingValues(0.dp),
+                                                    modifier = Modifier
+                                                        .width(56.dp)
+                                                        .height(44.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Hearing,
+                                                        contentDescription = stringResource(R.string.main_audio_match),
                                                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                                         modifier = Modifier.size(22.dp)
                                                     )

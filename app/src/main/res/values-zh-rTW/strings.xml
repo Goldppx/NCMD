@@ -38,6 +38,8 @@
     <string name="main_album_art">專輯封面</string>
     <string name="main_music_symbol">♪</string>
     <string name="main_personal_fm">私人 FM</string>
+    <string name="main_audio_match">聽歌識曲</string>
+    <string name="main_audio_match_unavailable">聽歌識曲入口已加入，錄音識別功能開發中</string>
     <string name="main_track_count_no_space">%1$d首</string>
     <string name="main_sleep_timer">定時停止播放</string>
     <string name="main_sleep_timer_title">定時停止播放</string>
@@ -68,6 +70,36 @@
     <string name="playlist_detail_liked">已喜歡</string>
     <string name="playlist_detail_unliked">未喜歡</string>
     <string name="playlist_detail_track_count">%1$d 首歌曲</string>
+    <string name="playlist_detail_batch_mode">批量操作</string>
+    <string name="playlist_detail_exit_batch_mode">退出批量操作</string>
+    <string name="playlist_detail_select_all">全選</string>
+    <string name="playlist_detail_unselect_all">取消全選</string>
+    <string name="playlist_detail_batch_selected">已選 %1$d 首</string>
+    <string name="playlist_detail_batch_add">加入歌單</string>
+    <string name="playlist_detail_batch_play_selected">播放已選</string>
+    <string name="playlist_detail_batch_add_to_queue">加入播放佇列</string>
+    <string name="playlist_detail_batch_remove">移除</string>
+    <string name="playlist_detail_batch_need_selection">請先選擇歌曲</string>
+    <string name="playlist_detail_batch_add_success">已加入 %1$d 首歌曲</string>
+    <string name="playlist_detail_batch_queue_success">已加入 %1$d 首到播放佇列</string>
+    <string name="playlist_detail_batch_play_success">開始播放 %1$d 首已選歌曲</string>
+    <string name="playlist_detail_batch_remove_success">已移除 %1$d 首歌曲</string>
+
+    <string name="song_menu_play_now">播放歌曲</string>
+    <string name="song_menu_add_to_queue">加入播放佇列</string>
+    <string name="song_menu_add_to_playlist">加入歌單</string>
+    <string name="song_menu_copy_share_link">複製分享連結</string>
+    <string name="song_menu_remove_from_current">從目前歌單移除</string>
+    <string name="song_menu_select_playlist">選擇歌單</string>
+    <string name="song_menu_add_success">已加入歌單</string>
+    <string name="song_menu_add_failed">加入失敗: %1$s</string>
+    <string name="song_menu_share_link_copied">分享連結已複製</string>
+    <string name="song_menu_remove_success">已從目前歌單移除</string>
+    <string name="song_menu_remove_failed">移除失敗: %1$s</string>
+    <string name="song_menu_remove_not_supported">目前頁面不支援移除</string>
+    <string name="song_menu_queue_success">已加入播放佇列</string>
+
+    <string name="recent_remove_song">移除單曲</string>
 
     <string name="recent_title">最近播放</string>
     <string name="recent_empty">暫無最近播放</string>

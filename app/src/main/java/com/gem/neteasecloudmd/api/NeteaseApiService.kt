@@ -153,8 +153,6 @@ class NeteaseApiService(
 
     suspend fun verifyCaptchaAndLogin(phone: String, captcha: String): Result<LoginResult> = withContext(Dispatchers.IO) {
         try {
-            val md5Password = md5(captcha)
-            
             val params = mapOf(
                 "type" to "1",
                 "https" to "true",
@@ -761,6 +759,110 @@ class NeteaseApiService(
             Result.failure(Exception("Like operation failed"))
         } catch (e: Exception) {
             Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addTrackToPlaylist(playlistId: Long, trackId: Long, cookie: String): Result<Boolean> =
+        manipulatePlaylistTracks(playlistId, listOf(trackId), "add", cookie)
+
+    suspend fun removeTracksFromPlaylist(playlistId: Long, trackIds: List<Long>, cookie: String): Result<Boolean> =
+        manipulatePlaylistTracks(playlistId, trackIds, "del", cookie)
+
+    private suspend fun manipulatePlaylistTracks(
+        playlistId: Long,
+        trackIds: List<Long>,
+        operation: String,
+        cookie: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            if (playlistId <= 0L || trackIds.isEmpty()) {
+                return@withContext Result.failure(Exception("Invalid playlist or tracks"))
+            }
+
+            val params = mapOf(
+                "id" to playlistId.toString(),
+                "tracks" to Json.encodeToString(trackIds),
+                "op" to operation,
+                "imme" to "true"
+            )
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/playlist/manipulate/tracks")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = runCatching { json.decodeFromString<SimpleCodeResponse>(body) }.getOrNull()
+                ?: return@withContext Result.failure(Exception("Failed to parse response"))
+
+            if (result.code == 200) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception(result.msg ?: result.message ?: "Playlist operation failed"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun audioMatch(
+        durationMs: Int,
+        audioFingerprint: String,
+        cookie: String
+    ): Result<Long?> = withContext(Dispatchers.IO) {
+        try {
+            if (durationMs <= 0 || audioFingerprint.isBlank()) {
+                return@withContext Result.failure(Exception("Invalid audio match params"))
+            }
+
+            val url = "$BASE_URL/audio/match?duration=$durationMs&audioFP=$audioFingerprint"
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (body.isBlank()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val root = kotlinx.serialization.json.Json.parseToJsonElement(body).jsonObject
+            val code = root["code"]?.jsonPrimitive?.content?.toIntOrNull() ?: -1
+            if (code != 200) {
+                return@withContext Result.failure(Exception("Audio match failed: $code"))
+            }
+
+            val resultObj = root["result"]?.jsonObject
+            val songId = resultObj?.get("song")
+                ?.jsonObject
+                ?.get("id")
+                ?.jsonPrimitive
+                ?.content
+                ?.toLongOrNull()
+            Result.success(songId)
+        } catch (e: Exception) {
+            Log.e(TAG, "audioMatch exception: ${e.message}", e)
             Result.failure(e)
         }
     }

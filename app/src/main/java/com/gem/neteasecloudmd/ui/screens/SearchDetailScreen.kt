@@ -1,6 +1,11 @@
 package com.gem.neteasecloudmd.ui.screens
 
-import android.widget.Toast
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import com.gem.neteasecloudmd.ui.common.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,9 +57,11 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
+import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.rememberPlayerManager
+import com.gem.neteasecloudmd.ui.components.SongLongPressMenu
 import kotlinx.coroutines.launch
 import androidx.media3.common.util.UnstableApi
 
@@ -80,6 +87,16 @@ fun SearchDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var selectedTrackForMenu by remember { mutableStateOf<TrackItem?>(null) }
+    var playlistsForMenu by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
+
+    fun loadMenuPlaylists() {
+        if (cookie.isBlank()) return
+        scope.launch {
+            val result = apiService.getUserPlaylists(sessionManager.getUserId(), cookie)
+            playlistsForMenu = result.getOrNull()?.playlist.orEmpty()
+        }
+    }
 
     fun loadTracks() {
         scope.launch {
@@ -183,6 +200,7 @@ fun SearchDetailScreen(
                             SearchDetailTrackCard(
                                 track = track,
                                 index = index + 1,
+                                onLongClick = { selectedTrackForMenu = track },
                                 onClick = {
                                     player.setCookie(cookie)
                                     player.setPlaylist(tracks, index)
@@ -195,6 +213,72 @@ fun SearchDetailScreen(
             }
         }
     }
+
+    SongLongPressMenu(
+        track = selectedTrackForMenu,
+        playlists = playlistsForMenu,
+        onDismiss = { selectedTrackForMenu = null },
+        onRequestLoadPlaylists = { loadMenuPlaylists() },
+        onPlayTrack = { track ->
+            val index = tracks.indexOfFirst { it.id == track.id }
+            if (index >= 0) {
+                player.setCookie(cookie)
+                player.setPlaylist(tracks, index)
+                Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
+            }
+        },
+        onAddToQueue = { track ->
+            player.appendToQueue(listOf(track))
+            Toast.makeText(context, resources.getString(R.string.song_menu_queue_success), Toast.LENGTH_SHORT).show()
+        },
+        onAddToPlaylist = { trackId, playlistId ->
+            scope.launch {
+                val result = apiService.addTrackToPlaylist(playlistId, trackId, cookie)
+                result.fold(
+                    onSuccess = {
+                        Toast.makeText(context, resources.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { e ->
+                        Toast.makeText(
+                            context,
+                            resources.getString(R.string.song_menu_add_failed, e.message ?: ""),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            }
+        },
+        onCopyShareLink = { track ->
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val link = "https://music.163.com/#/song?id=${track.id}"
+            clipboard.setPrimaryClip(ClipData.newPlainText(resources.getString(R.string.common_search), link))
+            Toast.makeText(context, resources.getString(R.string.song_menu_share_link_copied), Toast.LENGTH_SHORT).show()
+        },
+        onRemoveFromCurrent = { track ->
+            if (type != "playlist") {
+                Toast.makeText(context, resources.getString(R.string.song_menu_remove_not_supported), Toast.LENGTH_SHORT).show()
+                return@SongLongPressMenu
+            }
+            scope.launch {
+                val result = apiService.removeTracksFromPlaylist(id, listOf(track.id), cookie)
+                result.fold(
+                    onSuccess = {
+                        tracks = tracks.filterNot { it.id == track.id }
+                        Toast.makeText(context, resources.getString(R.string.song_menu_remove_success), Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { e ->
+                        Toast.makeText(
+                            context,
+                            resources.getString(R.string.song_menu_remove_failed, e.message ?: ""),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            }
+        },
+        showCopyShareLink = true,
+        showRemoveFromCurrent = type == "playlist"
+    )
 }
 
 @Composable
@@ -248,14 +332,15 @@ private fun PlayAllCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SearchDetailTrackCard(
     track: TrackItem,
     index: Int,
+    onLongClick: () -> Unit,
     onClick: () -> Unit
 ) {
     Card(
-        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -264,6 +349,10 @@ private fun SearchDetailTrackCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                )
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

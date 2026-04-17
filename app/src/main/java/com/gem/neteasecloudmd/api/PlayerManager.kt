@@ -79,6 +79,9 @@ class PlayerManager private constructor(private val context: Context) {
     var playMode by mutableStateOf(PlayMode.SEQUENTIAL)
         private set
 
+    var isPlaybackBarHidden by mutableStateOf(false)
+        private set
+
     var sleepTimerState by mutableStateOf(SleepTimerState())
         private set
 
@@ -616,6 +619,10 @@ class PlayerManager private constructor(private val context: Context) {
         playMode = mode
     }
 
+    fun updatePlaybackBarHidden(hidden: Boolean) {
+        isPlaybackBarHidden = hidden
+    }
+
     fun clearPlaylist() {
         currentPlaylist = emptyList()
         currentTrackIndex = 0
@@ -630,6 +637,24 @@ class PlayerManager private constructor(private val context: Context) {
         }
         CoroutineScope(Dispatchers.IO).launch {
             musicRepository.clearCurrentPlaylist()
+        }
+    }
+
+    fun appendToQueue(tracks: List<TrackItem>) {
+        if (tracks.isEmpty()) return
+
+        if (currentPlaylist.isEmpty()) {
+            currentPlaylist = tracks
+            currentTrackIndex = 0
+            isPlaying = false
+            currentPosition = 0
+            duration = 0
+        } else {
+            currentPlaylist = currentPlaylist + tracks
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
         }
     }
 
@@ -707,6 +732,12 @@ class PlayerManager private constructor(private val context: Context) {
         } catch (e: Exception) {
             Log.e("PlayerManager", "Failed to get recent plays: ${e.message}")
             emptyList()
+        }
+    }
+
+    suspend fun removeRecentPlay(id: Long) {
+        runCatching {
+            musicRepository.removeRecentPlay(id)
         }
     }
     

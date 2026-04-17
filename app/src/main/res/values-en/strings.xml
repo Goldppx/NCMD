@@ -38,6 +38,8 @@
     <string name="main_album_art">Album art</string>
     <string name="main_music_symbol">♪</string>
     <string name="main_personal_fm">Personal FM</string>
+    <string name="main_audio_match">Song Recognition</string>
+    <string name="main_audio_match_unavailable">Song recognition entry is ready, recording matcher is in progress</string>
     <string name="main_track_count_no_space">%1$d tracks</string>
     <string name="main_sleep_timer">Sleep timer</string>
     <string name="main_sleep_timer_title">Sleep timer</string>
@@ -68,6 +70,36 @@
     <string name="playlist_detail_liked">Liked</string>
     <string name="playlist_detail_unliked">Not liked</string>
     <string name="playlist_detail_track_count">%1$d tracks</string>
+    <string name="playlist_detail_batch_mode">Batch</string>
+    <string name="playlist_detail_exit_batch_mode">Exit batch mode</string>
+    <string name="playlist_detail_select_all">Select all</string>
+    <string name="playlist_detail_unselect_all">Unselect all</string>
+    <string name="playlist_detail_batch_selected">Selected %1$d</string>
+    <string name="playlist_detail_batch_add">Add to playlist</string>
+    <string name="playlist_detail_batch_play_selected">Play selected</string>
+    <string name="playlist_detail_batch_add_to_queue">Add to queue</string>
+    <string name="playlist_detail_batch_remove">Remove</string>
+    <string name="playlist_detail_batch_need_selection">Select songs first</string>
+    <string name="playlist_detail_batch_add_success">Added %1$d songs</string>
+    <string name="playlist_detail_batch_queue_success">Added %1$d songs to queue</string>
+    <string name="playlist_detail_batch_play_success">Playing %1$d selected songs</string>
+    <string name="playlist_detail_batch_remove_success">Removed %1$d songs</string>
+
+    <string name="song_menu_play_now">Play now</string>
+    <string name="song_menu_add_to_queue">Add to queue</string>
+    <string name="song_menu_add_to_playlist">Add to playlist</string>
+    <string name="song_menu_copy_share_link">Copy share link</string>
+    <string name="song_menu_remove_from_current">Remove from current playlist</string>
+    <string name="song_menu_select_playlist">Select playlist</string>
+    <string name="song_menu_add_success">Added to playlist</string>
+    <string name="song_menu_add_failed">Add failed: %1$s</string>
+    <string name="song_menu_share_link_copied">Share link copied</string>
+    <string name="song_menu_remove_success">Removed from current playlist</string>
+    <string name="song_menu_remove_failed">Remove failed: %1$s</string>
+    <string name="song_menu_remove_not_supported">Remove is not available here</string>
+    <string name="song_menu_queue_success">Added to queue</string>
+
+    <string name="recent_remove_song">Remove song</string>
 
     <string name="recent_title">Recent Plays</string>
     <string name="recent_empty">No recent plays</string>

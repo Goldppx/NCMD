@@ -1,6 +1,6 @@
 package com.gem.neteasecloudmd.ui.screens
 
-import android.widget.Toast
+import com.gem.neteasecloudmd.ui.common.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,7 +38,6 @@ fun PlaylistListScreen(
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
     
-    var refreshKey by remember { mutableLongStateOf(0L) }
     var playlists by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
@@ -84,7 +83,7 @@ fun PlaylistListScreen(
         }
     }
     
-    LaunchedEffect(refreshKey) {
+    LaunchedEffect(Unit) {
         loadPlaylists()
     }
     
@@ -99,7 +98,6 @@ fun PlaylistListScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        refreshKey++
                         loadPlaylists(showToast = true)
                     }) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.common_refresh))
@@ -120,7 +118,6 @@ fun PlaylistListScreen(
                 isRefreshing = isRefreshing,
                 onRefresh = {
                     isRefreshing = true
-                    refreshKey++
                     loadPlaylists(showToast = true)
                 },
                 modifier = Modifier.weight(1f)

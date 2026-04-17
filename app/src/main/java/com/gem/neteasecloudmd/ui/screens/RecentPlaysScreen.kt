@@ -1,30 +1,27 @@
 package com.gem.neteasecloudmd.ui.screens
 
-import android.widget.Toast
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.media3.common.util.UnstableApi
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import com.gem.neteasecloudmd.ui.common.Toast
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
-import com.gem.neteasecloudmd.api.TrackItem
+import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SessionManager
+import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.rememberPlayerManager
+import com.gem.neteasecloudmd.ui.components.TrackCollectionScaffold
 import kotlinx.coroutines.launch
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -39,14 +36,15 @@ fun RecentPlaysScreen(
     val sessionManager = remember { SessionManager(context) }
     val apiService = remember { NeteaseApiService(context) }
     val scope = rememberCoroutineScope()
-    
+
     var recentPlays by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    
+    var playlistsForMenu by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
+
     val cookie = sessionManager.getCookie()
     val userId = sessionManager.getUserId()
     val useLocalRecentPlays = sessionManager.useLocalRecentPlays()
-    
+
     fun loadRecentPlays() {
         scope.launch {
             isLoading = true
@@ -58,213 +56,146 @@ fun RecentPlaysScreen(
             isLoading = false
         }
     }
-    
+
+    fun loadMenuPlaylists() {
+        if (cookie.isBlank()) return
+        scope.launch {
+            val result = apiService.getUserPlaylists(userId, cookie)
+            playlistsForMenu = result.getOrNull()?.playlist.orEmpty()
+        }
+    }
+
+    fun removeLocalRecent(trackIds: Set<Long>) {
+        if (trackIds.isEmpty()) {
+            Toast.makeText(context, resources.getString(R.string.playlist_detail_batch_need_selection), Toast.LENGTH_SHORT).show()
+            return
+        }
+        scope.launch {
+            trackIds.forEach { id -> player.removeRecentPlay(id) }
+            recentPlays = recentPlays.filterNot { trackIds.contains(it.id) }
+            Toast.makeText(context, resources.getString(R.string.playlist_detail_batch_remove_success, trackIds.size), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     LaunchedEffect(Unit) {
         loadRecentPlays()
     }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.recent_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                when {
-                    isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                    recentPlays.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.recent_empty),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            item {
-                                RecentPlayAllCard(
-                                    trackCount = recentPlays.size,
-                                    onClick = {
-                                        if (recentPlays.isNotEmpty()) {
-                                            player.setCookie(cookie)
-                                            player.setPlaylist(recentPlays, 0)
-                                            Toast.makeText(context, resources.getString(R.string.recent_start_play_all, recentPlays.size), Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                )
-                            }
-                            
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-                            
-                            itemsIndexed(recentPlays) { index, track ->
-                                RecentPlayCard(
-                                    track = track,
-                                    index = index + 1,
-                                    onClick = {
-                                        player.setCookie(cookie)
-                                        player.setPlaylist(recentPlays, index)
-                                        Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
-@Composable
-private fun RecentPlayAllCard(
-    trackCount: Int,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilledIconButton(
-                onClick = onClick,
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = stringResource(R.string.playlist_detail_play_all),
-                    modifier = Modifier.size(32.dp)
-                )
+    TrackCollectionScaffold(
+        title = resources.getString(R.string.recent_title),
+        tracks = recentPlays,
+        playlistsForMenu = playlistsForMenu,
+        isLoading = isLoading,
+        errorMessage = null,
+        onNavigateBack = onNavigateBack,
+        onRefresh = null,
+        isRefreshing = false,
+        onBatchModeChanged = { hidden ->
+            player.updatePlaybackBarHidden(hidden)
+        },
+        onPlayAll = {
+            if (recentPlays.isNotEmpty()) {
+                player.setCookie(cookie)
+                player.setPlaylist(recentPlays, 0)
+                Toast.makeText(
+                    context,
+                    resources.getString(R.string.recent_start_play_all, recentPlays.size),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.playlist_detail_play_all),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(R.string.playlist_detail_track_count, trackCount),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                )
+        },
+        onPlayTrackAt = { index, track ->
+            player.setCookie(cookie)
+            player.setPlaylist(recentPlays, index)
+            Toast.makeText(
+                context,
+                resources.getString(R.string.main_play_track_toast, track.name),
+                Toast.LENGTH_SHORT
+            ).show()
+        },
+        onPlayTrackFromMenu = { track ->
+            val index = recentPlays.indexOfFirst { it.id == track.id }
+            if (index >= 0) {
+                player.setCookie(cookie)
+                player.setPlaylist(recentPlays, index)
+                Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-}
-
-@Composable
-private fun RecentPlayCard(
-    track: TrackItem,
-    index: Int,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "$index",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(28.dp)
-            )
-            
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                if (track.albumPicUrl != null) {
-                    AsyncImage(
-                        model = track.albumPicUrl,
-                        contentDescription = track.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.main_music_symbol))
+        },
+        onAddTrackToQueue = { track ->
+            player.appendToQueue(listOf(track))
+            Toast.makeText(context, resources.getString(R.string.song_menu_queue_success), Toast.LENGTH_SHORT).show()
+        },
+        onAddTracksToQueue = { selectedIds ->
+            val selectedTracks = recentPlays.filter { selectedIds.contains(it.id) }
+            player.appendToQueue(selectedTracks)
+            Toast.makeText(
+                context,
+                resources.getString(R.string.playlist_detail_batch_queue_success, selectedTracks.size),
+                Toast.LENGTH_SHORT
+            ).show()
+        },
+        onRemoveSingleFromCurrent = { track ->
+            removeLocalRecent(setOf(track.id))
+        },
+        onRemoveBatchFromCurrent = { selectedIds ->
+            removeLocalRecent(selectedIds)
+        },
+        onRequestLoadPlaylists = { loadMenuPlaylists() },
+        onAddSingleToPlaylist = { trackId, targetPlaylistId ->
+            scope.launch {
+                val result = apiService.addTrackToPlaylist(targetPlaylistId, trackId, cookie)
+                result.fold(
+                    onSuccess = {
+                        Toast.makeText(context, resources.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { e ->
+                        Toast.makeText(
+                            context,
+                            resources.getString(R.string.song_menu_add_failed, e.message ?: ""),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
+                )
+            }
+        },
+        onAddBatchToPlaylist = { selectedIds, targetPlaylistId ->
+            scope.launch {
+                var successCount = 0
+                selectedIds.forEach { trackId ->
+                    val result = apiService.addTrackToPlaylist(targetPlaylistId, trackId, cookie)
+                    if (result.getOrDefault(false)) successCount++
                 }
+                Toast.makeText(
+                    context,
+                    resources.getString(R.string.playlist_detail_batch_add_success, successCount),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
-            
-            Spacer(modifier = Modifier.width(12.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = track.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = track.artists,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            
-            Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = stringResource(R.string.common_play),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
+        },
+        onCopyShareLink = { track ->
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val link = "https://music.163.com/#/song?id=${track.id}"
+            clipboard.setPrimaryClip(ClipData.newPlainText(resources.getString(R.string.common_search), link))
+            Toast.makeText(context, resources.getString(R.string.song_menu_share_link_copied), Toast.LENGTH_SHORT).show()
+        },
+        showRemoveFromCurrentInMenu = true,
+        onPlaySelected = { selectedIds ->
+            val selectedTracks = recentPlays.filter { selectedIds.contains(it.id) }
+            player.setCookie(cookie)
+            player.setPlaylist(selectedTracks, 0)
+            Toast.makeText(
+                context,
+                resources.getString(R.string.playlist_detail_batch_play_success, selectedTracks.size),
+                Toast.LENGTH_SHORT
+            ).show()
+        },
+        showCopyShareLinkInMenu = false,
+        emptyText = resources.getString(R.string.recent_empty),
+        showLikeIndicator = false,
+        isTrackLiked = { false },
+        onSingleRightAction = { track ->
+            removeLocalRecent(setOf(track.id))
+        },
+        singleRightActionDescription = resources.getString(R.string.recent_remove_song)
+    )
 }

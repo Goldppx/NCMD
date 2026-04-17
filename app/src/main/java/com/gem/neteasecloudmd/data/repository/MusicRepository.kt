@@ -44,6 +44,10 @@ class MusicRepository(
     suspend fun clearRecentPlays() {
         recentPlayDao.clearAll()
     }
+
+    suspend fun removeRecentPlay(id: Long) {
+        recentPlayDao.deleteRecentPlay(id)
+    }
     
     fun getCurrentPlaylist(): Flow<List<CurrentPlaylistEntity>> {
         return currentPlaylistDao.getCurrentPlaylist()

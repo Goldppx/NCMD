@@ -1,7 +1,6 @@
 package com.gem.neteasecloudmd.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -97,7 +96,7 @@ fun NeteaseCloudMDTheme(
                 contrastLevel = Contrast.Default.value
             )
         }
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        dynamicColor -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
