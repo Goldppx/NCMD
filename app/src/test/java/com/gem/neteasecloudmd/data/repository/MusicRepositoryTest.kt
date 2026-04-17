@@ -63,7 +63,7 @@ class MusicRepositoryTest {
 
     @Test
     fun addRecentPlay_insertsMappedEntityAndTrimsWhenOverLimit() = runTest {
-        val track = trackItem()
+        val track = createTrackItem()
         val inserted = slot<RecentPlayEntity>()
         coEvery { recentPlayDao.insertRecentPlay(capture(inserted)) } just runs
         coEvery { recentPlayDao.getCount() } returns 501
@@ -89,7 +89,7 @@ class MusicRepositoryTest {
         coEvery { recentPlayDao.insertRecentPlay(any()) } just runs
         coEvery { recentPlayDao.getCount() } returns 500
 
-        repository.addRecentPlay(trackItem(id = 2L))
+        repository.addRecentPlay(createTrackItem(id = 2L))
 
         coVerify(exactly = 1) { recentPlayDao.insertRecentPlay(any()) }
         coVerify(exactly = 1) { recentPlayDao.getCount() }
@@ -121,8 +121,8 @@ class MusicRepositoryTest {
     @Test
     fun saveCurrentPlaylist_clearsInsertsMappedEntitiesAndUpdatesPosition() = runTest {
         val tracks = listOf(
-            trackItem(id = 10L, name = "A", artists = "AA", albumPicUrl = "u1", duration = 11),
-            trackItem(id = 11L, name = "B", artists = "BB", albumPicUrl = null, duration = 22)
+            createTrackItem(id = 10L, name = "A", artists = "AA", albumPicUrl = "u1", duration = 11),
+            createTrackItem(id = 11L, name = "B", artists = "BB", albumPicUrl = null, duration = 22)
         )
         val inserted = slot<List<CurrentPlaylistEntity>>()
         coEvery { currentPlaylistDao.clearPlaylist() } just runs
@@ -167,7 +167,7 @@ class MusicRepositoryTest {
         coVerify(exactly = 1) { currentPlaylistDao.clearPlaylist() }
     }
 
-    private fun trackItem(
+    private fun createTrackItem(
         id: Long = 1L,
         name: String = "Track",
         artists: String = "Artist",
