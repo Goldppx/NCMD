@@ -1,6 +1,5 @@
 package com.gem.neteasecloudmd.api
 
-import android.content.Context
 import android.util.Log
 import com.gem.neteasecloudmd.R
 import kotlinx.coroutines.Dispatchers
@@ -80,9 +79,7 @@ data class UserProfile(
     val avatarUrl: String? = null
 )
 
-class NeteaseApiService(
-    private val context: Context? = null
-) {
+class NeteaseApiService {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -95,7 +92,7 @@ class NeteaseApiService(
         private const val BASE_URL = "https://music.163.com"
     }
 
-    private fun str(id: Int): String = context?.getString(id) ?: when (id) {
+    private fun str(id: Int): String = when (id) {
         R.string.api_unknown -> "Unknown"
         R.string.api_unknown_artist -> "Unknown Artist"
         R.string.api_unknown_album -> "Unknown Album"

@@ -2,15 +2,7 @@ package com.gem.neteasecloudmd.api
 
 import android.content.Context
 import android.content.SharedPreferences
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class UserInfo(
-    val userId: Long,
-    val nickname: String,
-    val avatarUrl: String? = null,
-    val cookie: String
-)
+import androidx.core.content.edit
 
 class SessionManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("netease_session", Context.MODE_PRIVATE)
@@ -56,13 +48,13 @@ class SessionManager(context: Context) {
 
     fun saveLoginResult(result: LoginResult, cookie: String) {
         val profile = result.profile
-        prefs.edit()
-            .putLong(KEY_USER_ID, profile?.userId ?: 0L)
-            .putString(KEY_NICKNAME, profile?.nickname ?: "")
-            .putString(KEY_AVATAR_URL, profile?.avatarUrl)
-            .putString(KEY_COOKIE, cookie)
-            .putBoolean(KEY_IS_LOGGED_IN, true)
-            .apply()
+        prefs.edit {
+            putLong(KEY_USER_ID, profile?.userId ?: 0L)
+            putString(KEY_NICKNAME, profile?.nickname ?: "")
+            putString(KEY_AVATAR_URL, profile?.avatarUrl)
+            putString(KEY_COOKIE, cookie)
+            putBoolean(KEY_IS_LOGGED_IN, true)
+        }
     }
 
     fun isLoggedIn(): Boolean = prefs.getBoolean(KEY_IS_LOGGED_IN, false)
@@ -78,31 +70,31 @@ class SessionManager(context: Context) {
     fun isCoverOverflowDisabled(): Boolean = prefs.getBoolean(KEY_DISABLE_COVER_OVERFLOW, false)
 
     fun setCoverOverflowDisabled(disabled: Boolean) {
-        prefs.edit().putBoolean(KEY_DISABLE_COVER_OVERFLOW, disabled).apply()
+        prefs.edit { putBoolean(KEY_DISABLE_COVER_OVERFLOW, disabled) }
     }
 
     fun getThemeMode(): Int = prefs.getInt(KEY_THEME_MODE, THEME_MODE_SYSTEM)
 
     fun setThemeMode(mode: Int) {
-        prefs.edit().putInt(KEY_THEME_MODE, mode).apply()
+        prefs.edit { putInt(KEY_THEME_MODE, mode) }
     }
 
     fun getLanguageMode(): Int = prefs.getInt(KEY_LANGUAGE_MODE, LANGUAGE_SYSTEM)
 
     fun setLanguageMode(mode: Int) {
-        prefs.edit().putInt(KEY_LANGUAGE_MODE, mode).apply()
+        prefs.edit { putInt(KEY_LANGUAGE_MODE, mode) }
     }
 
     fun useLocalRecentPlays(): Boolean = prefs.getBoolean(KEY_USE_LOCAL_RECENT_PLAYS, true)
 
     fun setUseLocalRecentPlays(useLocal: Boolean) {
-        prefs.edit().putBoolean(KEY_USE_LOCAL_RECENT_PLAYS, useLocal).apply()
+        prefs.edit { putBoolean(KEY_USE_LOCAL_RECENT_PLAYS, useLocal) }
     }
 
     fun isCoverPaletteEnabled(): Boolean = prefs.getBoolean(KEY_ENABLE_COVER_PALETTE, false)
 
     fun setCoverPaletteEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_ENABLE_COVER_PALETTE, enabled).apply()
+        prefs.edit { putBoolean(KEY_ENABLE_COVER_PALETTE, enabled) }
     }
 
     fun getSleepTimerPresetMinutes(): Int {
@@ -110,7 +102,7 @@ class SessionManager(context: Context) {
     }
 
     fun setSleepTimerPresetMinutes(minutes: Int) {
-        prefs.edit().putInt(KEY_SLEEP_TIMER_PRESET_MINUTES, minutes).apply()
+        prefs.edit { putInt(KEY_SLEEP_TIMER_PRESET_MINUTES, minutes) }
     }
 
     fun getSleepTimerCustomMinutes(): Int {
@@ -118,7 +110,7 @@ class SessionManager(context: Context) {
     }
 
     fun setSleepTimerCustomMinutes(minutes: Int) {
-        prefs.edit().putInt(KEY_SLEEP_TIMER_CUSTOM_MINUTES, minutes.coerceIn(1, 240)).apply()
+        prefs.edit { putInt(KEY_SLEEP_TIMER_CUSTOM_MINUTES, minutes.coerceIn(1, 240)) }
     }
 
     fun getSleepTimerWaitForQueueEnd(): Boolean {
@@ -126,10 +118,10 @@ class SessionManager(context: Context) {
     }
 
     fun setSleepTimerWaitForQueueEnd(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SLEEP_TIMER_WAIT_FOR_QUEUE_END, enabled).apply()
+        prefs.edit { putBoolean(KEY_SLEEP_TIMER_WAIT_FOR_QUEUE_END, enabled) }
     }
 
     fun logout() {
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
     }
 }

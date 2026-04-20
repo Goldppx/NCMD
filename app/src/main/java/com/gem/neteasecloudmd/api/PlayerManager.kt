@@ -1,7 +1,6 @@
 package com.gem.neteasecloudmd.api
 
 import android.content.Context
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -14,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -28,8 +28,11 @@ import com.gem.neteasecloudmd.data.local.AppDatabase
 import com.gem.neteasecloudmd.data.repository.MusicRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class TrackItem(
     val id: Long,
@@ -87,6 +90,7 @@ class PlayerManager private constructor(private val context: Context) {
 
     private var sleepTimerRunnable: Runnable? = null
     private var sleepTimerWaitForQueueEnd: Boolean = false
+    private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var exoPlayer: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
@@ -338,7 +342,7 @@ class PlayerManager private constructor(private val context: Context) {
         currentPosition = 0
         duration = 0
         
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch(Dispatchers.IO) {
             musicRepository.saveCurrentPlaylist(tracks, currentTrackIndex)
         }
         
@@ -370,17 +374,19 @@ class PlayerManager private constructor(private val context: Context) {
         currentPosition = 0
         duration = 0
         
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch(Dispatchers.IO) {
             try {
                 musicRepository.addRecentPlay(track)
             } catch (e: Exception) {
                 Log.e("PlayerManager", "Failed to save recent play: ${e.message}")
             }
         }
-        
-        CoroutineScope(Dispatchers.IO).launch {
+
+        managerScope.launch {
             try {
-                val urlResult = apiService.getSongUrl(track.id, currentCookie)
+                val urlResult = withContext(Dispatchers.IO) {
+                    apiService.getSongUrl(track.id, currentCookie)
+                }
                 urlResult.fold(
                     onSuccess = { url ->
                         Log.d("PlayerManager", "Got song URL: ${url.take(100)}...")
@@ -415,7 +421,7 @@ class PlayerManager private constructor(private val context: Context) {
                     .setAlbumTitle(track?.albumName)
 
                 if (!track?.albumPicUrl.isNullOrBlank()) {
-                    metadataBuilder.setArtworkUri(Uri.parse(track?.albumPicUrl))
+                    metadataBuilder.setArtworkUri(track?.albumPicUrl?.toUri())
                 }
 
                 val mediaItem = MediaItem.Builder()
@@ -488,7 +494,7 @@ class PlayerManager private constructor(private val context: Context) {
             currentTrackIndex = newIndex
             currentPosition = 0
             duration = 0
-            CoroutineScope(Dispatchers.IO).launch {
+            managerScope.launch(Dispatchers.IO) {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
                 currentTrack?.let { track ->
                     musicRepository.addRecentPlay(track)
@@ -503,7 +509,7 @@ class PlayerManager private constructor(private val context: Context) {
             currentPosition = 0
             duration = 0
             
-            CoroutineScope(Dispatchers.IO).launch {
+            managerScope.launch(Dispatchers.IO) {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
                 currentTrack?.let { track ->
                     musicRepository.addRecentPlay(track)
@@ -531,8 +537,10 @@ class PlayerManager private constructor(private val context: Context) {
         }
 
         isLoading = true
-        CoroutineScope(Dispatchers.IO).launch {
-            val result = apiService.getPersonalFm(currentCookie, 6)
+        managerScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                apiService.getPersonalFm(currentCookie, 6)
+            }
             result.fold(
                 onSuccess = { newTracks ->
                     if (newTracks.isNotEmpty()) {
@@ -585,7 +593,7 @@ class PlayerManager private constructor(private val context: Context) {
             currentTrackIndex = newIndex
             currentPosition = 0
             duration = 0
-            CoroutineScope(Dispatchers.IO).launch {
+            managerScope.launch(Dispatchers.IO) {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
             }
             loadAndPlayCurrentTrack()
@@ -597,7 +605,7 @@ class PlayerManager private constructor(private val context: Context) {
             currentPosition = 0
             duration = 0
             
-            CoroutineScope(Dispatchers.IO).launch {
+            managerScope.launch(Dispatchers.IO) {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
                 currentTrack?.let { track ->
                     musicRepository.addRecentPlay(track)
@@ -635,7 +643,7 @@ class PlayerManager private constructor(private val context: Context) {
             exoPlayer?.stop()
             exoPlayer?.clearMediaItems()
         }
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch(Dispatchers.IO) {
             musicRepository.clearCurrentPlaylist()
         }
     }
@@ -653,7 +661,7 @@ class PlayerManager private constructor(private val context: Context) {
             currentPlaylist = currentPlaylist + tracks
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch(Dispatchers.IO) {
             musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
         }
     }
@@ -683,7 +691,7 @@ class PlayerManager private constructor(private val context: Context) {
             loadAndPlayCurrentTrack()
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch(Dispatchers.IO) {
             musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
         }
     }
@@ -709,6 +717,7 @@ class PlayerManager private constructor(private val context: Context) {
     
     fun release() {
         releasePlayer()
+        managerScope.coroutineContext.cancel()
         currentPlaylist = emptyList()
         currentTrackIndex = 0
         isPlaying = false
@@ -755,8 +764,11 @@ class PlayerManager private constructor(private val context: Context) {
                         duration = entity.duration
                     )
                 }
-                currentPlaylist = tracks
-                currentTrackIndex = savedPlaylist.firstOrNull()?.position ?: 0
+                val savedPosition = musicRepository.getCurrentPosition()
+                withContext(Dispatchers.Main.immediate) {
+                    currentPlaylist = tracks
+                    currentTrackIndex = savedPosition.coerceIn(0, tracks.lastIndex)
+                }
                 true
             } else {
                 false

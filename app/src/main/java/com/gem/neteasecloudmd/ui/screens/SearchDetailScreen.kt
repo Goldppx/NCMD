@@ -54,14 +54,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.gem.neteasecloudmd.R
-import com.gem.neteasecloudmd.api.NeteaseApiService
-import com.gem.neteasecloudmd.api.PlaylistItem
-import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.components.SongLongPressMenu
+import com.gem.neteasecloudmd.ui.viewmodel.SearchDetailViewModel
 import kotlinx.coroutines.launch
 import androidx.media3.common.util.UnstableApi
 
@@ -76,54 +76,20 @@ fun SearchDetailScreen(
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
-    val apiService = remember { NeteaseApiService(context) }
     val player = rememberPlayerManager(context)
-    val sessionManager = remember { SessionManager(context) }
+    val searchDetailViewModel: SearchDetailViewModel = viewModel()
+    val uiState by searchDetailViewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    val cookie = sessionManager.getCookie()
-
-    var tracks by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedTrackForMenu by remember { mutableStateOf<TrackItem?>(null) }
-    var playlistsForMenu by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
+    val cookie = searchDetailViewModel.getCookie()
 
     fun loadMenuPlaylists() {
-        if (cookie.isBlank()) return
-        scope.launch {
-            val result = apiService.getUserPlaylists(sessionManager.getUserId(), cookie)
-            playlistsForMenu = result.getOrNull()?.playlist.orEmpty()
-        }
-    }
-
-    fun loadTracks() {
-        scope.launch {
-            val result = when (type) {
-                "playlist" -> apiService.getPlaylistDetail(id, cookie)
-                "album" -> apiService.getAlbumTracks(id, cookie)
-                else -> Result.success(emptyList())
-            }
-
-            result.fold(
-                onSuccess = {
-                    tracks = it
-                    isLoading = false
-                    isRefreshing = false
-                    errorMessage = null
-                },
-                onFailure = { e ->
-                    isLoading = false
-                    isRefreshing = false
-                    errorMessage = e.message
-                }
-            )
-        }
+        searchDetailViewModel.loadMenuPlaylists()
     }
 
     LaunchedEffect(type, id) {
-        loadTracks()
+        searchDetailViewModel.loadTracks(type, id)
     }
 
     Scaffold(
@@ -149,29 +115,28 @@ fun SearchDetailScreen(
         }
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = isRefreshing,
+            isRefreshing = uiState.isRefreshing,
             onRefresh = {
-                isRefreshing = true
-                loadTracks()
+                searchDetailViewModel.refresh(type, id)
             },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
             when {
-                isLoading -> {
+                uiState.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
 
-                errorMessage != null -> {
+                uiState.errorMessage != null -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = stringResource(R.string.search_detail_load_failed, errorMessage ?: stringResource(R.string.common_unknown_error)), color = MaterialTheme.colorScheme.error)
+                        Text(text = stringResource(R.string.search_detail_load_failed, uiState.errorMessage ?: stringResource(R.string.common_unknown_error)), color = MaterialTheme.colorScheme.error)
                     }
                 }
 
-                tracks.isEmpty() -> {
+                uiState.tracks.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(text = stringResource(R.string.search_detail_empty), style = MaterialTheme.typography.bodyLarge)
                     }
@@ -185,25 +150,25 @@ fun SearchDetailScreen(
                     ) {
                         item {
                             PlayAllCard(
-                                trackCount = tracks.size,
+                                trackCount = uiState.tracks.size,
                                 onClick = {
                                     player.setCookie(cookie)
-                                    player.setPlaylist(tracks, 0)
-                                    Toast.makeText(context, resources.getString(R.string.search_detail_start_play_all, tracks.size), Toast.LENGTH_SHORT).show()
+                                    player.setPlaylist(uiState.tracks, 0)
+                                    Toast.makeText(context, resources.getString(R.string.search_detail_start_play_all, uiState.tracks.size), Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
 
                         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                        itemsIndexed(tracks) { index, track ->
+                        itemsIndexed(uiState.tracks) { index, track ->
                             SearchDetailTrackCard(
                                 track = track,
                                 index = index + 1,
                                 onLongClick = { selectedTrackForMenu = track },
                                 onClick = {
                                     player.setCookie(cookie)
-                                    player.setPlaylist(tracks, index)
+                                    player.setPlaylist(uiState.tracks, index)
                                     Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                 }
                             )
@@ -216,14 +181,14 @@ fun SearchDetailScreen(
 
     SongLongPressMenu(
         track = selectedTrackForMenu,
-        playlists = playlistsForMenu,
+        playlists = uiState.playlistsForMenu,
         onDismiss = { selectedTrackForMenu = null },
         onRequestLoadPlaylists = { loadMenuPlaylists() },
         onPlayTrack = { track ->
-            val index = tracks.indexOfFirst { it.id == track.id }
+            val index = uiState.tracks.indexOfFirst { it.id == track.id }
             if (index >= 0) {
                 player.setCookie(cookie)
-                player.setPlaylist(tracks, index)
+                player.setPlaylist(uiState.tracks, index)
                 Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
             }
         },
@@ -233,7 +198,7 @@ fun SearchDetailScreen(
         },
         onAddToPlaylist = { trackId, playlistId ->
             scope.launch {
-                val result = apiService.addTrackToPlaylist(playlistId, trackId, cookie)
+                val result = searchDetailViewModel.addTrackToPlaylist(playlistId, trackId)
                 result.fold(
                     onSuccess = {
                         Toast.makeText(context, resources.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
@@ -260,10 +225,10 @@ fun SearchDetailScreen(
                 return@SongLongPressMenu
             }
             scope.launch {
-                val result = apiService.removeTracksFromPlaylist(id, listOf(track.id), cookie)
+                val result = searchDetailViewModel.removeTrackFromPlaylist(id, track.id)
                 result.fold(
                     onSuccess = {
-                        tracks = tracks.filterNot { it.id == track.id }
+                        searchDetailViewModel.removeTrackById(track.id)
                         Toast.makeText(context, resources.getString(R.string.song_menu_remove_success), Toast.LENGTH_SHORT).show()
                     },
                     onFailure = { e ->

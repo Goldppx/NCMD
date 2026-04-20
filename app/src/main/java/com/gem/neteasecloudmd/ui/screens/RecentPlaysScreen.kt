@@ -6,22 +6,17 @@ import android.content.Context
 import com.gem.neteasecloudmd.ui.common.Toast
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.R
-import com.gem.neteasecloudmd.api.NeteaseApiService
-import com.gem.neteasecloudmd.api.PlaylistItem
-import com.gem.neteasecloudmd.api.SessionManager
-import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.components.TrackCollectionScaffold
+import com.gem.neteasecloudmd.ui.viewmodel.RecentPlaysViewModel
 import kotlinx.coroutines.launch
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -33,36 +28,14 @@ fun RecentPlaysScreen(
     val context = LocalContext.current
     val resources = LocalResources.current
     val player = rememberPlayerManager(context)
-    val sessionManager = remember { SessionManager(context) }
-    val apiService = remember { NeteaseApiService(context) }
+    val recentPlaysViewModel: RecentPlaysViewModel = viewModel()
+    val uiState by recentPlaysViewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    var recentPlays by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var playlistsForMenu by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
-
-    val cookie = sessionManager.getCookie()
-    val userId = sessionManager.getUserId()
-    val useLocalRecentPlays = sessionManager.useLocalRecentPlays()
-
-    fun loadRecentPlays() {
-        scope.launch {
-            isLoading = true
-            recentPlays = if (useLocalRecentPlays) {
-                player.getRecentPlays()
-            } else {
-                apiService.getUserPlayRecord(userId, cookie, 100).getOrDefault(emptyList())
-            }
-            isLoading = false
-        }
-    }
+    val cookie = recentPlaysViewModel.getCookie()
 
     fun loadMenuPlaylists() {
-        if (cookie.isBlank()) return
-        scope.launch {
-            val result = apiService.getUserPlaylists(userId, cookie)
-            playlistsForMenu = result.getOrNull()?.playlist.orEmpty()
-        }
+        recentPlaysViewModel.loadMenuPlaylists()
     }
 
     fun removeLocalRecent(trackIds: Set<Long>) {
@@ -70,22 +43,15 @@ fun RecentPlaysScreen(
             Toast.makeText(context, resources.getString(R.string.playlist_detail_batch_need_selection), Toast.LENGTH_SHORT).show()
             return
         }
-        scope.launch {
-            trackIds.forEach { id -> player.removeRecentPlay(id) }
-            recentPlays = recentPlays.filterNot { trackIds.contains(it.id) }
-            Toast.makeText(context, resources.getString(R.string.playlist_detail_batch_remove_success, trackIds.size), Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        loadRecentPlays()
+        recentPlaysViewModel.removeLocalRecent(trackIds)
+        Toast.makeText(context, resources.getString(R.string.playlist_detail_batch_remove_success, trackIds.size), Toast.LENGTH_SHORT).show()
     }
 
     TrackCollectionScaffold(
         title = resources.getString(R.string.recent_title),
-        tracks = recentPlays,
-        playlistsForMenu = playlistsForMenu,
-        isLoading = isLoading,
+        tracks = uiState.recentPlays,
+        playlistsForMenu = uiState.playlistsForMenu,
+        isLoading = uiState.isLoading,
         errorMessage = null,
         onNavigateBack = onNavigateBack,
         onRefresh = null,
@@ -94,19 +60,19 @@ fun RecentPlaysScreen(
             player.updatePlaybackBarHidden(hidden)
         },
         onPlayAll = {
-            if (recentPlays.isNotEmpty()) {
+            if (uiState.recentPlays.isNotEmpty()) {
                 player.setCookie(cookie)
-                player.setPlaylist(recentPlays, 0)
+                player.setPlaylist(uiState.recentPlays, 0)
                 Toast.makeText(
                     context,
-                    resources.getString(R.string.recent_start_play_all, recentPlays.size),
+                    resources.getString(R.string.recent_start_play_all, uiState.recentPlays.size),
                     Toast.LENGTH_SHORT
                 ).show()
             }
         },
         onPlayTrackAt = { index, track ->
             player.setCookie(cookie)
-            player.setPlaylist(recentPlays, index)
+            player.setPlaylist(uiState.recentPlays, index)
             Toast.makeText(
                 context,
                 resources.getString(R.string.main_play_track_toast, track.name),
@@ -114,10 +80,10 @@ fun RecentPlaysScreen(
             ).show()
         },
         onPlayTrackFromMenu = { track ->
-            val index = recentPlays.indexOfFirst { it.id == track.id }
+            val index = uiState.recentPlays.indexOfFirst { it.id == track.id }
             if (index >= 0) {
                 player.setCookie(cookie)
-                player.setPlaylist(recentPlays, index)
+                player.setPlaylist(uiState.recentPlays, index)
                 Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
             }
         },
@@ -126,7 +92,7 @@ fun RecentPlaysScreen(
             Toast.makeText(context, resources.getString(R.string.song_menu_queue_success), Toast.LENGTH_SHORT).show()
         },
         onAddTracksToQueue = { selectedIds ->
-            val selectedTracks = recentPlays.filter { selectedIds.contains(it.id) }
+            val selectedTracks = uiState.recentPlays.filter { selectedIds.contains(it.id) }
             player.appendToQueue(selectedTracks)
             Toast.makeText(
                 context,
@@ -143,7 +109,7 @@ fun RecentPlaysScreen(
         onRequestLoadPlaylists = { loadMenuPlaylists() },
         onAddSingleToPlaylist = { trackId, targetPlaylistId ->
             scope.launch {
-                val result = apiService.addTrackToPlaylist(targetPlaylistId, trackId, cookie)
+                val result = recentPlaysViewModel.addTrackToPlaylist(targetPlaylistId, trackId)
                 result.fold(
                     onSuccess = {
                         Toast.makeText(context, resources.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
@@ -162,7 +128,7 @@ fun RecentPlaysScreen(
             scope.launch {
                 var successCount = 0
                 selectedIds.forEach { trackId ->
-                    val result = apiService.addTrackToPlaylist(targetPlaylistId, trackId, cookie)
+                    val result = recentPlaysViewModel.addTrackToPlaylist(targetPlaylistId, trackId)
                     if (result.getOrDefault(false)) successCount++
                 }
                 Toast.makeText(
@@ -180,7 +146,7 @@ fun RecentPlaysScreen(
         },
         showRemoveFromCurrentInMenu = true,
         onPlaySelected = { selectedIds ->
-            val selectedTracks = recentPlays.filter { selectedIds.contains(it.id) }
+            val selectedTracks = uiState.recentPlays.filter { selectedIds.contains(it.id) }
             player.setCookie(cookie)
             player.setPlaylist(selectedTracks, 0)
             Toast.makeText(

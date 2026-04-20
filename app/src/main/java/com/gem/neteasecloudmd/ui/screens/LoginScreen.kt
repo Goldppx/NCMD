@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.NeteaseApiService
+import com.gem.neteasecloudmd.api.ApiProvider
 import com.gem.neteasecloudmd.api.SessionManager
 import kotlinx.coroutines.launch
 
@@ -26,7 +27,7 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
-    val apiService = remember { NeteaseApiService(context) }
+    val apiService = remember { ApiProvider.get(context) }
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
 

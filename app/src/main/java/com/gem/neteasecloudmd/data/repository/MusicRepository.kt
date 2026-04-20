@@ -62,7 +62,8 @@ class MusicRepository(
                 artists = track.artists,
                 albumPicUrl = track.albumPicUrl,
                 duration = track.duration,
-                position = index
+                position = index,
+                isCurrent = index == currentIndex
             )
         }
         currentPlaylistDao.insertPlaylist(entities)
@@ -72,7 +73,11 @@ class MusicRepository(
     suspend fun updateCurrentPosition(position: Int) {
         currentPlaylistDao.updatePosition(position)
     }
-    
+
+    suspend fun getCurrentPosition(): Int {
+        return currentPlaylistDao.getCurrentPosition() ?: 0
+    }
+
     suspend fun clearCurrentPlaylist() {
         currentPlaylistDao.clearPlaylist()
     }

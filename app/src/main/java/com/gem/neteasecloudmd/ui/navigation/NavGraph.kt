@@ -58,6 +58,11 @@ fun NavGraph(
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
+                onLoggedOut = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Main.route) { inclusive = true }
+                    }
+                },
                 onNavigateToPlaylistDetail = { playlistId, playlistName ->
                     navController.navigate(Screen.PlaylistDetail.createRoute(playlistId, playlistName))
                 }

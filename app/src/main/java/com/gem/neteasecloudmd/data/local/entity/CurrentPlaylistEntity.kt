@@ -11,5 +11,6 @@ data class CurrentPlaylistEntity(
     val artists: String,
     val albumPicUrl: String?,
     val duration: Int,
-    val position: Int = 0
+    val position: Int = 0,
+    val isCurrent: Boolean = false
 )

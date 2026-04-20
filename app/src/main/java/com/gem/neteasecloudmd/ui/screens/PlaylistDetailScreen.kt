@@ -8,23 +8,19 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.R
-import com.gem.neteasecloudmd.api.NeteaseApiService
-import com.gem.neteasecloudmd.api.PlaylistItem
-import com.gem.neteasecloudmd.api.SessionManager
-import com.gem.neteasecloudmd.api.TrackItem
+import com.gem.neteasecloudmd.api.ApiProvider
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.components.TrackCollectionScaffold
+import com.gem.neteasecloudmd.ui.viewmodel.PlaylistDetailRefreshResult
+import com.gem.neteasecloudmd.ui.viewmodel.PlaylistDetailViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,111 +32,86 @@ fun PlaylistDetailScreen(
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
-    val apiService = remember { NeteaseApiService(context) }
     val player = rememberPlayerManager(context)
-    val sessionManager = remember { SessionManager(context) }
+    val playlistDetailViewModel: PlaylistDetailViewModel = viewModel()
+    val uiState by playlistDetailViewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    var tracks by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
-    var likedSongIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var playlistsForMenu by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
-
-    val cookie = sessionManager.getCookie()
-
-    LaunchedEffect(Unit) {
-        player.setApiService(apiService)
-    }
+    val cookie = playlistDetailViewModel.getCookie()
 
     fun loadTracks(showToast: Boolean = false) {
-        if (playlistId > 0 && cookie.isNotEmpty()) {
-            scope.launch {
-                val result = withTimeoutOrNull(15000L) {
-                    apiService.getPlaylistDetail(playlistId, cookie)
+        playlistDetailViewModel.loadPlaylist(
+            playlistId = playlistId,
+            isRefresh = showToast
+        ) { result ->
+            if (!showToast) return@loadPlaylist
+            when (result) {
+                is PlaylistDetailRefreshResult.Success -> {
+                    Toast.makeText(
+                        context,
+                        resources.getString(R.string.playlist_detail_loaded_songs, result.count),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                result?.fold(
-                    onSuccess = { trackList ->
-                        tracks = trackList
-                        likedSongIds = apiService.getLikedSongIds(sessionManager.getUserId(), cookie).getOrDefault(emptySet())
-                        isLoading = false
-                        isRefreshing = false
-                        if (showToast) {
-                            Toast.makeText(
-                                context,
-                                resources.getString(R.string.playlist_detail_loaded_songs, trackList.size),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    },
-                    onFailure = { e ->
-                        errorMessage = e.message
-                        isLoading = false
-                        isRefreshing = false
-                        if (showToast) {
-                            Toast.makeText(
-                                context,
-                                resources.getString(R.string.playlist_detail_load_failed, e.message ?: ""),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                ) ?: run {
-                    isLoading = false
-                    isRefreshing = false
-                    if (showToast) {
-                        Toast.makeText(context, resources.getString(R.string.common_request_timeout), Toast.LENGTH_SHORT).show()
-                    }
+
+                is PlaylistDetailRefreshResult.Error -> {
+                    Toast.makeText(
+                        context,
+                        resources.getString(R.string.playlist_detail_load_failed, result.message ?: ""),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
+
+                PlaylistDetailRefreshResult.Timeout -> {
+                    Toast.makeText(
+                        context,
+                        resources.getString(R.string.common_request_timeout),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                PlaylistDetailRefreshResult.Skipped -> Unit
             }
-        } else {
-            isLoading = false
-            isRefreshing = false
         }
     }
 
     fun loadMenuPlaylists() {
-        if (cookie.isBlank()) return
-        scope.launch {
-            val result = apiService.getUserPlaylists(sessionManager.getUserId(), cookie)
-            playlistsForMenu = result.getOrNull()?.playlist.orEmpty()
-        }
+        playlistDetailViewModel.loadMenuPlaylists()
     }
 
     LaunchedEffect(Unit) {
+        player.setApiService(ApiProvider.get(context))
         loadTracks()
     }
 
     TrackCollectionScaffold(
         title = playlistName,
-        tracks = tracks,
-        playlistsForMenu = playlistsForMenu,
-        isLoading = isLoading,
-        errorMessage = errorMessage,
+        tracks = uiState.tracks,
+        playlistsForMenu = uiState.playlistsForMenu,
+        isLoading = uiState.isLoading,
+        errorMessage = uiState.errorMessage,
         onNavigateBack = onNavigateBack,
         onRefresh = {
-            isRefreshing = true
             loadTracks(showToast = true)
         },
-        isRefreshing = isRefreshing,
+        isRefreshing = uiState.isRefreshing,
         onBatchModeChanged = { hidden ->
             player.updatePlaybackBarHidden(hidden)
         },
         onPlayAll = {
-            if (tracks.isNotEmpty()) {
+            if (uiState.tracks.isNotEmpty()) {
                 player.setCookie(cookie)
-                player.setPlaylist(tracks, 0)
+                player.setPlaylist(uiState.tracks, 0)
                 Toast.makeText(
                     context,
-                    resources.getString(R.string.playlist_detail_start_play_all, tracks.size),
+                    resources.getString(R.string.playlist_detail_start_play_all, uiState.tracks.size),
                     Toast.LENGTH_SHORT
                 ).show()
             }
         },
         onPlayTrackAt = { index, track ->
             player.setCookie(cookie)
-            player.setPlaylist(tracks, index)
+            player.setPlaylist(uiState.tracks, index)
             Toast.makeText(
                 context,
                 resources.getString(R.string.main_play_track_toast, track.name),
@@ -148,10 +119,10 @@ fun PlaylistDetailScreen(
             ).show()
         },
         onPlayTrackFromMenu = { track ->
-            val index = tracks.indexOfFirst { it.id == track.id }
+            val index = uiState.tracks.indexOfFirst { it.id == track.id }
             if (index >= 0) {
                 player.setCookie(cookie)
-                player.setPlaylist(tracks, index)
+                player.setPlaylist(uiState.tracks, index)
                 Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
             }
         },
@@ -160,7 +131,7 @@ fun PlaylistDetailScreen(
             Toast.makeText(context, resources.getString(R.string.song_menu_queue_success), Toast.LENGTH_SHORT).show()
         },
         onAddTracksToQueue = { selectedIds ->
-            val selectedTracks = tracks.filter { selectedIds.contains(it.id) }
+            val selectedTracks = uiState.tracks.filter { selectedIds.contains(it.id) }
             player.appendToQueue(selectedTracks)
             Toast.makeText(
                 context,
@@ -170,10 +141,10 @@ fun PlaylistDetailScreen(
         },
         onRemoveSingleFromCurrent = { track ->
             scope.launch {
-                val result = apiService.removeTracksFromPlaylist(playlistId, listOf(track.id), cookie)
+                val result = playlistDetailViewModel.removeTracksFromPlaylist(playlistId, listOf(track.id))
                 result.fold(
                     onSuccess = {
-                        tracks = tracks.filterNot { it.id == track.id }
+                        playlistDetailViewModel.removeTracksLocally(setOf(track.id))
                         Toast.makeText(context, resources.getString(R.string.song_menu_remove_success), Toast.LENGTH_SHORT).show()
                     },
                     onFailure = { e ->
@@ -188,11 +159,10 @@ fun PlaylistDetailScreen(
         },
         onRemoveBatchFromCurrent = { selectedIds ->
             scope.launch {
-                val result = apiService.removeTracksFromPlaylist(playlistId, selectedIds.toList(), cookie)
+                val result = playlistDetailViewModel.removeTracksFromPlaylist(playlistId, selectedIds.toList())
                 result.fold(
                     onSuccess = {
-                        tracks = tracks.filterNot { selectedIds.contains(it.id) }
-                        likedSongIds = likedSongIds.filterNot { selectedIds.contains(it) }.toSet()
+                        playlistDetailViewModel.removeTracksLocally(selectedIds)
                         Toast.makeText(
                             context,
                             resources.getString(R.string.playlist_detail_batch_remove_success, selectedIds.size),
@@ -212,7 +182,7 @@ fun PlaylistDetailScreen(
         onRequestLoadPlaylists = { loadMenuPlaylists() },
         onAddSingleToPlaylist = { trackId, targetPlaylistId ->
             scope.launch {
-                val result = apiService.addTrackToPlaylist(targetPlaylistId, trackId, cookie)
+                val result = playlistDetailViewModel.addTrackToPlaylist(targetPlaylistId, trackId)
                 result.fold(
                     onSuccess = {
                         Toast.makeText(context, resources.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
@@ -231,7 +201,7 @@ fun PlaylistDetailScreen(
             scope.launch {
                 var successCount = 0
                 selectedIds.forEach { trackId ->
-                    val result = apiService.addTrackToPlaylist(targetPlaylistId, trackId, cookie)
+                    val result = playlistDetailViewModel.addTrackToPlaylist(targetPlaylistId, trackId)
                     if (result.getOrDefault(false)) successCount++
                 }
                 Toast.makeText(
@@ -249,7 +219,7 @@ fun PlaylistDetailScreen(
         },
         showRemoveFromCurrentInMenu = true,
         onPlaySelected = { selectedIds ->
-            val selectedTracks = tracks.filter { selectedIds.contains(it.id) }
+            val selectedTracks = uiState.tracks.filter { selectedIds.contains(it.id) }
             player.setCookie(cookie)
             player.setPlaylist(selectedTracks, 0)
             Toast.makeText(
@@ -261,7 +231,7 @@ fun PlaylistDetailScreen(
         showCopyShareLinkInMenu = true,
         emptyText = resources.getString(R.string.playlist_detail_empty),
         showLikeIndicator = true,
-        isTrackLiked = { track -> likedSongIds.contains(track.id) },
+        isTrackLiked = { track -> uiState.likedSongIds.contains(track.id) },
         onSingleRightAction = null,
         singleRightActionDescription = ""
     )

@@ -9,7 +9,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -18,13 +19,13 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.gem.neteasecloudmd.R
-import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.PlaylistItem
-import com.gem.neteasecloudmd.api.SessionManager
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
+import com.gem.neteasecloudmd.ui.viewmodel.PlaylistListRefreshResult
+import com.gem.neteasecloudmd.ui.viewmodel.PlaylistListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,57 +35,41 @@ fun PlaylistListScreen(
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
-    val apiService = remember { NeteaseApiService(context) }
-    val sessionManager = remember { SessionManager(context) }
-    val scope = rememberCoroutineScope()
-    
-    var playlists by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    
-    val cookie = sessionManager.getCookie()
-    val userId = sessionManager.getUserId()
-    
-    fun loadPlaylists(showToast: Boolean = false) {
-        if (userId > 0 && cookie.isNotEmpty()) {
-            scope.launch {
-                val result = withTimeoutOrNull(10000L) {
-                    apiService.getUserPlaylists(userId, cookie)
+    val playlistListViewModel: PlaylistListViewModel = viewModel()
+    val uiState by playlistListViewModel.uiState.collectAsStateWithLifecycle()
+
+    fun refreshWithToast() {
+        playlistListViewModel.refresh { result ->
+            when (result) {
+                is PlaylistListRefreshResult.Success -> {
+                    Toast.makeText(
+                        context,
+                        resources.getString(R.string.playlist_refresh_success, result.count),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                result?.fold(
-                    onSuccess = { response ->
-                        playlists = response.playlist ?: emptyList()
-                        isLoading = false
-                        isRefreshing = false
-                        if (showToast) {
-                            Toast.makeText(context, resources.getString(R.string.playlist_refresh_success, playlists.size), Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onFailure = { e ->
-                        errorMessage = e.message
-                        isLoading = false
-                        isRefreshing = false
-                        if (showToast) {
-                            Toast.makeText(context, resources.getString(R.string.playlist_refresh_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                ) ?: run {
-                    isLoading = false
-                    isRefreshing = false
-                    if (showToast) {
-                        Toast.makeText(context, resources.getString(R.string.common_request_timeout), Toast.LENGTH_SHORT).show()
-                    }
+
+                is PlaylistListRefreshResult.Error -> {
+                    Toast.makeText(
+                        context,
+                        resources.getString(R.string.playlist_refresh_failed, result.message ?: ""),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                PlaylistListRefreshResult.Timeout -> {
+                    Toast.makeText(
+                        context,
+                        resources.getString(R.string.common_request_timeout),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                PlaylistListRefreshResult.Skipped -> {
+                    Unit
                 }
             }
-        } else {
-            isLoading = false
-            isRefreshing = false
         }
-    }
-    
-    LaunchedEffect(Unit) {
-        loadPlaylists()
     }
     
     Scaffold(
@@ -98,7 +83,7 @@ fun PlaylistListScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        loadPlaylists(showToast = true)
+                        refreshWithToast()
                     }) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.common_refresh))
                     }
@@ -115,15 +100,14 @@ fun PlaylistListScreen(
                 .padding(innerPadding)
         ) {
             PullToRefreshBox(
-                isRefreshing = isRefreshing,
+                isRefreshing = uiState.isRefreshing,
                 onRefresh = {
-                    isRefreshing = true
-                    loadPlaylists(showToast = true)
+                    refreshWithToast()
                 },
                 modifier = Modifier.weight(1f)
             ) {
                 when {
-                    isLoading -> {
+                    uiState.isLoading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -131,18 +115,18 @@ fun PlaylistListScreen(
                             CircularProgressIndicator()
                         }
                     }
-                    errorMessage != null && playlists.isEmpty() -> {
+                    uiState.errorMessage != null && uiState.playlists.isEmpty() -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.common_error_with_prefix, errorMessage ?: ""),
+                                text = stringResource(R.string.common_error_with_prefix, uiState.errorMessage ?: ""),
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
                     }
-                    playlists.isEmpty() -> {
+                    uiState.playlists.isEmpty() -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -159,7 +143,7 @@ fun PlaylistListScreen(
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(playlists) { playlist ->
+                            items(uiState.playlists) { playlist ->
                                 PlaylistListCard(
                                     playlist = playlist,
                                     onClick = {

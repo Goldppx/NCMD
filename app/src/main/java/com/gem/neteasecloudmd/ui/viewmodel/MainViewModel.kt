@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.api.NeteaseApiService
+import com.gem.neteasecloudmd.api.ApiProvider
 import com.gem.neteasecloudmd.api.PlayerManager
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SessionManager
@@ -41,7 +42,7 @@ data class MainUiState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val appContext = application.applicationContext
     private val sessionManager = SessionManager(appContext)
-    val apiService = NeteaseApiService(appContext)
+    val apiService = ApiProvider.get(appContext)
 
     private val _uiState = MutableStateFlow(
         MainUiState(

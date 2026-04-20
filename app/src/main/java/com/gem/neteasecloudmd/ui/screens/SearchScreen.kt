@@ -34,7 +34,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,23 +52,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.R
-import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SearchAlbumItem
-import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.components.SongLongPressMenu
+import com.gem.neteasecloudmd.ui.viewmodel.SearchTab
+import com.gem.neteasecloudmd.ui.viewmodel.SearchViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-
-private enum class SearchTab {
-    SONG,
-    PLAYLIST,
-    ALBUM
-}
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,62 +75,17 @@ fun SearchScreen(
     val context = LocalContext.current
     val resources = LocalResources.current
     val player = rememberPlayerManager(context)
-    val sessionManager = remember { SessionManager(context) }
-    val apiService = remember { NeteaseApiService(context) }
+    val searchViewModel: SearchViewModel = viewModel()
+    val uiState by searchViewModel.uiState.collectAsStateWithLifecycle()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-    val cookie = sessionManager.getCookie()
+    val cookie = searchViewModel.getCookie()
 
     var searchInput by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
-    var selectedTab by remember { mutableStateOf(SearchTab.SONG) }
-    var songResults by remember { mutableStateOf<List<TrackItem>>(emptyList()) }
-    var playlistResults by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
-    var albumResults by remember { mutableStateOf<List<SearchAlbumItem>>(emptyList()) }
-    var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
-    var hasSearched by remember { mutableStateOf(false) }
     var selectedTrackForMenu by remember { mutableStateOf<TrackItem?>(null) }
-    var playlistsForMenu by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
 
     fun loadMenuPlaylists() {
-        if (cookie.isBlank()) return
-        scope.launch {
-            val result = apiService.getUserPlaylists(sessionManager.getUserId(), cookie)
-            playlistsForMenu = result.getOrNull()?.playlist.orEmpty()
-        }
-    }
-
-    LaunchedEffect(searchInput.text) {
-        if (searchInput.text.isBlank()) {
-            suggestions = emptyList()
-            return@LaunchedEffect
-        }
-        delay(250)
-        if (searchInput.text.isNotBlank()) {
-            suggestions = apiService.searchSuggest(searchInput.text.trim()).getOrDefault(emptyList()).take(8)
-        }
-    }
-
-    suspend fun performSearch(query: String) {
-        val q = query.trim()
-        if (q.isBlank()) return
-
-        hasSearched = true
-        isSearching = true
-
-        when (selectedTab) {
-            SearchTab.SONG -> {
-                songResults = apiService.searchSongs(q, 30).getOrDefault(emptyList())
-            }
-            SearchTab.PLAYLIST -> {
-                playlistResults = apiService.searchPlaylists(q, 30).getOrDefault(emptyList())
-            }
-            SearchTab.ALBUM -> {
-                albumResults = apiService.searchAlbums(q, 30).getOrDefault(emptyList())
-            }
-        }
-
-        isSearching = false
+        searchViewModel.loadMenuPlaylists()
     }
 
     Scaffold(
@@ -164,10 +113,7 @@ fun SearchScreen(
                 value = searchInput,
                 onValueChange = {
                     searchInput = it
-                    hasSearched = false
-                    songResults = emptyList()
-                    playlistResults = emptyList()
-                    albumResults = emptyList()
+                    searchViewModel.updateQuery(it.text)
                 },
                 label = { Text(stringResource(R.string.search_hint)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
@@ -186,7 +132,7 @@ fun SearchScreen(
                     onSearch = {
                         val q = searchInput.text.trim()
                         if (q.isNotBlank()) {
-                            scope.launch { performSearch(q) }
+                            searchViewModel.performSearch()
                         }
                     }
                 ),
@@ -195,9 +141,7 @@ fun SearchScreen(
                         onClick = {
                             val q = searchInput.text.trim()
                             if (q.isBlank()) return@TextButton
-                            scope.launch {
-                                performSearch(q)
-                            }
+                            searchViewModel.performSearch()
                         }
                     ) {
                         Text(stringResource(R.string.common_search))
@@ -207,14 +151,14 @@ fun SearchScreen(
             )
 
             PrimaryScrollableTabRow(
-                selectedTabIndex = selectedTab.ordinal,
+                selectedTabIndex = uiState.selectedTab.ordinal,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 SearchTab.entries.forEach { tab ->
                     Tab(
-                        selected = selectedTab == tab,
+                        selected = uiState.selectedTab == tab,
                         onClick = {
-                            selectedTab = tab
+                            searchViewModel.selectTab(tab)
                         },
                         text = {
                             Text(
@@ -229,14 +173,8 @@ fun SearchScreen(
                 }
             }
 
-            LaunchedEffect(selectedTab) {
-                if (hasSearched && searchInput.text.isNotBlank()) {
-                    performSearch(searchInput.text.trim())
-                }
-            }
-
             when {
-                isSearching -> {
+                uiState.isSearching -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
@@ -255,7 +193,7 @@ fun SearchScreen(
                     }
                 }
 
-                suggestions.isNotEmpty() && !hasSearched -> {
+                uiState.suggestions.isNotEmpty() && !uiState.hasSearched -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
@@ -267,11 +205,11 @@ fun SearchScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
-                        items(suggestions) { suggestion ->
+                        items(uiState.suggestions) { suggestion ->
                             Card(
                                     onClick = {
                                         searchInput = TextFieldValue(suggestion, selection = TextRange(0, suggestion.length))
-                                        scope.launch { performSearch(suggestion) }
+                                        searchViewModel.selectSuggestion(suggestion)
                                     },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -286,7 +224,7 @@ fun SearchScreen(
                     }
                 }
 
-                !hasSearched -> {
+                !uiState.hasSearched -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -300,15 +238,15 @@ fun SearchScreen(
                 }
 
                 else -> {
-                    when (selectedTab) {
+                    when (uiState.selectedTab) {
                         SearchTab.SONG -> SongSearchResults(
-                            songs = songResults,
+                            songs = uiState.songResults,
                             onPlaySong = { track ->
                                 if (cookie.isBlank()) {
                                     Toast.makeText(context, resources.getString(R.string.search_need_login), Toast.LENGTH_SHORT).show()
                                 } else {
                                     player.setCookie(cookie)
-                                    player.setPlaylist(songResults, songResults.indexOf(track))
+                                    player.setPlaylist(uiState.songResults, uiState.songResults.indexOf(track))
                                     Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
                                 }
                             },
@@ -318,13 +256,13 @@ fun SearchScreen(
                         )
 
                         SearchTab.PLAYLIST -> PlaylistSearchResults(
-                            playlists = playlistResults,
+                            playlists = uiState.playlistResults,
                             onClick = { playlist ->
                                 onNavigateToSearchDetail("playlist", playlist.id, playlist.name)
                             }
                         )
                         SearchTab.ALBUM -> AlbumSearchResults(
-                            albums = albumResults,
+                            albums = uiState.albumResults,
                             onClick = { album ->
                                 onNavigateToSearchDetail("album", album.id, album.name)
                             }
@@ -337,14 +275,14 @@ fun SearchScreen(
 
     SongLongPressMenu(
         track = selectedTrackForMenu,
-        playlists = playlistsForMenu,
+        playlists = uiState.playlistsForMenu,
         onDismiss = { selectedTrackForMenu = null },
         onRequestLoadPlaylists = { loadMenuPlaylists() },
         onPlayTrack = { track ->
-            val index = songResults.indexOfFirst { it.id == track.id }
+            val index = uiState.songResults.indexOfFirst { it.id == track.id }
             if (index >= 0) {
                 player.setCookie(cookie)
-                player.setPlaylist(songResults, index)
+                player.setPlaylist(uiState.songResults, index)
                 Toast.makeText(context, resources.getString(R.string.main_play_track_toast, track.name), Toast.LENGTH_SHORT).show()
             }
         },
@@ -354,7 +292,7 @@ fun SearchScreen(
         },
         onAddToPlaylist = { trackId, playlistId ->
             scope.launch {
-                val result = apiService.addTrackToPlaylist(playlistId, trackId, cookie)
+                val result = searchViewModel.addTrackToPlaylist(playlistId, trackId)
                 result.fold(
                     onSuccess = {
                         Toast.makeText(context, resources.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()

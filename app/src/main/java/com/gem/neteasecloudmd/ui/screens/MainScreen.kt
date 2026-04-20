@@ -61,6 +61,8 @@ import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SleepTimerPolicy
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
 
@@ -72,6 +74,7 @@ fun MainScreen(
     onNavigateToRecentPlays: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onLoggedOut: () -> Unit,
     onNavigateToPlaylistDetail: (Long, String) -> Unit
 ) {
     val context = LocalContext.current
@@ -424,7 +427,7 @@ fun MainScreen(
                 sessionManager.logout()
                 Toast.makeText(context, resources.getString(R.string.settings_logged_out), Toast.LENGTH_SHORT).show()
                 showAccountDialog.value = false
-                onNavigateToSearch()
+                onLoggedOut()
             }
         )
     }
@@ -845,7 +848,9 @@ fun PlaybackBar(
                 return@LaunchedEffect
             }
 
-            val palette = Palette.from(bitmap).generate()
+            val palette = withContext(Dispatchers.Default) {
+                Palette.from(bitmap).generate()
+            }
             val pickedColor = palette.vibrantSwatch?.rgb
                 ?: palette.lightVibrantSwatch?.rgb
                 ?: palette.darkVibrantSwatch?.rgb

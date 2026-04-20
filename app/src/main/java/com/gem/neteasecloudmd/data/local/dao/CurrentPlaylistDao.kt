@@ -12,13 +12,13 @@ interface CurrentPlaylistDao {
     @Query("SELECT * FROM current_playlist ORDER BY position ASC")
     fun getCurrentPlaylist(): Flow<List<CurrentPlaylistEntity>>
     
-    @Query("SELECT position FROM current_playlist LIMIT 1")
+    @Query("SELECT position FROM current_playlist WHERE isCurrent = 1 LIMIT 1")
     suspend fun getCurrentPosition(): Int?
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylist(tracks: List<CurrentPlaylistEntity>)
     
-    @Query("UPDATE current_playlist SET position = :position WHERE position = (SELECT position FROM current_playlist ORDER BY position ASC LIMIT 1)")
+    @Query("UPDATE current_playlist SET isCurrent = (position = :position)")
     suspend fun updatePosition(position: Int)
     
     @Query("DELETE FROM current_playlist")
