@@ -94,7 +94,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             when (_uiState.value.selectedTab) {
                 SearchTab.SONG -> {
                     val songs = apiService.searchSongs(query, 30).getOrDefault(emptyList())
-                    _uiState.update { it.copy(songResults = songs, isSearching = false) }
+                    val detailedSongs = if (songs.isNotEmpty()) {
+                        val ids = songs.map { it.id }
+                        val cookie = getCookie()
+                        apiService.getSongsDetails(ids, cookie).getOrDefault(songs)
+                    } else {
+                        songs
+                    }
+                    _uiState.update { it.copy(songResults = detailedSongs, isSearching = false) }
                 }
 
                 SearchTab.PLAYLIST -> {

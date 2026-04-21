@@ -44,14 +44,15 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
     private val CHUNK_SIZE = 20
 
     fun loadPlaylist(
-        playlistId: Long,
+        type: String = "playlist",
+        id: Long,
         isRefresh: Boolean,
         onFinished: ((PlaylistDetailRefreshResult) -> Unit)? = null
     ) {
         val cookie = sessionManager.getCookie()
         val userId = sessionManager.getUserId()
 
-        if (playlistId <= 0L || cookie.isBlank()) {
+        if (id <= 0L || cookie.isBlank()) {
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -63,7 +64,7 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
             return
         }
 
-        currentPlaylistId = playlistId
+        currentPlaylistId = id
 
         _uiState.update {
             it.copy(
@@ -74,75 +75,117 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
         }
 
         viewModelScope.launch {
-            val result = withTimeoutOrNull(15_000L) {
-                apiService.getPlaylistTrackIds(playlistId, cookie)
-            }
+            if (type == "album") {
+                val result = withTimeoutOrNull(15_000L) {
+                    apiService.getAlbumTracks(id, cookie)
+                }
 
-            result?.fold(
-                onSuccess = { trackIds ->
-                    val likedSongIds = apiService.getLikedSongIds(userId, cookie).getOrDefault(emptySet())
-                    
-                    val firstChunk = trackIds.take(CHUNK_SIZE)
-                    if (firstChunk.isNotEmpty()) {
-                        val tracksResult = apiService.getSongsDetails(firstChunk, cookie)
-                        tracksResult.fold(
-                            onSuccess = { initialTracks ->
-                                _uiState.update {
-                                    it.copy(
-                                        tracks = initialTracks,
-                                        allTrackIds = trackIds,
-                                        likedSongIds = likedSongIds,
-                                        isLoading = false,
-                                        isRefreshing = false,
-                                        errorMessage = null
-                                    )
-                                }
-                                onFinished?.invoke(PlaylistDetailRefreshResult.Success(initialTracks.size))
-                            },
-                            onFailure = { e ->
-                                _uiState.update {
-                                    it.copy(
-                                        isLoading = false,
-                                        isRefreshing = false,
-                                        errorMessage = e.message
-                                    )
-                                }
-                                onFinished?.invoke(PlaylistDetailRefreshResult.Error(e.message))
-                            }
-                        )
-                    } else {
+                result?.fold(
+                    onSuccess = { tracks ->
+                        val likedSongIds = apiService.getLikedSongIds(userId, cookie).getOrDefault(emptySet())
                         _uiState.update {
                             it.copy(
-                                tracks = emptyList(),
-                                allTrackIds = emptyList(),
+                                tracks = tracks,
+                                allTrackIds = tracks.map { t -> t.id },
                                 likedSongIds = likedSongIds,
                                 isLoading = false,
                                 isRefreshing = false,
                                 errorMessage = null
                             )
                         }
-                        onFinished?.invoke(PlaylistDetailRefreshResult.Success(0))
+                        onFinished?.invoke(PlaylistDetailRefreshResult.Success(tracks.size))
+                    },
+                    onFailure = { e ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isRefreshing = false,
+                                errorMessage = e.message
+                            )
+                        }
+                        onFinished?.invoke(PlaylistDetailRefreshResult.Error(e.message))
                     }
-                },
-                onFailure = { e ->
+                ) ?: run {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isRefreshing = false,
-                            errorMessage = e.message
+                            errorMessage = null
                         )
                     }
-                    onFinished?.invoke(PlaylistDetailRefreshResult.Error(e.message))
+                    onFinished?.invoke(PlaylistDetailRefreshResult.Timeout)
                 }
-            ) ?: run {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        isRefreshing = false,
-                        errorMessage = null
-                    )
+            } else {
+                val result = withTimeoutOrNull(15_000L) {
+                    apiService.getPlaylistTrackIds(id, cookie)
                 }
-                onFinished?.invoke(PlaylistDetailRefreshResult.Timeout)
+
+                result?.fold(
+                    onSuccess = { trackIds ->
+                        val likedSongIds = apiService.getLikedSongIds(userId, cookie).getOrDefault(emptySet())
+                        
+                        val firstChunk = trackIds.take(CHUNK_SIZE)
+                        if (firstChunk.isNotEmpty()) {
+                            val tracksResult = apiService.getSongsDetails(firstChunk, cookie)
+                            tracksResult.fold(
+                                onSuccess = { initialTracks ->
+                                    _uiState.update {
+                                        it.copy(
+                                            tracks = initialTracks,
+                                            allTrackIds = trackIds,
+                                            likedSongIds = likedSongIds,
+                                            isLoading = false,
+                                            isRefreshing = false,
+                                            errorMessage = null
+                                        )
+                                    }
+                                    onFinished?.invoke(PlaylistDetailRefreshResult.Success(initialTracks.size))
+                                },
+                                onFailure = { e ->
+                                    _uiState.update {
+                                        it.copy(
+                                            isLoading = false,
+                                            isRefreshing = false,
+                                            errorMessage = e.message
+                                        )
+                                    }
+                                    onFinished?.invoke(PlaylistDetailRefreshResult.Error(e.message))
+                                }
+                            )
+                        } else {
+                            _uiState.update {
+                                it.copy(
+                                    tracks = emptyList(),
+                                    allTrackIds = emptyList(),
+                                    likedSongIds = likedSongIds,
+                                    isLoading = false,
+                                    isRefreshing = false,
+                                    errorMessage = null
+                                )
+                            }
+                            onFinished?.invoke(PlaylistDetailRefreshResult.Success(0))
+                        }
+                    },
+                    onFailure = { e ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isRefreshing = false,
+                                errorMessage = e.message
+                            )
+                        }
+                        onFinished?.invoke(PlaylistDetailRefreshResult.Error(e.message))
+                    }
+                ) ?: run {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            errorMessage = null
+                        )
+                    }
+                    onFinished?.invoke(PlaylistDetailRefreshResult.Timeout)
+                }
             }
         }
     }

@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistDetailScreen(
+    type: String = "playlist",
     playlistId: Long,
     playlistName: String,
     onNavigateBack: () -> Unit
@@ -41,7 +42,8 @@ fun PlaylistDetailScreen(
 
     fun loadTracks(showToast: Boolean = false) {
         playlistDetailViewModel.loadPlaylist(
-            playlistId = playlistId,
+            type = type,
+            id = playlistId,
             isRefresh = showToast
         ) { result ->
             if (!showToast) return@loadPlaylist

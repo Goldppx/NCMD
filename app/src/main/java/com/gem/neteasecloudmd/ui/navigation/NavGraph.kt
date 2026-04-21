@@ -15,7 +15,6 @@ import com.gem.neteasecloudmd.ui.screens.MainScreen
 import com.gem.neteasecloudmd.ui.screens.PlaylistDetailScreen
 import com.gem.neteasecloudmd.ui.screens.PlaylistListScreen
 import com.gem.neteasecloudmd.ui.screens.RecentPlaysScreen
-import com.gem.neteasecloudmd.ui.screens.SearchDetailScreen
 import com.gem.neteasecloudmd.ui.screens.SearchScreen
 import com.gem.neteasecloudmd.ui.screens.SettingsScreen
 import com.gem.neteasecloudmd.ui.screens.LogScreen
@@ -64,8 +63,8 @@ fun NavGraph(
                         popUpTo(Screen.Main.route) { inclusive = true }
                     }
                 },
-                onNavigateToPlaylistDetail = { playlistId, playlistName ->
-                    navController.navigate(Screen.PlaylistDetail.createRoute(playlistId, playlistName))
+                onNavigateToPlaylistDetail = { type, playlistId, playlistName ->
+                    navController.navigate(Screen.PlaylistDetail.createRoute(type, playlistId, playlistName))
                 }
             )
         }
@@ -73,8 +72,8 @@ fun NavGraph(
         composable(Screen.PlaylistList.route) {
             PlaylistListScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToPlaylistDetail = { playlistId, playlistName ->
-                    navController.navigate(Screen.PlaylistDetail.createRoute(playlistId, playlistName))
+                onNavigateToPlaylistDetail = { type, playlistId, playlistName ->
+                    navController.navigate(Screen.PlaylistDetail.createRoute(type, playlistId, playlistName))
                 }
             )
         }
@@ -82,10 +81,12 @@ fun NavGraph(
         composable(
             route = Screen.PlaylistDetail.route,
             arguments = listOf(
+                navArgument("type") { type = NavType.StringType },
                 navArgument("playlistId") { type = NavType.LongType },
                 navArgument("playlistName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            val type = backStackEntry.arguments?.getString("type") ?: "playlist"
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
             val playlistName = Uri.decode(
                 backStackEntry.arguments?.getString("playlistName")
@@ -93,6 +94,7 @@ fun NavGraph(
             )
 
             PlaylistDetailScreen(
+                type = type,
                 playlistId = playlistId,
                 playlistName = playlistName,
                 onNavigateBack = { navController.popBackStack() }
@@ -108,32 +110,9 @@ fun NavGraph(
         composable(Screen.Search.route) {
             SearchScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToSearchDetail = { type, id, name ->
-                    navController.navigate(Screen.SearchDetail.createRoute(type, id, name))
+                onNavigateToDetail = { type, id, name ->
+                    navController.navigate(Screen.PlaylistDetail.createRoute(type, id, name))
                 }
-            )
-        }
-
-        composable(
-            route = Screen.SearchDetail.route,
-            arguments = listOf(
-                navArgument("type") { type = NavType.StringType },
-                navArgument("id") { type = NavType.LongType },
-                navArgument("name") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val type = backStackEntry.arguments?.getString("type") ?: "playlist"
-            val id = backStackEntry.arguments?.getLong("id") ?: 0L
-            val name = Uri.decode(
-                backStackEntry.arguments?.getString("name")
-                    ?: resources.getString(R.string.nav_default_detail_name)
-            )
-
-            SearchDetailScreen(
-                type = type,
-                id = id,
-                name = name,
-                onNavigateBack = { navController.popBackStack() }
             )
         }
 

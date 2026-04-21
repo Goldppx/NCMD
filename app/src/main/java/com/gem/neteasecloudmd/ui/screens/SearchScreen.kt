@@ -70,7 +70,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SearchScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToSearchDetail: (type: String, id: Long, name: String) -> Unit
+    onNavigateToDetail: (type: String, id: Long, name: String) -> Unit
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -258,13 +258,13 @@ fun SearchScreen(
                         SearchTab.PLAYLIST -> PlaylistSearchResults(
                             playlists = uiState.playlistResults,
                             onClick = { playlist ->
-                                onNavigateToSearchDetail("playlist", playlist.id, playlist.name)
+                                onNavigateToDetail("playlist", playlist.id, playlist.name)
                             }
                         )
                         SearchTab.ALBUM -> AlbumSearchResults(
                             albums = uiState.albumResults,
                             onClick = { album ->
-                                onNavigateToSearchDetail("album", album.id, album.name)
+                                onNavigateToDetail("album", album.id, album.name)
                             }
                         )
                     }

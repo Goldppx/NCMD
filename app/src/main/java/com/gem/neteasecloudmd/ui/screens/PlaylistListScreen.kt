@@ -31,7 +31,7 @@ import com.gem.neteasecloudmd.ui.viewmodel.PlaylistListViewModel
 @Composable
 fun PlaylistListScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToPlaylistDetail: (Long, String) -> Unit
+    onNavigateToPlaylistDetail: (type: String, playlistId: Long, playlistName: String) -> Unit
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -147,7 +147,7 @@ fun PlaylistListScreen(
                                 PlaylistListCard(
                                     playlist = playlist,
                                     onClick = {
-                                        onNavigateToPlaylistDetail(playlist.id, playlist.name)
+                                        onNavigateToPlaylistDetail("playlist", playlist.id, playlist.name)
                                     }
                                 )
                             }
