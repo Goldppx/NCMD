@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive Icon foreground – safe zone built-in, content at 50% size.
+  Canvas: 108 × 108 dp
+  Content is scaled to 50% around the centre (pivotX=54, pivotY=54).
+  strokeWidth halved (4.5 → 2.25) because VectorDrawable group-scale
+  does not affect stroke widths automatically.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:pivotX="50"
+        android:pivotY="54"
+        android:scaleX="0.6"
+        android:scaleY="0.6">
+
+        <!-- music note stem + head -->
+        <path
+            android:pathData="M47.77,68.24Q47.77,72.94 51.06,76.29Q54.35,79.64 58.96,79.64Q63.57,79.64 66.86,76.29Q70.15,72.94 70.15,68.24L70.15,39.76L78.53,39.76Q79.74,39.76 80.55,38.94Q81.33,38.12 81.33,36.91L81.33,30.72Q81.33,29.50 80.55,28.69Q79.74,27.87 78.53,27.87L67.10,27.87Q65.91,27.87 65.11,28.69Q64.30,29.50 64.30,30.72L64.30,58.97Q63.04,58.19 61.68,57.81Q60.32,57.42 58.96,57.42Q54.35,57.42 51.06,60.77Q47.77,64.12 47.77,68.24Z"
+            android:strokeLineJoin="miter"
+            android:strokeWidth="4.5"
+            android:fillColor="#00000000"
+            android:fillType="evenOdd"
+            android:strokeColor="@color/ic_launcher_fg"
+            android:strokeLineCap="butt" />
+
+        <!-- sound wave / circle -->
+        <path
+            android:pathData="M24.60,49.72Q25.24,56.74 30.04,60.91Q34.84,65.08 41.19,65.08Q48.19,65.08 52.91,59.90Q57.63,54.71 57.63,47.09Q57.63,40.58 53.46,35.78Q49.29,30.98 42.80,30.18Q42.20,30.08 41.73,30.35Q41.27,30.60 40.99,31.03Q40.71,31.45 40.69,32.02Q40.66,32.59 41.03,33.11Q41.82,34.33 42.22,35.70Q42.61,37.07 42.61,38.58Q42.61,42.83 39.69,45.81Q36.77,48.78 32.10,48.78Q30.66,48.78 29.25,48.36Q27.83,47.93 26.72,47.18Q26.21,46.85 25.68,46.87Q25.14,46.89 24.72,47.13Q24.26,47.37 24.01,47.84Q23.75,48.31 23.84,48.97ZM28.89,52.79Q29.81,53.03 30.73,53.17Q31.67,53.31 32.60,53.31Q38.18,53.31 42.23,49.23Q46.32,45.14 46.32,39.28Q46.32,38.36 46.18,37.45Q46.04,36.50 45.81,35.56Q49.43,37.07 51.68,40.37Q53.92,43.68 53.92,47.09Q53.92,52.56 50.12,56.44Q46.32,60.31 41.19,60.31Q37.11,60.31 33.87,58.02Q30.62,55.73 29.12,52.29Q28.95,52.29 28.89,52.79Z"
+            android:fillColor="@color/ic_launcher_fg"
+            android:fillType="evenOdd" />
+
+    </group>
+
+</vector>

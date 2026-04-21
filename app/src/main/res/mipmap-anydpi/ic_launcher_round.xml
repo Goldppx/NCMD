@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- background: solid dynamic color (system_accent1_100) -->
     <background android:drawable="@drawable/ic_launcher_background_dynamic" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground_inset" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground_inset" />
+    <!-- foreground: flat vector with safe-zone margin baked in -->
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <!-- monochrome: same vector; system applies its own tint -->
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>
