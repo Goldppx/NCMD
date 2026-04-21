@@ -233,6 +233,9 @@ fun PlaylistDetailScreen(
         showLikeIndicator = true,
         isTrackLiked = { track -> uiState.likedSongIds.contains(track.id) },
         onSingleRightAction = null,
-        singleRightActionDescription = ""
+        singleRightActionDescription = "",
+        onLoadMore = { playlistDetailViewModel.loadMore() },
+        isLoadingMore = uiState.isLoadingMore,
+        totalTrackCount = uiState.allTrackIds.size
     )
 }

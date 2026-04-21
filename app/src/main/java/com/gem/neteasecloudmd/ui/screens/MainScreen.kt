@@ -157,6 +157,7 @@ fun MainScreen(
                     }
                 },
                 actions = {
+                    Spacer(modifier = Modifier.width(16.dp))
                     IconButton(onClick = { showAccountDialog.value = true }) {
                         Surface(
                             modifier = Modifier.size(32.dp),
@@ -266,9 +267,10 @@ fun MainScreen(
                                                             player.setCookie(uiState.cookie)
                                                             mainViewModel.startPersonalFm()
                                                             Toast.makeText(context, resources.getString(R.string.main_start_personal_fm), Toast.LENGTH_SHORT).show()
+                                                        } else if (uiState.isFmLoading) {
+                                                            // Optional: Toast or do nothing
                                                         }
                                                     },
-                                                    enabled = fmTracks.isNotEmpty() && !uiState.isFmLoading,
                                                     shape = RoundedCornerShape(14.dp),
                                                     contentPadding = PaddingValues(0.dp),
                                                     modifier = Modifier

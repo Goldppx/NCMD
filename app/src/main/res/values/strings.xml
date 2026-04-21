@@ -145,6 +145,8 @@
     <string name="settings_language_zh_tw">繁体中文</string>
     <string name="settings_language_en">English</string>
     <string name="settings_language_switched_toast">已切换语言，部分界面重启后生效</string>
+    <string name="settings_view_logs">查看日志</string>
+    <string name="log_title">系统日志</string>
 
     <string name="nav_default_playlist_name">歌单</string>
     <string name="nav_default_detail_name">详情</string>

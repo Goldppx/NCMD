@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.gem.neteasecloudmd.api.SessionManager
+import com.gem.neteasecloudmd.utils.Logger
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Logger.init(applicationContext)
         enableEdgeToEdge()
         setContent {
             NCMDApp()

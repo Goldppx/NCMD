@@ -18,6 +18,7 @@ import com.gem.neteasecloudmd.ui.screens.RecentPlaysScreen
 import com.gem.neteasecloudmd.ui.screens.SearchDetailScreen
 import com.gem.neteasecloudmd.ui.screens.SearchScreen
 import com.gem.neteasecloudmd.ui.screens.SettingsScreen
+import com.gem.neteasecloudmd.ui.screens.LogScreen
 
 @Composable
 fun NavGraph(
@@ -145,7 +146,16 @@ fun NavGraph(
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Main.route) { inclusive = true }
                     }
+                },
+                onNavigateToLog = {
+                    navController.navigate(Screen.Log.route)
                 }
+            )
+        }
+
+        composable(Screen.Log.route) {
+            LogScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

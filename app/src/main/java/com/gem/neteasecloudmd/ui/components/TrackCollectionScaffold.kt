@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -48,6 +49,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,7 +99,10 @@ fun TrackCollectionScaffold(
     showLikeIndicator: Boolean,
     isTrackLiked: (TrackItem) -> Boolean = { false },
     onSingleRightAction: ((TrackItem) -> Unit)? = null,
-    singleRightActionDescription: String = ""
+    singleRightActionDescription: String = "",
+    onLoadMore: (() -> Unit)? = null,
+    isLoadingMore: Boolean = false,
+    totalTrackCount: Int = tracks.size
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -295,14 +300,35 @@ fun TrackCollectionScaffold(
                 }
 
                 else -> {
+                    val listState = rememberLazyListState()
+                    // 使用 totalItemsCount（含 header/spacer 2项）计算阈值，
+                    // 当最后可见 item 距离列表末尾 ≤ 5 时触发加载
+                    val shouldLoadMore by remember {
+                        derivedStateOf {
+                            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+                            val total = listState.layoutInfo.totalItemsCount
+                            lastVisibleItem != null && total > 0 &&
+                                lastVisibleItem.index >= total - 5
+                        }
+                    }
+
+                    // 以 shouldLoadMore 和 isLoadingMore 共同作为 key：
+                    // 当 isLoadingMore 从 true→false（本批加载完成）且用户仍在底部时重新触发
+                    LaunchedEffect(shouldLoadMore, isLoadingMore) {
+                        if (shouldLoadMore && onLoadMore != null && !isLoadingMore) {
+                            onLoadMore()
+                        }
+                    }
+
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         item {
                             TrackCollectionHeaderCard(
-                                trackCount = tracks.size,
+                                trackCount = totalTrackCount,
                                 isBatchMode = isBatchMode,
                                 onPlayAllClick = onPlayAll,
                                 onBatchToggleClick = {
@@ -353,6 +379,19 @@ fun TrackCollectionScaffold(
                                     }
                                 }
                             )
+                        }
+
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                }
+                            }
                         }
                     }
                 }

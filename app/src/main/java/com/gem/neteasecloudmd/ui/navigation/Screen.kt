@@ -17,4 +17,5 @@ sealed class Screen(val route: String) {
             "search_detail/$type/$id/${Uri.encode(name)}"
     }
     data object Settings : Screen("settings")
+    data object Log : Screen("log")
 }

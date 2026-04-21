@@ -16,10 +16,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 data class PlaylistDetailUiState(
     val tracks: List<TrackItem> = emptyList(),
+    val allTrackIds: List<Long> = emptyList(),
     val likedSongIds: Set<Long> = emptySet(),
     val playlistsForMenu: List<PlaylistItem> = emptyList(),
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
+    val isLoadingMore: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -37,6 +39,9 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
 
     private val _uiState = MutableStateFlow(PlaylistDetailUiState())
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
+
+    private var currentPlaylistId: Long = 0L
+    private val CHUNK_SIZE = 20
 
     fun loadPlaylist(
         playlistId: Long,
@@ -58,6 +63,8 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
             return
         }
 
+        currentPlaylistId = playlistId
+
         _uiState.update {
             it.copy(
                 isLoading = it.tracks.isEmpty() && !isRefresh,
@@ -68,22 +75,54 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
 
         viewModelScope.launch {
             val result = withTimeoutOrNull(15_000L) {
-                apiService.getPlaylistDetail(playlistId, cookie)
+                apiService.getPlaylistTrackIds(playlistId, cookie)
             }
 
             result?.fold(
-                onSuccess = { trackList ->
+                onSuccess = { trackIds ->
                     val likedSongIds = apiService.getLikedSongIds(userId, cookie).getOrDefault(emptySet())
-                    _uiState.update {
-                        it.copy(
-                            tracks = trackList,
-                            likedSongIds = likedSongIds,
-                            isLoading = false,
-                            isRefreshing = false,
-                            errorMessage = null
+                    
+                    val firstChunk = trackIds.take(CHUNK_SIZE)
+                    if (firstChunk.isNotEmpty()) {
+                        val tracksResult = apiService.getSongsDetails(firstChunk, cookie)
+                        tracksResult.fold(
+                            onSuccess = { initialTracks ->
+                                _uiState.update {
+                                    it.copy(
+                                        tracks = initialTracks,
+                                        allTrackIds = trackIds,
+                                        likedSongIds = likedSongIds,
+                                        isLoading = false,
+                                        isRefreshing = false,
+                                        errorMessage = null
+                                    )
+                                }
+                                onFinished?.invoke(PlaylistDetailRefreshResult.Success(initialTracks.size))
+                            },
+                            onFailure = { e ->
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        isRefreshing = false,
+                                        errorMessage = e.message
+                                    )
+                                }
+                                onFinished?.invoke(PlaylistDetailRefreshResult.Error(e.message))
+                            }
                         )
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                tracks = emptyList(),
+                                allTrackIds = emptyList(),
+                                likedSongIds = likedSongIds,
+                                isLoading = false,
+                                isRefreshing = false,
+                                errorMessage = null
+                            )
+                        }
+                        onFinished?.invoke(PlaylistDetailRefreshResult.Success(0))
                     }
-                    onFinished?.invoke(PlaylistDetailRefreshResult.Success(trackList.size))
                 },
                 onFailure = { e ->
                     _uiState.update {
@@ -108,6 +147,38 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    fun loadMore() {
+        val state = _uiState.value
+        val hasMore = state.tracks.size < state.allTrackIds.size
+        
+        if (state.isLoadingMore || !hasMore || currentPlaylistId <= 0L) return
+
+        val cookie = sessionManager.getCookie()
+        if (cookie.isBlank()) return
+
+        _uiState.update { it.copy(isLoadingMore = true) }
+
+        viewModelScope.launch {
+            val nextChunk = state.allTrackIds.drop(state.tracks.size).take(CHUNK_SIZE)
+            
+            val result = apiService.getSongsDetails(nextChunk, cookie)
+
+            result.fold(
+                onSuccess = { newTracks ->
+                    _uiState.update {
+                        it.copy(
+                            tracks = it.tracks + newTracks,
+                            isLoadingMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _uiState.update { it.copy(isLoadingMore = false) }
+                }
+            )
+        }
+    }
+
     fun loadMenuPlaylists() {
         val cookie = sessionManager.getCookie()
         val userId = sessionManager.getUserId()
@@ -123,6 +194,7 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
         _uiState.update { state ->
             state.copy(
                 tracks = state.tracks.filterNot { trackIds.contains(it.id) },
+                allTrackIds = state.allTrackIds.filterNot { trackIds.contains(it) },
                 likedSongIds = state.likedSongIds.filterNot { trackIds.contains(it) }.toSet()
             )
         }

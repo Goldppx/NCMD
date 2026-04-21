@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.SessionManager
+import com.gem.neteasecloudmd.utils.Logger
 
 private enum class SettingsSection {
     Account,
@@ -72,7 +74,8 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onThemeModeChanged: (Int) -> Unit,
     onLanguageModeChanged: (Int) -> Unit,
-    onLoggedOut: () -> Unit
+    onLoggedOut: () -> Unit,
+    onNavigateToLog: () -> Unit
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -124,21 +127,25 @@ fun SettingsScreen(
                     onToggle = { toggleSection(section) },
                     disableCoverOverflow = disableCoverOverflow,
                     onDisableCoverOverflowChanged = { disabled ->
+                        Logger.i("Settings", "Disable cover overflow: $disabled")
                         disableCoverOverflow = disabled
                         sessionManager.setCoverOverflowDisabled(disabled)
                     },
                     useLocalRecentPlays = useLocalRecentPlays,
                     onUseLocalRecentPlaysChanged = { useLocal ->
+                        Logger.i("Settings", "Use local recent plays: $useLocal")
                         useLocalRecentPlays = useLocal
                         sessionManager.setUseLocalRecentPlays(useLocal)
                     },
                     enableCoverPalette = enableCoverPalette,
                     onEnableCoverPaletteChanged = { enabled ->
+                        Logger.i("Settings", "Enable cover palette: $enabled")
                         enableCoverPalette = enabled
                         sessionManager.setCoverPaletteEnabled(enabled)
                     },
                     themeMode = themeMode,
                     onThemeModeChanged = { mode ->
+                        Logger.i("Settings", "Theme mode changed: $mode")
                         themeMode = mode
                         sessionManager.setThemeMode(mode)
                         onThemeModeChanged(mode)
@@ -146,6 +153,9 @@ fun SettingsScreen(
                     languageMode = languageMode,
                     onLanguageModeChanged = { mode ->
                         val changed = mode != languageMode
+                        if (changed) {
+                            Logger.i("Settings", "Language mode changed: $mode")
+                        }
                         languageMode = mode
                         sessionManager.setLanguageMode(mode)
                         onLanguageModeChanged(mode)
@@ -169,12 +179,14 @@ fun SettingsScreen(
                         }
                     },
                     onLogoutClick = {
+                        Logger.i("Settings", "User logged out")
                         sessionManager.logout()
                         Toast.makeText(context, resources.getString(R.string.settings_logged_out), Toast.LENGTH_SHORT).show()
                         onLoggedOut()
                     },
                     cookie = cookie,
-                    userId = sessionManager.getUserId()
+                    userId = sessionManager.getUserId(),
+                    onNavigateToLog = onNavigateToLog
                 )
             }
         }
@@ -199,7 +211,8 @@ private fun SettingsSectionCard(
     onCopyCookieClick: () -> Unit,
     onLogoutClick: () -> Unit,
     cookie: String,
-    userId: Long
+    userId: Long,
+    onNavigateToLog: () -> Unit
 ) {
     var themeDropdownExpanded by remember { mutableStateOf(false) }
     var languageDropdownExpanded by remember { mutableStateOf(false) }
@@ -356,6 +369,13 @@ private fun SettingsSectionCard(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FilledTonalButton(
+                            onClick = onNavigateToLog,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.settings_view_logs))
+                        }
                     }
                 }
 

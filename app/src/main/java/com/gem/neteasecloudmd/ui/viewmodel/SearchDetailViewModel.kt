@@ -32,7 +32,7 @@ class SearchDetailViewModel(application: Application) : AndroidViewModel(applica
     fun loadTracks(type: String, id: Long) {
         viewModelScope.launch {
             val cookie = sessionManager.getCookie()
-            val result = when (type) {
+            val result: Result<List<TrackItem>> = when (type) {
                 "playlist" -> apiService.getPlaylistDetail(id, cookie)
                 "album" -> apiService.getAlbumTracks(id, cookie)
                 else -> Result.success(emptyList())

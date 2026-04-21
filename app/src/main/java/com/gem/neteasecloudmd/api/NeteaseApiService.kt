@@ -352,6 +352,157 @@ class NeteaseApiService {
         }
     }
     
+    suspend fun getPlaylistAllTrackIds(id: Long, cookie: String): Result<List<Long>> = withContext(Dispatchers.IO) {
+        try {
+            val params = mapOf(
+                "id" to id.toString(),
+                "n" to "100000",
+                "s" to "8"
+            )
+
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/v6/playlist/detail")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = json.decodeFromString<PlaylistDetailResponse>(body)
+            if (result.code == 200) {
+                val trackIds = result.playlist?.trackIds?.map { it.id } ?: emptyList()
+                Result.success(trackIds)
+            } else {
+                Result.failure(Exception(result.message ?: "Failed to get playlist detail"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSongsDetails(ids: List<Long>, cookie: String): Result<List<TrackItem>> = withContext(Dispatchers.IO) {
+        try {
+            if (ids.isEmpty()) return@withContext Result.success(emptyList())
+
+            val cList = ids.map { mapOf("id" to it) }
+            val params = mapOf(
+                "c" to Json.encodeToString(cList)
+            )
+
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/v3/song/detail")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = json.decodeFromString<SongDetailResponse>(body)
+            if (result.code == 200) {
+                val tracks = result.songs?.map { song ->
+                    TrackItem(
+                        id = song.id,
+                        name = song.name ?: str(R.string.api_unknown),
+                        artists = song.ar?.joinToString(", ") { it.name ?: "" } ?: str(R.string.api_unknown_artist),
+                        albumName = song.al?.name ?: str(R.string.api_unknown_album),
+                        albumPicUrl = song.al?.picUrl,
+                        duration = song.dt ?: 0
+                    )
+                } ?: emptyList()
+                // Keep the order matching the input ids
+                val trackMap = tracks.associateBy { it.id }
+                val orderedTracks = ids.mapNotNull { trackMap[it] }
+                Result.success(orderedTracks)
+            } else {
+                Result.failure(Exception("Failed to get song details"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPlaylistTrackIds(id: Long, cookie: String): Result<List<Long>> = withContext(Dispatchers.IO) {
+        try {
+            val params = mapOf(
+                "id" to id.toString(),
+                "n" to "100000",
+                "s" to "8"
+            )
+
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/v6/playlist/detail")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = json.decodeFromString<PlaylistDetailResponse>(body)
+            if (result.code == 200) {
+                val trackIds = result.playlist?.trackIds?.map { it.id } ?: emptyList()
+                Result.success(trackIds)
+            } else {
+                Result.failure(Exception(result.message ?: "Failed to get playlist detail"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun getPlaylistDetail(id: Long, cookie: String, offset: Int = 0, limit: Int = 20): Result<List<TrackItem>> = withContext(Dispatchers.IO) {
         try {
             val params = mapOf(
@@ -1272,7 +1423,13 @@ data class PlaylistDetailResponse(
 data class PlaylistWithTracks(
     val id: Long,
     val name: String,
-    val tracks: List<TrackResponse>? = null
+    val tracks: List<TrackResponse>? = null,
+    val trackIds: List<TrackIdItem>? = null
+)
+
+@Serializable
+data class TrackIdItem(
+    val id: Long
 )
 
 @Serializable

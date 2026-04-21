@@ -1,5 +1,6 @@
 package com.gem.neteasecloudmd.api
 
+import com.gem.neteasecloudmd.utils.Logger
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -133,13 +134,16 @@ class PlayerManager private constructor(private val context: Context) {
                                 this@PlayerManager.isLoading = false
                                 this@PlayerManager.isPlaying = this@PlayerManager.exoPlayer?.isPlaying == true
                                 this@PlayerManager.duration = this@PlayerManager.exoPlayer?.duration?.toInt() ?: 0
+                                Logger.d("Player", "Player READY, duration: ${this@PlayerManager.duration}")
                             }
                             Player.STATE_ENDED -> {
+                                Logger.d("Player", "Playback ENDED")
                                 this@PlayerManager.isPlaying = false
                                 if (sleepTimerWaitForQueueEnd) {
                                     val isLastSequential = playMode == PlayMode.SEQUENTIAL && currentTrackIndex >= currentPlaylist.lastIndex
                                     val noMoreTrack = currentPlaylist.isEmpty() || isLastSequential
                                     if (noMoreTrack) {
+                                        Logger.i("Player", "Sleep timer stopping at queue end")
                                         pauseBySleepTimer()
                                         return
                                     }
@@ -154,10 +158,11 @@ class PlayerManager private constructor(private val context: Context) {
 
                     override fun onIsPlayingChanged(playing: Boolean) {
                         this@PlayerManager.isPlaying = playing
+                        Logger.i("Player", "isPlaying: $playing")
                     }
 
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                        Log.e("PlayerManager", "ExoPlayer error: ${error.message}")
+                        Logger.e("Player", "ExoPlayer error", error)
                         this@PlayerManager.errorMessage = context.getString(
                             R.string.player_error_playback,
                             error.message ?: ""
@@ -334,7 +339,7 @@ class PlayerManager private constructor(private val context: Context) {
     }
     
     fun setPlaylist(tracks: List<TrackItem>, startIndex: Int = 0) {
-        Log.d("PlayerManager", "setPlaylist: ${tracks.size} tracks, startIndex: $startIndex")
+        Logger.i("Player", "Set playlist: ${tracks.size} tracks, startIndex: $startIndex")
         isPersonalFmMode = false
         currentPlaylist = tracks
         currentTrackIndex = startIndex.coerceIn(0, maxOf(0, tracks.size - 1))
@@ -350,6 +355,7 @@ class PlayerManager private constructor(private val context: Context) {
     }
 
     fun setPersonalFmPlaylist(tracks: List<TrackItem>, startIndex: Int = 0) {
+        Logger.i("Player", "Set Personal FM playlist")
         isPersonalFmMode = true
         currentPlaylist = tracks
         currentTrackIndex = startIndex.coerceIn(0, maxOf(0, tracks.size - 1))
@@ -472,6 +478,7 @@ class PlayerManager private constructor(private val context: Context) {
     
     fun next() {
         if (currentPlaylist.isEmpty()) return
+        Logger.d("Player", "Action: Next")
 
         if (playMode == PlayMode.REPEAT_ONE) {
             currentPosition = 0
@@ -571,6 +578,7 @@ class PlayerManager private constructor(private val context: Context) {
     
     fun previous() {
         if (currentPlaylist.isEmpty()) return
+        Logger.d("Player", "Action: Previous")
 
         if (playMode == PlayMode.REPEAT_ONE) {
             currentPosition = 0
@@ -624,6 +632,7 @@ class PlayerManager private constructor(private val context: Context) {
     }
 
     fun updatePlayMode(mode: PlayMode) {
+        Logger.i("Player", "Mode changed to: $mode")
         playMode = mode
     }
 
@@ -632,6 +641,7 @@ class PlayerManager private constructor(private val context: Context) {
     }
 
     fun clearPlaylist() {
+        Logger.i("Player", "Clearing playlist")
         currentPlaylist = emptyList()
         currentTrackIndex = 0
         currentUrl = null
@@ -650,6 +660,7 @@ class PlayerManager private constructor(private val context: Context) {
 
     fun appendToQueue(tracks: List<TrackItem>) {
         if (tracks.isEmpty()) return
+        Logger.i("Player", "Append ${tracks.size} tracks to queue")
 
         if (currentPlaylist.isEmpty()) {
             currentPlaylist = tracks
@@ -668,6 +679,7 @@ class PlayerManager private constructor(private val context: Context) {
 
     fun removeTrackAt(index: Int) {
         if (index !in currentPlaylist.indices) return
+        Logger.i("Player", "Remove track at index: $index")
 
         val mutable = currentPlaylist.toMutableList()
         val removingCurrent = index == currentTrackIndex
