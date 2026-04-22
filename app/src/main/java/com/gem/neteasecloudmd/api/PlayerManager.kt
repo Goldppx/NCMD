@@ -533,6 +533,22 @@ class PlayerManager private constructor(private val context: Context) {
         }
     }
 
+    fun seekToTrack(index: Int) {
+        if (index !in currentPlaylist.indices) return
+        currentTrackIndex = index
+        currentPosition = 0
+        duration = 0
+        
+        managerScope.launch(Dispatchers.IO) {
+            musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
+            currentTrack?.let { track ->
+                musicRepository.addRecentPlay(track)
+            }
+        }
+        
+        loadAndPlayCurrentTrack()
+    }
+
     private fun fetchMorePersonalFmAndPlay() {
         val apiService = currentApiService ?: run {
             isPlaying = false

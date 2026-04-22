@@ -57,11 +57,16 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.media3.common.util.UnstableApi
 import androidx.palette.graphics.Palette
 import com.gem.neteasecloudmd.R
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import com.gem.neteasecloudmd.ui.components.SongLongPressMenu
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SleepTimerPolicy
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
@@ -405,6 +410,10 @@ fun MainScreen(
                                                 )
                                             }
                                         }
+                                    }
+
+                                    item {
+                                        Spacer(modifier = Modifier.height(80.dp))
                                     }
                                 }
                             }
@@ -799,9 +808,26 @@ fun PlaybackBar(
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val player = rememberPlayerManager(context)
+    val scope = rememberCoroutineScope()
+    val apiService = remember { com.gem.neteasecloudmd.api.ApiProvider.get(context) }
     val hapticFeedback = androidx.compose.ui.platform.LocalHapticFeedback.current
     val disableCoverOverflow = sessionManager.isCoverOverflowDisabled()
     val enableCoverPalette = sessionManager.isCoverPaletteEnabled()
+
+    var playlistsForMenu by remember { mutableStateOf(emptyList<com.gem.neteasecloudmd.api.PlaylistItem>()) }
+    var selectedTrackForMenu by remember { mutableStateOf<com.gem.neteasecloudmd.api.TrackItem?>(null) }
+
+    fun loadMenuPlaylists() {
+        val uid = sessionManager.getUserId()
+        val cookie = sessionManager.getCookie()
+        if (uid > 0 && cookie.isNotBlank()) {
+            scope.launch {
+                apiService.getUserPlaylists(uid, cookie).onSuccess { response ->
+                    playlistsForMenu = response.playlist ?: emptyList()
+                }
+            }
+        }
+    }
 
     val hasPlaylist = player.currentPlaylist.isNotEmpty()
     val currentTrack = player.currentTrack
@@ -1254,6 +1280,15 @@ fun PlaybackBar(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = {
+                                            player.seekToTrack(index)
+                                            player.play()
+                                        },
+                                        onLongClick = {
+                                            selectedTrackForMenu = track
+                                        }
+                                    )
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -1311,6 +1346,56 @@ fun PlaybackBar(
             }
         }
     }
+
+    SongLongPressMenu(
+        track = selectedTrackForMenu,
+        playlists = playlistsForMenu,
+        onDismiss = { selectedTrackForMenu = null },
+        onRequestLoadPlaylists = { loadMenuPlaylists() },
+        onPlayTrack = { track ->
+            val index = player.currentPlaylist.indexOfFirst { it.id == track.id }
+            if (index >= 0) {
+                player.seekToTrack(index)
+                player.play()
+            }
+        },
+        onAddToQueue = { track ->
+            player.appendToQueue(listOf(track))
+            Toast.makeText(context, context.getString(R.string.song_menu_queue_success), Toast.LENGTH_SHORT).show()
+        },
+        onAddToPlaylist = { trackId, playlistId ->
+            scope.launch {
+                val cookie = sessionManager.getCookie()
+                val result = apiService.addTrackToPlaylist(playlistId, trackId, cookie)
+                result.fold(
+                    onSuccess = {
+                        Toast.makeText(context, context.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { e ->
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.song_menu_add_failed, e.message ?: ""),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            }
+        },
+        onCopyShareLink = { track ->
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val link = "https://music.163.com/#/song?id=${track.id}"
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.common_search), link))
+            Toast.makeText(context, context.getString(R.string.song_menu_share_link_copied), Toast.LENGTH_SHORT).show()
+        },
+        onRemoveFromCurrent = { track ->
+            val index = player.currentPlaylist.indexOfFirst { it.id == track.id }
+            if (index >= 0) {
+                player.removeTrackAt(index)
+            }
+        },
+        showCopyShareLink = true,
+        showRemoveFromCurrent = true
+    )
 }
 
 private enum class GestureDirection {

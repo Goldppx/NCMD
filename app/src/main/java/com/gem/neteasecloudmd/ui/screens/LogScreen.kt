@@ -130,6 +130,9 @@ fun LogScreen(
             items(filteredLogs) { entry ->
                 LogEntryItem(entry)
             }
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
+            }
         }
     }
 }
