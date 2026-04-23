@@ -59,6 +59,7 @@ import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.PlayerManager
+import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.components.PlaybackQueueContent
