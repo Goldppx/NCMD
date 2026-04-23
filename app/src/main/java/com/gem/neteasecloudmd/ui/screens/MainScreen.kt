@@ -3,10 +3,14 @@ package com.gem.neteasecloudmd.ui.screens
 import com.gem.neteasecloudmd.ui.common.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import com.gem.neteasecloudmd.ui.components.PlaybackQueueSheet
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -71,16 +75,19 @@ import kotlinx.coroutines.withContext
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @androidx.annotation.OptIn(UnstableApi::class)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onNavigateToPlaylistList: () -> Unit,
     onNavigateToRecentPlays: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onLoggedOut: () -> Unit,
-    onNavigateToPlaylistDetail: (type: String, playlistId: Long, playlistName: String) -> Unit
+    onNavigateToPlaylistDetail: (type: String, playlistId: Long, playlistName: String) -> Unit,
+    onNavigateToPlayer: () -> Unit
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -797,9 +804,12 @@ private fun PreviewRecentPlaySmallCard(
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun PlaybackBar(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onNavigateToPlayer: () -> Unit,
     modifier: Modifier = Modifier,
     showPlayBar: Boolean = false
 ) {
@@ -1023,7 +1033,9 @@ fun PlaybackBar(
                 .clip(barShape)
         ) {
             Surface(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(onClick = onNavigateToPlayer),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 shadowElevation = 8.dp,
                 shape = barShape
@@ -1089,22 +1101,29 @@ fun PlaybackBar(
                     .zIndex(11f)
                     .alpha(contentAlpha)
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shadowElevation = 8.dp
-                ) {
-                    if (currentTrack?.albumPicUrl != null) {
-                        AsyncImage(
-                            model = currentTrack.albumPicUrl,
-                            contentDescription = stringResource(R.string.main_album_art),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.main_music_symbol), style = MaterialTheme.typography.titleMedium)
+                with(sharedTransitionScope) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .sharedElement(
+                                rememberSharedContentState(key = "cover"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            ),
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shadowElevation = 8.dp
+                    ) {
+                        if (currentTrack?.albumPicUrl != null) {
+                            AsyncImage(
+                                model = currentTrack.albumPicUrl,
+                                contentDescription = stringResource(R.string.main_album_art),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(stringResource(R.string.main_music_symbol), style = MaterialTheme.typography.titleMedium)
+                            }
                         }
                     }
                 }
@@ -1122,19 +1141,29 @@ fun PlaybackBar(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = if (hasPlaylist) currentTrack?.name ?: stringResource(R.string.main_unplayed) else stringResource(R.string.main_unplayed),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = if (hasPlaylist) currentTrack?.artists ?: "" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                with(sharedTransitionScope) {
+                    Text(
+                        text = if (hasPlaylist) currentTrack?.name ?: stringResource(R.string.main_unplayed) else stringResource(R.string.main_unplayed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.sharedElement(
+                            rememberSharedContentState(key = "title"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    )
+                    Text(
+                        text = if (hasPlaylist) currentTrack?.artists ?: "" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.sharedElement(
+                            rememberSharedContentState(key = "artists"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    )
+                }
             }
 
             if (hasPlaylist) {
@@ -1148,202 +1177,11 @@ fun PlaybackBar(
         }
 
         if (showQueueSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showQueueSheet = false },
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.main_queue_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = stringResource(R.string.main_queue_count, player.currentPlaylist.size),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FilledTonalIconButton(
-                        onClick = { player.updatePlayMode(com.gem.neteasecloudmd.api.PlayMode.SEQUENTIAL) },
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.SEQUENTIAL) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerLow
-                            },
-                            contentColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.SEQUENTIAL) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    ) {
-                        Icon(Icons.Default.Repeat, contentDescription = stringResource(R.string.main_play_mode_sequential))
-                    }
-                    FilledTonalIconButton(
-                        onClick = { player.updatePlayMode(com.gem.neteasecloudmd.api.PlayMode.SHUFFLE) },
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.SHUFFLE) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerLow
-                            },
-                            contentColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.SHUFFLE) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    ) {
-                        Icon(Icons.Default.Shuffle, contentDescription = stringResource(R.string.main_play_mode_shuffle))
-                    }
-                    FilledTonalIconButton(
-                        onClick = { player.updatePlayMode(com.gem.neteasecloudmd.api.PlayMode.REPEAT_ONE) },
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.REPEAT_ONE) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerLow
-                            },
-                            contentColor = if (player.playMode == com.gem.neteasecloudmd.api.PlayMode.REPEAT_ONE) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    ) {
-                        Icon(Icons.Default.RepeatOne, contentDescription = stringResource(R.string.main_play_mode_repeat_one))
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                    TextButton(
-                        onClick = {
-                            player.clearPlaylist()
-                            showQueueSheet = false
-                        }
-                    ) {
-                        Icon(Icons.Default.DeleteSweep, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.main_clear))
-                    }
-                }
-
-                if (player.currentPlaylist.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.main_queue_empty),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 420.dp),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                )
-                {
-                    itemsIndexed(player.currentPlaylist) { index, track ->
-                        val isCurrent = index == player.currentTrackIndex
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isCurrent) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceContainerLow
-                                }
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {
-                                            player.seekToTrack(index)
-                                            player.play()
-                                        },
-                                        onLongClick = {
-                                            selectedTrackForMenu = track
-                                        }
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${index + 1}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isCurrent) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    modifier = Modifier.width(28.dp)
-                                )
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = track.name,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = if (isCurrent) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = track.artists,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = if (isCurrent) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-
-                                IconButton(onClick = { player.removeTrackAt(index) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = stringResource(R.string.common_delete),
-                                        tint = if (isCurrent) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            PlaybackQueueSheet(
+                player = player,
+                onDismiss = { showQueueSheet = false },
+                onTrackLongClick = { track -> selectedTrackForMenu = track }
+            )
         }
     }
 

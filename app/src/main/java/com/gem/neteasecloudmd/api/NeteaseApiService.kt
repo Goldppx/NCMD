@@ -79,6 +79,20 @@ data class UserProfile(
     val avatarUrl: String? = null
 )
 
+@Serializable
+data class LyricResponse(
+    val code: Int,
+    val lrc: LyricData? = null,
+    val tlyric: LyricData? = null,
+    val romalytic: LyricData? = null
+)
+
+@Serializable
+data class LyricData(
+    val lyric: String? = null,
+    val version: Int = 0
+)
+
 class NeteaseApiService {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -613,6 +627,52 @@ class NeteaseApiService {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getLyric(id: Long, cookie: String): Result<LyricResponse> = withContext(Dispatchers.IO) {
+        try {
+            val params = mapOf(
+                "id" to id.toString(),
+                "lv" to "-1",
+                "kv" to "-1",
+                "tv" to "-1"
+            )
+
+            val jsonParams = Json.encodeToString(params)
+            val encryptedParams = CryptoUtil.weapi(jsonParams)
+
+            val encodedParams = encryptedParams["params"]
+                ?.replace("/", "%2F")
+                ?.replace("+", "%2B")
+                ?.replace("=", "%3D")
+
+            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/song/lyric")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
+            }
+
+            val result = json.decodeFromString<LyricResponse>(body)
+            if (result.code == 200) {
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Failed to get lyrics with code ${result.code}"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Lyric Exception: ${e.message}", e)
             Result.failure(e)
         }
     }

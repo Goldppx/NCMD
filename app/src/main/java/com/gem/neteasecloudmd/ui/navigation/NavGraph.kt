@@ -1,6 +1,16 @@
 package com.gem.neteasecloudmd.ui.navigation
 
 import android.net.Uri
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
@@ -18,9 +28,12 @@ import com.gem.neteasecloudmd.ui.screens.RecentPlaysScreen
 import com.gem.neteasecloudmd.ui.screens.SearchScreen
 import com.gem.neteasecloudmd.ui.screens.SettingsScreen
 import com.gem.neteasecloudmd.ui.screens.LogScreen
+import com.gem.neteasecloudmd.ui.screens.PlayerScreen
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NavGraph(
+    sharedTransitionScope: SharedTransitionScope,
     navController: NavHostController,
     startDestination: String,
     onThemeModeChanged: (Int) -> Unit,
@@ -32,7 +45,31 @@ fun NavGraph(
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        modifier = modifier
+        modifier = modifier,
+        enterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(300)
+            )
+        },
+        exitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { -it / 3 },
+                animationSpec = tween(300)
+            )
+        },
+        popEnterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { -it / 3 },
+                animationSpec = tween(300)
+            )
+        },
+        popExitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(300)
+            )
+        }
     ) {
         composable(Screen.Login.route) {
             LoginScreen(
@@ -46,6 +83,8 @@ fun NavGraph(
 
         composable(Screen.Main.route) {
             MainScreen(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = this@composable,
                 onNavigateToPlaylistList = {
                     navController.navigate(Screen.PlaylistList.route)
                 },
@@ -65,6 +104,9 @@ fun NavGraph(
                 },
                 onNavigateToPlaylistDetail = { type, playlistId, playlistName ->
                     navController.navigate(Screen.PlaylistDetail.createRoute(type, playlistId, playlistName))
+                },
+                onNavigateToPlayer = {
+                    navController.navigate(Screen.Player.route)
                 }
             )
         }
@@ -134,6 +176,37 @@ fun NavGraph(
 
         composable(Screen.Log.route) {
             LogScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.Player.route,
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(400)
+                ) + fadeIn(animationSpec = tween(400))
+            },
+            exitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(400)
+                ) + fadeOut(animationSpec = tween(400))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(400))
+            },
+            popExitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(400)
+                ) + fadeOut(animationSpec = tween(400))
+            }
+        ) {
+            PlayerScreen(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = this@composable,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

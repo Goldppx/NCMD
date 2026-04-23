@@ -176,4 +176,8 @@
     <string name="login_verify">驗證</string>
     <string name="login_back_to_password">返回帳號密碼登入</string>
     <string name="login_cookie_login">Cookie登入</string>
+
+    <string name="player_now_playing">正在播放</string>
+    <string name="player_lyrics">歌詞</string>
+    <string name="player_no_lyrics">暫無歌詞</string>
 </resources>

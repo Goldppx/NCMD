@@ -7,6 +7,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -57,6 +59,7 @@ fun NCMDApp() {
         null
     }
 
+    @OptIn(ExperimentalSharedTransitionApi::class)
     NeteaseCloudMDTheme(darkTheme = useDarkTheme, seedArgb = seedArgb) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -64,33 +67,42 @@ fun NCMDApp() {
         ) {
             val showPlaybackBar = currentRoute != Screen.Login.route &&
                 player.currentPlaylist.isNotEmpty() &&
-                !player.isPlaybackBarHidden
+                !player.isPlaybackBarHidden &&
+                currentRoute != Screen.Player.route
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                NavGraph(
-                    navController = navController,
-                    startDestination = startDestination,
-                    onThemeModeChanged = { mode ->
-                        themeMode = mode
-                    },
-                    onLanguageModeChanged = { mode ->
-                        languageMode = mode
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                AnimatedVisibility(
-                    visible = showPlaybackBar,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                ) {
-                    PlaybackBar(
-                        showPlayBar = true,
-                        modifier = Modifier
+            SharedTransitionLayout {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    NavGraph(
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        navController = navController,
+                        startDestination = startDestination,
+                        onThemeModeChanged = { mode ->
+                            themeMode = mode
+                        },
+                        onLanguageModeChanged = { mode ->
+                            languageMode = mode
+                        },
+                        modifier = Modifier.fillMaxSize()
                     )
+
+                    AnimatedVisibility(
+                        visible = showPlaybackBar,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                    ) {
+                        PlaybackBar(
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this@AnimatedVisibility,
+                            onNavigateToPlayer = {
+                                navController.navigate(Screen.Player.route)
+                            },
+                            showPlayBar = true,
+                            modifier = Modifier
+                        )
+                    }
                 }
             }
         }

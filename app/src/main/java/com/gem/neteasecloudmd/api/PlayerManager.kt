@@ -72,6 +72,9 @@ class PlayerManager private constructor(private val context: Context) {
     var errorMessage by mutableStateOf<String?>(null)
         private set
     
+    var currentLyric by mutableStateOf<String?>(null)
+        private set
+
     var currentPosition by mutableIntStateOf(0)
         private set
     var duration by mutableIntStateOf(0)
@@ -379,6 +382,7 @@ class PlayerManager private constructor(private val context: Context) {
         errorMessage = null
         currentPosition = 0
         duration = 0
+        currentLyric = null
         
         managerScope.launch(Dispatchers.IO) {
             try {
@@ -413,6 +417,29 @@ class PlayerManager private constructor(private val context: Context) {
                 errorMessage = e.message
                 isLoading = false
             }
+        }
+
+        fetchLyric(track.id)
+    }
+
+    private fun fetchLyric(id: Long) {
+        val apiService = currentApiService ?: return
+        val cookie = currentCookie
+        if (cookie.isEmpty()) return
+
+        managerScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                apiService.getLyric(id, cookie)
+            }
+            result.fold(
+                onSuccess = { response ->
+                    currentLyric = response.lrc?.lyric
+                },
+                onFailure = { e ->
+                    Log.e("PlayerManager", "Failed to fetch lyric: ${e.message}")
+                    currentLyric = null
+                }
+            )
         }
     }
     

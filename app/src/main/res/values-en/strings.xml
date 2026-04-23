@@ -176,4 +176,8 @@
     <string name="login_verify">Verify</string>
     <string name="login_back_to_password">Back to account/password login</string>
     <string name="login_cookie_login">Cookie Login</string>
+
+    <string name="player_now_playing">NOW PLAYING</string>
+    <string name="player_lyrics">LYRICS</string>
+    <string name="player_no_lyrics">No lyrics found</string>
 </resources>
