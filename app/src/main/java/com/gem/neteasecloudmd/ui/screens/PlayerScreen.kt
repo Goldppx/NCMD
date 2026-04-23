@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -223,16 +225,21 @@ fun PlayerScreen(
             }
         ) { paddingValues ->
             if (isLandscape) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .animateContentSize(animationSpec = tween(500))
+                val bottomBarHeight = 84.dp
+                val animatedBottomPadding by animateDpAsState(
+                    targetValue = if (showLandscapeControls) bottomBarHeight else 0.dp,
+                    animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+                    label = "BottomBarPadding"
+                )
+
+                Box(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    // Top Content (Cover + Lyrics)
+                    // Main Content Area (Cover + Lyrics)
                     Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
+                            .fillMaxSize()
+                            .padding(bottom = animatedBottomPadding)
                             .displayCutoutPadding()
                     ) {
                         Box(
@@ -265,75 +272,82 @@ fun PlayerScreen(
                         }
                     }
 
-                    // Dynamic Bottom Bar
-                    AnimatedVisibility(
-                        visible = showLandscapeControls,
-                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                    // Bottom Bar (Overlay)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.2f))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                .navigationBarsPadding(),
-                            verticalAlignment = Alignment.CenterVertically
+                        AnimatedVisibility(
+                            visible = showLandscapeControls,
+                            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
                         ) {
-                            // Playback Controls (Left)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = { player.previous() }) {
-                                    Icon(Icons.Rounded.SkipPrevious, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(28.dp))
-                                }
-                                IconButton(onClick = { player.togglePlayPause() }) {
-                                    if (player.isLoading) {
-                                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                                    } else {
-                                        Icon(
-                                            imageVector = if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                            contentDescription = "Play/Pause",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(36.dp)
-                                        )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(bottomBarHeight)
+                                    .background(Color.Black.copy(alpha = 0.2f))
+                                    .padding(horizontal = 16.dp)
+                                    .navigationBarsPadding(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Playback Controls (Left)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { player.previous() }) {
+                                        Icon(Icons.Rounded.SkipPrevious, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(28.dp))
+                                    }
+                                    IconButton(onClick = { player.togglePlayPause() }) {
+                                        if (player.isLoading) {
+                                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                                        } else {
+                                            Icon(
+                                                imageVector = if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                                contentDescription = "Play/Pause",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(36.dp)
+                                            )
+                                        }
+                                    }
+                                    IconButton(onClick = { player.next() }) {
+                                        Icon(Icons.Rounded.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(28.dp))
                                     }
                                 }
-                                IconButton(onClick = { player.next() }) {
-                                    Icon(Icons.Rounded.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(28.dp))
-                                }
-                            }
-                            
-                            Spacer(modifier = Modifier.width(16.dp))
-                            
-                            // Slider (Center)
-                            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    formatTime(player.currentPosition),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.6f)
-                                )
-                                Slider(
-                                    value = player.currentPosition.toFloat(),
-                                    onValueChange = { player.seekTo(it.toInt()) },
-                                    valueRange = 0f..player.duration.toFloat().coerceAtLeast(1f),
-                                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = Color.White,
-                                        activeTrackColor = Color.White,
-                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                
+                                Spacer(modifier = Modifier.width(16.dp))
+                                
+                                // Slider (Center)
+                                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        formatTime(player.currentPosition),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White.copy(alpha = 0.6f)
                                     )
-                                )
-                                Text(
-                                    formatTime(player.duration),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.6f)
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.width(16.dp))
-                            
-                            // Extra Actions (Right)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = { showSideQueue = true }) {
-                                    Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = "Queue", tint = Color.White)
+                                    Slider(
+                                        value = player.currentPosition.toFloat(),
+                                        onValueChange = { player.seekTo(it.toInt()) },
+                                        valueRange = 0f..player.duration.toFloat().coerceAtLeast(1f),
+                                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = Color.White,
+                                            activeTrackColor = Color.White,
+                                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                        )
+                                    )
+                                    Text(
+                                        formatTime(player.duration),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White.copy(alpha = 0.6f)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.width(16.dp))
+                                
+                                // Extra Actions (Right)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { showSideQueue = true }) {
+                                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = "Queue", tint = Color.White)
+                                    }
                                 }
                             }
                         }
@@ -471,6 +485,7 @@ private fun PlayerMainPage(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .animateContentSize(animationSpec = tween(500))
             .padding(horizontal = if (isLandscape) 16.dp else 32.dp)
             .padding(vertical = if (isLandscape) 16.dp else 0.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
