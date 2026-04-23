@@ -86,7 +86,7 @@ fun PlayerScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val activity = context as? Activity
     
-    // Immersive mode for landscape
+    // Immersive mode and Auto-rotation support
     LaunchedEffect(isLandscape) {
         activity?.window?.let { window ->
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -99,14 +99,24 @@ fun PlayerScreen(
         }
     }
 
+    // Set orientation to follow system settings (Auto-rotate)
+    DisposableEffect(Unit) {
+        val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
+        onDispose {
+            activity?.requestedOrientation = originalOrientation
+        }
+    }
+
     val mainViewModel: MainViewModel = viewModel()
     val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     
+    val sessionManager = remember { SessionManager(context) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var showSideQueue by remember { mutableStateOf(false) }
-    var showLandscapeControls by remember { mutableStateOf(true) }
-    var infoDisplayMode by remember { mutableIntStateOf(2) } // 0: None, 1: Text, 2: Text + Shadow
+    var showLandscapeControls by remember { mutableStateOf(sessionManager.isLandscapeControlsVisible()) }
+    var infoDisplayMode by remember { mutableIntStateOf(sessionManager.getLandscapeInfoMode()) } // 0: None, 1: Text, 2: Text + Shadow
     var selectedTrackForMenu by remember { mutableStateOf<TrackItem?>(null) }
     var playlistsForMenu by remember { mutableStateOf(emptyList<com.gem.neteasecloudmd.api.PlaylistItem>()) }
 
@@ -195,19 +205,6 @@ fun PlayerScreen(
                             }
                         },
                         actions = {
-                            IconButton(onClick = {
-                                activity?.requestedOrientation = if (isLandscape) {
-                                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                } else {
-                                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                }
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.ScreenRotation,
-                                    contentDescription = "Rotate",
-                                    tint = Color.White
-                                )
-                            }
                             IconButton(onClick = { /* More options */ }) {
                                 Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = Color.White)
                             }
@@ -248,12 +245,19 @@ fun PlayerScreen(
                                 .pointerInput(Unit) {
                                     detectTapGestures {
                                         infoDisplayMode = (infoDisplayMode + 1) % 3
+                                        sessionManager.setLandscapeInfoMode(infoDisplayMode)
                                     }
                                 }
                                 .pointerInput(Unit) {
                                     detectVerticalDragGestures { change, dragAmount ->
-                                        if (dragAmount < -15) showLandscapeControls = true // Swipe Up
-                                        if (dragAmount > 15) showLandscapeControls = false // Swipe Down
+                                        if (dragAmount < -15) {
+                                            showLandscapeControls = true // Swipe Up
+                                            sessionManager.setLandscapeControlsVisible(true)
+                                        }
+                                        if (dragAmount > 15) {
+                                            showLandscapeControls = false // Swipe Down
+                                            sessionManager.setLandscapeControlsVisible(false)
+                                        }
                                     }
                                 }
                         ) {

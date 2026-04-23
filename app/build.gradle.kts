@@ -83,7 +83,8 @@ dependencies {
     implementation(libs.media3.session)
     implementation(libs.androidx.navigation.compose)
     implementation("androidx.appcompat:appcompat:1.7.0")
-    
+    implementation(libs.androidx.compose.animation.core)
+
     // Room
     val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:$room_version")

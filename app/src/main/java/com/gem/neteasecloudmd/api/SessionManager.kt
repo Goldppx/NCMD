@@ -35,6 +35,8 @@ class SessionManager(context: Context) {
         private const val KEY_SLEEP_TIMER_PRESET_MINUTES = "sleep_timer_preset_minutes"
         private const val KEY_SLEEP_TIMER_CUSTOM_MINUTES = "sleep_timer_custom_minutes"
         private const val KEY_SLEEP_TIMER_WAIT_FOR_QUEUE_END = "sleep_timer_wait_for_queue_end"
+        private const val KEY_LANDSCAPE_INFO_MODE = "landscape_info_mode"
+        private const val KEY_LANDSCAPE_CONTROLS_VISIBLE = "landscape_controls_visible"
 
         fun languageTagFromMode(mode: Int): String {
             return when (mode) {
@@ -119,6 +121,18 @@ class SessionManager(context: Context) {
 
     fun setSleepTimerWaitForQueueEnd(enabled: Boolean) {
         prefs.edit { putBoolean(KEY_SLEEP_TIMER_WAIT_FOR_QUEUE_END, enabled) }
+    }
+
+    fun getLandscapeInfoMode(): Int = prefs.getInt(KEY_LANDSCAPE_INFO_MODE, 2)
+
+    fun setLandscapeInfoMode(mode: Int) {
+        prefs.edit { putInt(KEY_LANDSCAPE_INFO_MODE, mode) }
+    }
+
+    fun isLandscapeControlsVisible(): Boolean = prefs.getBoolean(KEY_LANDSCAPE_CONTROLS_VISIBLE, true)
+
+    fun setLandscapeControlsVisible(visible: Boolean) {
+        prefs.edit { putBoolean(KEY_LANDSCAPE_CONTROLS_VISIBLE, visible) }
     }
 
     fun logout() {

@@ -19,7 +19,7 @@ import com.gem.neteasecloudmd.api.PlayerManager
 import com.gem.neteasecloudmd.api.PlayMode
 import com.gem.neteasecloudmd.api.TrackItem
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaybackQueueSheet(
     player: PlayerManager,
@@ -31,6 +31,25 @@ fun PlaybackQueueSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface
     ) {
+        PlaybackQueueContent(
+            player = player,
+            onDismiss = onDismiss,
+            onTrackLongClick = onTrackLongClick,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun PlaybackQueueContent(
+    player: PlayerManager,
+    onDismiss: () -> Unit,
+    onTrackLongClick: (TrackItem) -> Unit,
+    modifier: Modifier = Modifier,
+    maxHeight: Boolean = true
+) {
+    Column(modifier = modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -138,7 +157,7 @@ fun PlaybackQueueSheet(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 420.dp),
+                .then(if (maxHeight) Modifier.heightIn(max = 420.dp) else Modifier.weight(1f)),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         )
