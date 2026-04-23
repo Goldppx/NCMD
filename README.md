@@ -1,4 +1,4 @@
-# NCMD — 纯粹、优雅的网易云音乐客户端
+# NCMD — 纯粹的某音乐客户端
 
 [![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.0-blue.svg)](https://kotlinlang.org/)
@@ -6,7 +6,7 @@
 
 [English Version Available Here](assets/README_EN.md)
 
-NCMD 是一款专为 Android 打造的现代网易云音乐第三方客户端。我们不追求功能的堆砌，只为带给你最纯粹、最沉浸的听歌体验。基于最新的 **Material 3** 设计语言，它不仅好看，更懂你的每一次操作。
+NCMD 是一款专为 Android 打造的现代音乐客户端。不追求功能的堆砌，只为带给你最纯粹、最沉浸的听歌体验。基于最新的 **Material 3** 设计语言。
 
 ---
 
@@ -26,7 +26,7 @@ NCMD 是一款专为 Android 打造的现代网易云音乐第三方客户端。
 ### 🚀 强劲的内核
 - **智能播放管理**：基于 Media3 构建，支持全局通知控制、锁屏播放与耳机控制。
 - **轻量且快速**：单 Activity 架构配合 Navigation Compose，响应极速。
-- **离线持久化**：记住你的播放列表、UI 偏好与登录状态，下次打开，音乐依旧。
+- **离线持久化**：记住你的播放列表、UI 偏好与登录状态。
 
 ---
 
@@ -49,7 +49,7 @@ NCMD 采用了 Android 开发领域的前沿技术栈：
 
 ### 构建与安装
 ```bash
-git clone https://github.com/your-username/NCMD.git
+git clone https://github.com/goldppx/NCMD.git
 cd NCMD
 ./gradlew assembleDebug
 ```
