@@ -1,49 +1,77 @@
-# NCMD
+# NCMD — 纯粹、优雅的网易云音乐客户端
 
-英文版本文档：`app/src/main/assets/README_EN.md`
+[![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0.0-blue.svg)](https://kotlinlang.org/)
+[![Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.10-orange.svg)](https://developer.android.com/jetpack/compose)
 
-NCMD 是一个基于 Kotlin + Jetpack Compose + Material 3 的 Android 音乐客户端。
+[English Version Available Here](assets/README_EN.md)
 
-## 核心特性
+NCMD 是一款专为 Android 打造的现代网易云音乐第三方客户端。我们不追求功能的堆砌，只为带给你最纯粹、最沉浸的听歌体验。基于最新的 **Material 3** 设计语言，它不仅好看，更懂你的每一次操作。
 
-- 多种登录方式：账号密码 / 短信验证码 / Cookie
-- 首页聚合：私人 FM、最近播放、我的歌单
-- 搜索：单曲 / 歌单 / 专辑 + 搜索建议
-- 全局播放控制栏（登录页隐藏）
-- 播放队列管理：顺序/随机/单曲循环、单曲移除、清空队列
-- 系统通知媒体控制（上一首 / 播放暂停 / 下一首）
-- 主题能力：浅色 / 深色 / 跟随系统 + 封面动态取色
-- 语言切换：跟随系统 / 简体中文 / 繁体中文 / English
+---
 
-## 技术栈
+## ✨ 核心亮点
 
-- Kotlin + Jetpack Compose
-- Material 3
-- Navigation Compose（单 Activity 架构）
-- OkHttp + Kotlin Serialization
-- Media3 (ExoPlayer / Session / Notification)
-- Room
+### 🎨 灵动的视觉语言
+- **全 Material 3 实现**：遵循最新的设计规范，带来丝滑的过渡动画与通透的界面布局。
+- **封面动态取色**：界面背景与色彩随专辑封面的变化而流动，让音乐不仅好听，更好看。
+- **深色模式支持**：完美适配系统深色/浅色切换，夜晚听歌更护眼。
 
-## 项目结构
+### 🎭 极速沉浸的横屏播放器
+这是 NCMD 的灵魂所在。当你旋转手机，一个全新的视界将为你展开：
+- **手势驱动**：上滑显示控制栏，下滑收起，点击切换歌曲信息显示模式。
+- **极致视野**：去掉了所有冗余的边框与按钮，歌词与封面交相辉映。
+- **边缘延伸**：视觉效果直接延伸至屏幕边缘，充分利用每一寸显示空间。
 
-- 入口：`MainActivity` -> `NCMDApp()`
-- 导航：`ui/navigation/NavGraph.kt`
-- 页面：`ui/screens/*`
-- 播放管理：`api/PlayerManager.kt`
-- 会话与设置：`api/SessionManager.kt`
-- 本地数据：`data/local/*` + `data/repository/*`
+### 🚀 强劲的内核
+- **智能播放管理**：基于 Media3 构建，支持全局通知控制、锁屏播放与耳机控制。
+- **轻量且快速**：单 Activity 架构配合 Navigation Compose，响应极速。
+- **离线持久化**：记住你的播放列表、UI 偏好与登录状态，下次打开，音乐依旧。
 
-## 截图展示（预留）
+---
 
-> 请将图片放入：`app/src/main/assets/images/`
+## 🛠️ 技术细节
 
-![首页](app/src/main/assets/images/home.png)
-![播放队列](app/src/main/assets/images/queue.png)
-![搜索](app/src/main/assets/images/search.png)
-![设置](app/src/main/assets/images/settings.png)
+NCMD 采用了 Android 开发领域的前沿技术栈：
+- **UI**: Jetpack Compose, Material 3, Navigation Compose
+- **媒体**: Media3 (ExoPlayer, Session)
+- **网络**: OkHttp, Kotlin Serialization
+- **存储**: Room Database, SharedPreferences
+- **架构**: MVVM (Model-View-ViewModel)
 
-## 构建
+---
 
+## 🚀 快速开始
+
+### 环境要求
+- Android 12 (API 31) 或更高版本
+- JDK 17+
+
+### 构建与安装
 ```bash
-./gradlew build
+git clone https://github.com/your-username/NCMD.git
+cd NCMD
+./gradlew assembleDebug
 ```
+
+---
+
+## 📸 预览（预留）
+
+> 更多精美截图请查看 [Screenshots](assets/images/)
+
+---
+
+## 🤝 贡献与支持
+
+欢迎通过 Issue 或 Pull Request 来完善这个项目。如果你喜欢这个作品，请给它一个 ⭐️！
+
+---
+
+## 📄 开源协议
+
+本项目采用 MIT 协议开源。
+
+---
+
+*“让音乐回归本质。”*
