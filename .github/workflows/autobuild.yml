@@ -64,7 +64,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          APK_PATH=$(find app/build/outputs/apk/release -type f -name "*arm64-v8a*release*.apk" | head -n 1)
+          APK_PATH=$(find app/build/outputs/apk/release -type f -name "*.apk" | grep -i "release" | head -n 1)
           if [[ -z "$APK_PATH" ]]; then
             APK_PATH=$(find app/build/outputs/apk/release -type f -name "*.apk" | head -n 1)
           fi
