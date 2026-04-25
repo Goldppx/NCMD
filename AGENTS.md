@@ -5,17 +5,34 @@ This guide is for coding agents working in the NCMD repository.
 ## 1) Project Overview
 
 - Platform: Android (minSdk 31, targetSdk 36).
-- Language: Kotlin.
-- UI: Jetpack Compose + Material 3.
+- Language: Kotlin (Kotlin 2.0.0).
+- UI: Jetpack Compose + Material 3 (Compose BOM 2025.12.00).
+- Theme: Dynamic color (Material You) / custom seed color via `material-kolor`, with animated `ColorScheme` transitions.
 - Navigation: Navigation Compose, single-Activity architecture.
-- Entry point: `app/src/main/java/com/gem/neteasecloudmd/MainActivity.kt`.
+- Entry point: `app/src/main/java/com/gem/neteasecloudmd/MainActivity.kt` — configures locale then calls `NCMDApp()`.
 - App root composable: `NCMDApp()` in `app/src/main/java/com/gem/neteasecloudmd/App.kt`.
 - Navigation graph: `app/src/main/java/com/gem/neteasecloudmd/ui/navigation/NavGraph.kt`.
-- Screens: `app/src/main/java/com/gem/neteasecloudmd/ui/screens/*`.
-- Playback core: `app/src/main/java/com/gem/neteasecloudmd/api/PlayerManager.kt`.
-- API client: `app/src/main/java/com/gem/neteasecloudmd/api/NeteaseApiService.kt`.
+- Route definitions: `app/src/main/java/com/gem/neteasecloudmd/ui/navigation/Screen.kt` (sealed class).
+- Screens: `app/src/main/java/com/gem/neteasecloudmd/ui/screens/*`:
+  - `LoginScreen.kt` — password/captcha/cookie login modes.
+  - `MainScreen.kt` ~1241 lines — home, playlist queue, playback bar, drag gestures.
+  - `PlayerScreen.kt` ~810 lines — full-screen player with lyrics, pager, landscape support.
+  - `PlaylistDetailScreen.kt` / `PlaylistListScreen.kt` / `RecentPlaysScreen.kt` / `SearchScreen.kt` / `SettingsScreen.kt` / `LogScreen.kt`
+- Shared UI components: `app/src/main/java/com/gem/neteasecloudmd/ui/components/*`:
+  - `PlaybackQueueSheet.kt` / `SongLongPressMenu.kt` / `TrackCollectionScaffold.kt`
+- Custom Toast: `app/src/main/java/com/gem/neteasecloudmd/ui/common/ToastExt.kt`
+- Playback core: `app/src/main/java/com/gem/neteasecloudmd/api/PlayerManager.kt` — singleton with ExoPlayer + MediaSession + notification.
+- API client: `app/src/main/java/com/gem/neteasecloudmd/api/NeteaseApiService.kt` — Netease Cloud Music weapi.
+- Crypto: `app/src/main/java/com/gem/neteasecloudmd/api/CryptoUtil.kt` — AES/RSA encryption for weapi.
 - Session/settings persistence: `app/src/main/java/com/gem/neteasecloudmd/api/SessionManager.kt`.
-- Local storage: Room in `app/src/main/java/com/gem/neteasecloudmd/data/*`.
+- Sleep timer: `app/src/main/java/com/gem/neteasecloudmd/api/SleepTimerPolicy.kt`.
+- ViewModels: `app/src/main/java/com/gem/neteasecloudmd/ui/viewmodel/*`:
+  - `MainViewModel.kt` / `PlaylistDetailViewModel.kt` / `PlaylistListViewModel.kt` / `RecentPlaysViewModel.kt` / `SearchViewModel.kt`
+- Local storage: Room (`AppDatabase.kt`) with tables `recent_plays` and `current_playlist`, DAOs in `data/local/dao/`, entities in `data/local/entity/`.
+- Repository: `com.gem.neteasecloudmd.data.repository.MusicRepository.kt`.
+- Utilities: `Logger.kt` (file + in-memory log) and `LyricParser.kt` (LRC parser).
+- i18n: 3 locales — `values/` (zh-CN), `values-zh-rTW/`, `values-en/`.
+- Dark theme colors for icons: `app/src/main/res/values-night/colors.xml`.
 
 ## 2) Rules Discovery (Cursor/Copilot)
 
@@ -26,18 +43,13 @@ This guide is for coding agents working in the NCMD repository.
 
 ## 3) Build, Lint, and Test Commands
 
-Run commands from repo root (`/NCMD`).
+**IMPORTANT: Always use JetBrains MCP tools for compilation. Never use Gradle CLI directly.**
 
-### Build
+### Build (via JetBrains MCP)
 
-- Full build:
-  - `./gradlew build`
-- Debug Kotlin compile only:
-  - `./gradlew :app:compileDebugKotlin`
-- Assemble debug APK:
-  - `./gradlew :app:assembleDebug`
-- Assemble release APK:
-  - `./gradlew :app:assembleRelease`
+- Use `jetbrains_build_project` tool to compile.
+- Use `jetbrains_get_file_problems` to inspect file-level errors/warnings.
+- Build confirmed passing with 0 errors (4 deprecation warnings as of last audit).
 
 ### Lint
 
@@ -64,7 +76,7 @@ Run commands from repo root (`/NCMD`).
 
 ### Recommended Dev Loop
 
-1. `./gradlew :app:compileDebugKotlin`
+1. `jetbrains_build_project` (via MCP, NO Gradle CLI)
 2. `./gradlew :app:testDebugUnitTest`
 3. `./gradlew :app:lintDebug`
 
@@ -75,6 +87,8 @@ Run commands from repo root (`/NCMD`).
 - Route arguments that can contain special characters must be URI-encoded/decoded.
 - Keep business/network logic out of large composables; prefer ViewModel or manager classes.
 - Maintain existing playback architecture around `PlayerManager` singleton.
+- LoginScreen is an exception — all login logic is in the composable, not a ViewModel.
+- `ApiProvider` is a simple singleton factory for `NeteaseApiService`.
 
 ## 5) Compose and UI Guidelines
 
@@ -83,19 +97,24 @@ Run commands from repo root (`/NCMD`).
 - Keep composables as stateless as practical; pass state and callbacks from upper layers.
 - Prefer small private composables for repeated UI blocks.
 - Preserve existing UX behavior unless task explicitly changes it.
+- Theme supports dynamic color (Material You), cover palette seed color, animated transitions, and dark/light/system mode.
+- PlayerScreen supports immersive landscape mode (status bar + navigation bar hidden).
 
 ### Important Existing UX Behavior
 
 - Playback bar is a global overlay and hidden on login route.
-- Queue sheet supports play mode switching, item removal, and clear queue.
+- Playback bar supports swipe gestures: left/right to skip, up to open queue sheet, long-press + drag to seek.
+- Queue sheet (`PlaybackQueueSheet`) supports play mode switching (sequential/shuffle/repeat-one), item removal, and clear queue.
 - Personal FM entry exists on home and should remain visible as designed.
 - Theme and language settings are user-configurable and persisted.
+- Sleep timer supports presets (15/30/45/60 min), custom (1-240 min), and wait-for-queue-end mode.
+- PlayerScreen has a pager (Now Playing / Lyrics) and a bottom queue sheet.
 
 ## 6) Kotlin Style Guidelines
 
 - Follow official Kotlin style (`kotlin.code.style=official`).
 - Use explicit visibility/modifiers when it improves readability for non-trivial APIs.
-- Avoid wildcard imports.
+- **Avoid wildcard imports** — current codebase has ~22 wildcard imports that should be eliminated.
 - Keep imports sorted and remove unused imports.
 - Use `val` by default; use `var` only when mutation is required.
 - Prefer immutable collections and data classes for state models.
@@ -103,33 +122,32 @@ Run commands from repo root (`/NCMD`).
   - Types: `UpperCamelCase`
   - Functions/properties/variables: `lowerCamelCase`
   - Constants: `UPPER_SNAKE_CASE`
-- Use nullable types intentionally; avoid force unwrap patterns.
-- Prefer expression bodies for simple functions.
+- Use nullable types intentionally; **avoid force unwrap (`!!`) patterns** — current codebase has 4 force unwraps in `PlayerManager.kt` and `LogScreen.kt` that should be fixed.
 
 ## 7) Error Handling and Logging
 
 - API operations should return `Result<T>` where that pattern is already used.
 - Surface user-facing errors via localized strings/resources.
 - Avoid leaking secrets in logs (cookies, tokens, private IDs).
-- Use `Log` for diagnostics but keep messages concise and non-sensitive.
+- Use custom `Logger` utility (in-memory StateFlow + file persistence) in addition to `android.util.Log`.
+- Avoid mixing `Log` and `Logger` in the same class.
+- Empty catch blocks are not acceptable; at minimum log the exception.
 - Handle timeout and fallback paths explicitly when networking can fail.
 
 ## 8) Internationalization (i18n)
 
 - Primary string resources live in:
-  - `app/src/main/res/values/strings.xml` (default/zh-CN in this project)
-  - `app/src/main/res/values-zh-rTW/strings.xml`
-  - `app/src/main/res/values-en/strings.xml`
+  - `app/src/main/res/values/strings.xml` (default/zh-CN in this project) — 183 entries
+  - `app/src/main/res/values-zh-rTW/strings.xml` — 183 entries
+  - `app/src/main/res/values-en/strings.xml` — 183 entries
 - Any new user-facing text must be added to all supported locales.
 - Preserve placeholder formatting consistency (`%1$s`, `%1$d`) across locales.
+- Dark theme launcher icon colors: `app/src/main/res/values-night/colors.xml`.
 
 ## 9) Media, Assets, and Docs
 
 - Chinese README default in repo root (`README.md`) with link to English version.
-- Assets docs are under `app/src/main/assets/`:
-  - `README_ZH.md`
-  - `README_EN.md`
-- Screenshot placeholders are under `app/src/main/assets/images/`.
+- English README is at `assets/README_EN.md` (project root).
 
 ## 10) Dependencies and Build Config
 
@@ -137,6 +155,8 @@ Run commands from repo root (`/NCMD`).
 - Version catalog: `gradle/libs.versions.toml`.
 - Add dependencies through version catalog when practical; keep consistency with existing style.
 - Do not modify signing/release process unless explicitly asked.
+- Key dependencies: Compose BOM 2025.12.00, OkHttp 4.12.0, Coil 2.6.0, Media3 1.3.0, Room 2.8.4, material-kolor 3.0.1.
+- Room uses `fallbackToDestructiveMigration()` (deprecated variant) — data is lost on schema changes.
 
 ## 11) Git and Change Hygiene
 
@@ -144,16 +164,19 @@ Run commands from repo root (`/NCMD`).
 - Keep commits scoped and meaningful.
 - Before commit, run at least compile + relevant tests.
 - If lint is enabled in the task, resolve introduced lint issues.
+- `.idea/` directory files have been deleted and added to `.gitignore`.
 
 ## 12) Pre-PR / Pre-Commit Checklist
 
-- Build passes for touched module(s).
-- Unit tests pass for affected logic.
-- No new hardcoded UI strings.
-- No unused imports or dead code from refactors.
-- Navigation and route args still work.
-- Playback behavior unchanged unless requested.
-- Documentation updated when behavior changes.
+- [ ] Build passes for touched module(s) — via `jetbrains_build_project` (JetBrains MCP, NOT Gradle CLI).
+- [ ] Unit tests pass for affected logic.
+- [ ] No new hardcoded UI strings.
+- [ ] No unused imports or dead code from refactors.
+- [ ] No wildcard imports introduced.
+- [ ] No force unwrap (`!!`) introduced.
+- [ ] Navigation and route args still work.
+- [ ] Playback behavior unchanged unless requested.
+- [ ] Documentation updated when behavior changes.
 
 ## 13) Quick Single-Test Examples
 
@@ -163,5 +186,14 @@ Run commands from repo root (`/NCMD`).
   - `./gradlew :app:testDebugUnitTest --tests com.gem.neteasecloudmd.ExampleUnitTest.addition_isCorrect`
 - AndroidTest single class:
   - `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.gem.neteasecloudmd.ExampleInstrumentedTest`
+
+## 14) Known Deprecation Warnings (from last clean build)
+
+| File | Warning | Fix |
+|------|---------|-----|
+| `AppDatabase.kt:31` | `fallbackToDestructiveMigration()` deprecated | Use overload with `dropAllTables` parameter |
+| `ToastExt.kt:37` | `Toast.view` deprecated in Java | Migrate to Snackbar or Material3 style |
+| `Theme.kt:111` | `window.statusBarColor` deprecated | Use `WindowInsetsControllerCompat` API |
+| `Theme.kt:171` | `ColorScheme` constructor needs `fixed*` container roles | Add `fixedDim`/`fixedBright` etc. to constructor call |
 
 Keep this file in sync with architecture/tooling changes.
