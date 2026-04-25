@@ -27,6 +27,12 @@ import com.gem.neteasecloudmd.ui.screens.PlaylistListScreen
 import com.gem.neteasecloudmd.ui.screens.RecentPlaysScreen
 import com.gem.neteasecloudmd.ui.screens.SearchScreen
 import com.gem.neteasecloudmd.ui.screens.SettingsScreen
+import com.gem.neteasecloudmd.ui.screens.PlaybackSettingsScreen
+import com.gem.neteasecloudmd.ui.screens.StorageSettingsScreen
+import com.gem.neteasecloudmd.ui.screens.DisplaySettingsScreen
+import com.gem.neteasecloudmd.ui.screens.AccountSettingsScreen
+import com.gem.neteasecloudmd.ui.screens.AboutSettingsScreen
+import com.gem.neteasecloudmd.ui.screens.LicensesSettingsScreen
 import com.gem.neteasecloudmd.ui.screens.LogScreen
 import com.gem.neteasecloudmd.ui.screens.PlayerScreen
 
@@ -161,16 +167,56 @@ fun NavGraph(
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToPlayback = { navController.navigate(Screen.SettingsPlayback.route) },
+                onNavigateToStorage = { navController.navigate(Screen.SettingsStorage.route) },
+                onNavigateToDisplay = { navController.navigate(Screen.SettingsDisplay.route) },
+                onNavigateToAccount = { navController.navigate(Screen.SettingsAccount.route) },
+                onNavigateToAbout = { navController.navigate(Screen.SettingsAbout.route) }
+            )
+        }
+
+        composable(Screen.SettingsPlayback.route) {
+            PlaybackSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.SettingsStorage.route) {
+            StorageSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.SettingsDisplay.route) {
+            DisplaySettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
                 onThemeModeChanged = onThemeModeChanged,
-                onLanguageModeChanged = onLanguageModeChanged,
+                onLanguageModeChanged = onLanguageModeChanged
+            )
+        }
+
+        composable(Screen.SettingsAccount.route) {
+            AccountSettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
                 onLoggedOut = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Main.route) { inclusive = true }
                     }
-                },
-                onNavigateToLog = {
-                    navController.navigate(Screen.Log.route)
                 }
+            )
+        }
+
+        composable(Screen.SettingsAbout.route) {
+            AboutSettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToLog = { navController.navigate(Screen.Log.route) },
+                onNavigateToLicenses = { navController.navigate(Screen.SettingsLicenses.route) }
+            )
+        }
+
+        composable(Screen.SettingsLicenses.route) {
+            LicensesSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

@@ -19,6 +19,8 @@ import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+
+
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
@@ -88,6 +90,12 @@ class PlayerManager private constructor(private val context: Context) {
 
     var isPlaybackBarHidden by mutableStateOf(false)
         private set
+
+    var volumeNormalizationEnabled by mutableStateOf(false)
+        private set
+
+    private var prefetchedNextUrl: String? = null
+    private var prefetchedTrackIndex: Int = -1
 
     var sleepTimerState by mutableStateOf(SleepTimerState())
         private set
@@ -392,30 +400,39 @@ class PlayerManager private constructor(private val context: Context) {
             }
         }
 
-        managerScope.launch {
-            try {
-                val urlResult = withContext(Dispatchers.IO) {
-                    apiService.getSongUrl(track.id, currentCookie)
-                }
-                urlResult.fold(
-                    onSuccess = { url ->
-                        Log.d("PlayerManager", "Got song URL: ${url.take(100)}...")
-                        currentUrl = url
-                        playFromUrl(url)
-                    },
-                    onFailure = { e ->
-                        Log.e("PlayerManager", "Failed to get song URL: ${e.message}")
-                        errorMessage = context.getString(
-                            R.string.player_error_url_failed,
-                            e.message ?: ""
-                        )
-                        isLoading = false
+        // Use pre-fetched URL if available for instant transition
+        if (currentTrackIndex == prefetchedTrackIndex && prefetchedNextUrl != null) {
+            val url = prefetchedNextUrl!!
+            prefetchedNextUrl = null
+            prefetchedTrackIndex = -1
+            currentUrl = url
+            playFromUrl(url)
+        } else {
+            managerScope.launch {
+                try {
+                    val urlResult = withContext(Dispatchers.IO) {
+                        apiService.getSongUrl(track.id, currentCookie)
                     }
-                )
-            } catch (e: Exception) {
-                Log.e("PlayerManager", "Exception: ${e.message}")
-                errorMessage = e.message
-                isLoading = false
+                    urlResult.fold(
+                        onSuccess = { url ->
+                            Log.d("PlayerManager", "Got song URL: ${url.take(100)}...")
+                            currentUrl = url
+                            playFromUrl(url)
+                        },
+                        onFailure = { e ->
+                            Log.e("PlayerManager", "Failed to get song URL: ${e.message}")
+                            errorMessage = context.getString(
+                                R.string.player_error_url_failed,
+                                e.message ?: ""
+                            )
+                            isLoading = false
+                        }
+                    )
+                } catch (e: Exception) {
+                    Log.e("PlayerManager", "Exception: ${e.message}")
+                    errorMessage = e.message
+                    isLoading = false
+                }
             }
         }
 
@@ -462,14 +479,32 @@ class PlayerManager private constructor(private val context: Context) {
                     .setUri(url)
                     .setMediaMetadata(metadataBuilder.build())
                     .build()
+
                 player.setMediaItem(mediaItem)
                 player.prepare()
                 player.play()
+
+                applyVolumeNormalization()
+                prefetchNextUrl()
             } catch (e: Exception) {
                 Log.e("PlayerManager", "Exception playing: ${e.message}")
                 errorMessage = e.message
                 isLoading = false
             }
+        }
+    }
+
+    private fun prefetchNextUrl() {
+        val nextIdx = currentTrackIndex + 1
+        if (nextIdx >= currentPlaylist.size) return
+        prefetchedTrackIndex = nextIdx
+        val nextTrack = currentPlaylist[nextIdx] ?: return
+        val apiService = currentApiService ?: return
+        if (currentCookie.isEmpty()) return
+
+        managerScope.launch(Dispatchers.IO) {
+            val urlResult = apiService.getSongUrl(nextTrack.id, currentCookie)
+            urlResult.onSuccess { url -> prefetchedNextUrl = url }
         }
     }
     
@@ -542,14 +577,14 @@ class PlayerManager private constructor(private val context: Context) {
             currentTrackIndex++
             currentPosition = 0
             duration = 0
-            
+
             managerScope.launch(Dispatchers.IO) {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
                 currentTrack?.let { track ->
                     musicRepository.addRecentPlay(track)
                 }
             }
-            
+
             loadAndPlayCurrentTrack()
         } else {
             if (isPersonalFmMode) {
@@ -681,6 +716,15 @@ class PlayerManager private constructor(private val context: Context) {
 
     fun updatePlaybackBarHidden(hidden: Boolean) {
         isPlaybackBarHidden = hidden
+    }
+
+    fun updateVolumeNormalization(enabled: Boolean) {
+        volumeNormalizationEnabled = enabled
+        applyVolumeNormalization()
+    }
+
+    private fun applyVolumeNormalization() {
+        exoPlayer?.volume = if (volumeNormalizationEnabled) 0.75f else 1.0f
     }
 
     fun clearPlaylist() {

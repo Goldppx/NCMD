@@ -988,23 +988,21 @@ class NeteaseApiService {
                 return@withContext Result.failure(Exception("Invalid playlist or tracks"))
             }
 
-            val params = mapOf(
-                "id" to playlistId.toString(),
-                "tracks" to Json.encodeToString(trackIds),
+            // Build form body matching the reference implementation
+            val trackStrings = trackIds.map { it.toString() }
+            val formBody = mapOf(
                 "op" to operation,
+                "pid" to playlistId.toString(),
+                "trackIds" to Json.encodeToString(trackStrings),
                 "imme" to "true"
             )
-            val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val encodedBody = formBody.entries.joinToString("&") { (key, value) ->
+                "${key}=${java.net.URLEncoder.encode(value, "UTF-8")}"
+            }
 
             val request = Request.Builder()
-                .url("$BASE_URL/weapi/playlist/manipulate/tracks")
-                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .url("$BASE_URL/api/playlist/manipulate/tracks")
+                .post(encodedBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
                 .header("Referer", "https://music.163.com")
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                 .header("Cookie", cookie)
@@ -1021,6 +1019,31 @@ class NeteaseApiService {
 
             if (result.code == 200) {
                 Result.success(true)
+            } else if (result.code == 512) {
+                // Retry with duplicated tracks (known Netease bug workaround)
+                val retryParams = mapOf(
+                    "op" to operation,
+                    "pid" to playlistId.toString(),
+                    "trackIds" to Json.encodeToString(trackStrings + trackStrings),
+                    "imme" to "true"
+                )
+                val retryEncoded = retryParams.entries.joinToString("&") { (key, value) ->
+                    "${key}=${java.net.URLEncoder.encode(value, "UTF-8")}"
+                }
+                val retryReq = Request.Builder()
+                    .url("$BASE_URL/api/playlist/manipulate/tracks")
+                    .post(retryEncoded.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                    .header("Referer", "https://music.163.com")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                    .header("Cookie", cookie)
+                    .build()
+                val retryResp = client.newCall(retryReq).execute()
+                val retryResponseBody = retryResp.body?.string() ?: ""
+                if (retryResponseBody.isNotEmpty()) {
+                    val retryResult = runCatching { json.decodeFromString<SimpleCodeResponse>(retryResponseBody) }.getOrNull()
+                    if (retryResult?.code == 200) return@withContext Result.success(true)
+                }
+                Result.failure(Exception(result.msg ?: result.message ?: "Playlist operation failed"))
             } else {
                 Result.failure(Exception(result.msg ?: result.message ?: "Playlist operation failed"))
             }

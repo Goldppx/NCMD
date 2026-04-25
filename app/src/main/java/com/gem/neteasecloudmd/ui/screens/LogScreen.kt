@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,7 +69,7 @@ fun LogScreen(
                                     Badge { Text(filterLevel!!.name.take(1)) }
                                 }
                             }) {
-                                Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                                Icon(Icons.Default.FilterList, contentDescription = stringResource(R.string.log_filter))
                             }
                         }
                         DropdownMenu(
@@ -76,7 +77,7 @@ fun LogScreen(
                             onDismissRequest = { filterMenuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("All Levels") },
+                                text = { Text(stringResource(R.string.log_filter_all)) },
                                 onClick = {
                                     filterLevel = null
                                     filterMenuExpanded = false
@@ -105,10 +106,10 @@ fun LogScreen(
                             context.startActivity(Intent.createChooser(intent, "Share Logs"))
                         }
                     }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.log_share))
                     }
                     IconButton(onClick = { Logger.clearLogs() }) {
-                        Icon(Icons.Default.DeleteSweep, contentDescription = "Clear")
+                        Icon(Icons.Default.DeleteSweep, contentDescription = stringResource(R.string.log_clear))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -140,22 +141,31 @@ fun LogScreen(
 @Composable
 fun LogEntryItem(entry: com.gem.neteasecloudmd.utils.LogEntry) {
     val levelColor = when (entry.level) {
-        LogLevel.DEBUG -> Color.Gray
+        LogLevel.DEBUG -> MaterialTheme.colorScheme.onSurfaceVariant
         LogLevel.INFO -> MaterialTheme.colorScheme.primary
-        LogLevel.WARN -> Color(0xFFFBC02D) // Material Yellow 700
+        LogLevel.WARN -> MaterialTheme.colorScheme.error
         LogLevel.ERROR -> MaterialTheme.colorScheme.error
     }
 
     val backgroundColor = when (entry.level) {
-        LogLevel.WARN -> Color(0xFFFFF9C4) // Material Yellow 100
         LogLevel.ERROR -> MaterialTheme.colorScheme.errorContainer
         else -> Color.Transparent
     }
 
     val onBackgroundColor = when (entry.level) {
-        LogLevel.WARN -> Color(0xFF5D4037) // Dark Brown
         LogLevel.ERROR -> MaterialTheme.colorScheme.onErrorContainer
         else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    val levelBackgroundColor = when (entry.level) {
+        LogLevel.WARN -> MaterialTheme.colorScheme.errorContainer
+        else -> levelColor
+    }
+
+    val levelTextColor = when (entry.level) {
+        LogLevel.WARN -> MaterialTheme.colorScheme.onErrorContainer
+        LogLevel.ERROR -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.surface
     }
 
     Column(
@@ -167,29 +177,25 @@ fun LogEntryItem(entry: com.gem.neteasecloudmd.utils.LogEntry) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = entry.level.name,
-                color = if (entry.level == LogLevel.WARN || entry.level == LogLevel.ERROR) onBackgroundColor else Color.White,
+                color = levelTextColor,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
-                    .background(if (entry.level == LogLevel.WARN || entry.level == LogLevel.ERROR) Color.Transparent else levelColor, MaterialTheme.shapes.extraSmall)
+                    .background(levelBackgroundColor, MaterialTheme.shapes.extraSmall)
                     .padding(horizontal = 4.dp, vertical = 2.dp)
             )
-            if (entry.level == LogLevel.WARN || entry.level == LogLevel.ERROR) {
-               Spacer(modifier = Modifier.width(4.dp))
-            } else {
-               Spacer(modifier = Modifier.width(8.dp))
-            }
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date(entry.timestamp)),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (entry.level == LogLevel.WARN || entry.level == LogLevel.ERROR) onBackgroundColor.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = entry.tag,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = if (entry.level == LogLevel.WARN || entry.level == LogLevel.ERROR) onBackgroundColor else MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.secondary
             )
         }
         Text(
@@ -199,14 +205,14 @@ fun LogEntryItem(entry: com.gem.neteasecloudmd.utils.LogEntry) {
                 lineHeight = 16.sp
             ),
             color = onBackgroundColor,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 2.dp)
         )
-        if (entry.level != LogLevel.WARN && entry.level != LogLevel.ERROR) {
-            HorizontalDivider(
-                modifier = Modifier.padding(top = 4.dp),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-        }
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 4.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
     }
 }

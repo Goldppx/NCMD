@@ -37,6 +37,8 @@ class SessionManager(context: Context) {
         private const val KEY_SLEEP_TIMER_WAIT_FOR_QUEUE_END = "sleep_timer_wait_for_queue_end"
         private const val KEY_LANDSCAPE_INFO_MODE = "landscape_info_mode"
         private const val KEY_LANDSCAPE_CONTROLS_VISIBLE = "landscape_controls_visible"
+        private const val KEY_VOLUME_NORMALIZATION = "volume_normalization"
+        private const val KEY_MAX_CACHE_SIZE_MB = "max_cache_size_mb"
 
         fun languageTagFromMode(mode: Int): String {
             return when (mode) {
@@ -133,6 +135,18 @@ class SessionManager(context: Context) {
 
     fun setLandscapeControlsVisible(visible: Boolean) {
         prefs.edit { putBoolean(KEY_LANDSCAPE_CONTROLS_VISIBLE, visible) }
+    }
+
+    fun isVolumeNormalizationEnabled(): Boolean = prefs.getBoolean(KEY_VOLUME_NORMALIZATION, false)
+
+    fun setVolumeNormalizationEnabled(enabled: Boolean) {
+        prefs.edit { putBoolean(KEY_VOLUME_NORMALIZATION, enabled) }
+    }
+
+    fun getMaxCacheSizeMb(): Int = prefs.getInt(KEY_MAX_CACHE_SIZE_MB, 500)
+
+    fun setMaxCacheSizeMb(size: Int) {
+        prefs.edit { putInt(KEY_MAX_CACHE_SIZE_MB, size) }
     }
 
     fun logout() {
