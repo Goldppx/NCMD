@@ -195,15 +195,11 @@ class NeteaseApiService {
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: ""
 
-            Log.d(TAG, "Login response: $body")
-            
-            val cookies = response.headers("Set-Cookie")
-            Log.d(TAG, "Cookies from headers: ${cookies.joinToString()}")
-
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
             }
 
+            val cookies = response.headers("Set-Cookie")
             val result = json.decodeFromString<LoginResult>(body)
             if (result.code == 200) {
                 val loginResult = result.copy(cookie = cookies.ifEmpty { result.cookie })
@@ -254,16 +250,11 @@ class NeteaseApiService {
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: ""
             
-            Log.d(TAG, "Response code: ${response.code}")
-            Log.d(TAG, "Response body: $body")
-            
-            val cookies = response.headers("Set-Cookie")
-            Log.d(TAG, "Cookies from headers: ${cookies.joinToString()}")
-
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response. Code: ${response.code}"))
             }
 
+            val cookies = response.headers("Set-Cookie")
             val result = json.decodeFromString<LoginResult>(body)
             if (result.code == 200) {
                 val loginResult = result.copy(cookie = cookies.ifEmpty { result.cookie })
@@ -342,7 +333,6 @@ class NeteaseApiService {
 
             Log.d(TAG, "Get playlists for uid: $uid")
             Log.d(TAG, "Cookie length: ${cookie.length}")
-            Log.d(TAG, "Cookie preview: ${cookie.take(100)}")
 
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: ""
