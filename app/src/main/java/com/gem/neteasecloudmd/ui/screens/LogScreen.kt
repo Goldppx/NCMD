@@ -65,8 +65,8 @@ fun LogScreen(
                     Box {
                         IconButton(onClick = { filterMenuExpanded = true }) {
                             BadgedBox(badge = {
-                                if (filterLevel != null) {
-                                    Badge { Text(filterLevel!!.name.take(1)) }
+                                filterLevel?.let { level ->
+                                    Badge { Text(level.name.take(1)) }
                                 }
                             }) {
                                 Icon(Icons.Default.FilterList, contentDescription = stringResource(R.string.log_filter))

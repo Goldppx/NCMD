@@ -140,10 +140,13 @@ class PlayerManager private constructor(private val context: Context) {
         get() = currentPlaylist.getOrNull(currentTrackIndex)
     
     private fun getOrCreatePlayer(): ExoPlayer {
-        if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context).build().apply {
-                addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
+        val existing = exoPlayer
+        if (existing != null) return existing
+
+        val newPlayer = ExoPlayer.Builder(context).build().apply {
+            addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    mainHandler.post {
                         when (playbackState) {
                             Player.STATE_BUFFERING -> {
                                 this@PlayerManager.isLoading = true
@@ -157,29 +160,35 @@ class PlayerManager private constructor(private val context: Context) {
                             Player.STATE_ENDED -> {
                                 Logger.d("Player", "Playback ENDED")
                                 this@PlayerManager.isPlaying = false
-                                if (sleepTimerWaitForQueueEnd) {
+                                val sleepStop = sleepTimerWaitForQueueEnd && {
                                     val isLastSequential = playMode == PlayMode.SEQUENTIAL && currentTrackIndex >= currentPlaylist.lastIndex
                                     val noMoreTrack = currentPlaylist.isEmpty() || isLastSequential
                                     if (noMoreTrack) {
                                         Logger.i("Player", "Sleep timer stopping at queue end")
                                         pauseBySleepTimer()
-                                        return
                                     }
+                                    noMoreTrack
+                                }()
+                                if (!sleepStop) {
+                                    this@PlayerManager.next()
                                 }
-                                this@PlayerManager.next()
                             }
                             Player.STATE_IDLE -> {
                                 this@PlayerManager.isLoading = false
                             }
                         }
                     }
+                }
 
-                    override fun onIsPlayingChanged(playing: Boolean) {
+                override fun onIsPlayingChanged(playing: Boolean) {
+                    mainHandler.post {
                         this@PlayerManager.isPlaying = playing
                         Logger.i("Player", "isPlaying: $playing")
                     }
+                }
 
-                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    mainHandler.post {
                         Logger.e("Player", "ExoPlayer error", error)
                         this@PlayerManager.errorMessage = context.getString(
                             R.string.player_error_playback,
@@ -188,12 +197,13 @@ class PlayerManager private constructor(private val context: Context) {
                         this@PlayerManager.isPlaying = false
                         this@PlayerManager.isLoading = false
                     }
-                })
-            }
-            setupMediaNotification(exoPlayer!!)
-            mainHandler.post(updateRunnable)
+                }
+            })
         }
-        return exoPlayer!!
+        exoPlayer = newPlayer
+        setupMediaNotification(newPlayer)
+        mainHandler.post(updateRunnable)
+        return newPlayer
     }
 
     private fun setupMediaNotification(player: ExoPlayer) {
@@ -815,7 +825,7 @@ class PlayerManager private constructor(private val context: Context) {
                 if (isPlaying) stop()
                 release()
             } catch (e: Exception) {
-                // Ignore
+                Log.w("PlayerManager", "Error releasing player", e)
             }
         }
         exoPlayer = null
@@ -823,7 +833,7 @@ class PlayerManager private constructor(private val context: Context) {
     
     fun release() {
         releasePlayer()
-        managerScope.coroutineContext.cancel()
+        managerScope.cancel()
         currentPlaylist = emptyList()
         currentTrackIndex = 0
         isPlaying = false
@@ -888,13 +898,13 @@ class PlayerManager private constructor(private val context: Context) {
     companion object {
         private const val NOTIFICATION_ID = 1001
         private const val NOTIFICATION_CHANNEL_ID = "ncmd_playback"
+        @Volatile
         private var instance: PlayerManager? = null
         
         fun getInstance(context: Context): PlayerManager {
-            if (instance == null) {
-                instance = PlayerManager(context.applicationContext)
+            return instance ?: synchronized(this) {
+                instance ?: PlayerManager(context.applicationContext).also { instance = it }
             }
-            return instance!!
         }
     }
 }

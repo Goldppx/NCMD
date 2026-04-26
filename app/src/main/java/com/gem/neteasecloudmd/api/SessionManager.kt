@@ -150,6 +150,12 @@ class SessionManager(context: Context) {
     }
 
     fun logout() {
-        prefs.edit { clear() }
+        prefs.edit {
+            remove(KEY_USER_ID)
+            remove(KEY_NICKNAME)
+            remove(KEY_AVATAR_URL)
+            remove(KEY_COOKIE)
+            remove(KEY_IS_LOGGED_IN)
+        }
     }
 }
