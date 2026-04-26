@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
@@ -928,7 +927,7 @@ class PlayerManager private constructor(private val context: Context) {
     }
 }
 
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class) // Media3/ExoPlayer API 被标记为 unstable
 @Composable
 fun rememberPlayerManager(context: Context): PlayerManager {
     val manager = remember { PlayerManager.getInstance(context) }

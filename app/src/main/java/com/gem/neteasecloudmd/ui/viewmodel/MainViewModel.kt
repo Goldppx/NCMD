@@ -15,9 +15,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.atomic.AtomicInteger
 
 data class MainUiState(
     val isLoggedIn: Boolean = false,
@@ -134,82 +136,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val pendingSections = AtomicInteger(3)
-        val markSectionDone = {
-            if (pendingSections.decrementAndGet() <= 0) {
-                _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
-            }
-        }
-
         viewModelScope.launch {
-            val useLocalRecentPlays = sessionManager.useLocalRecentPlays()
-            val localRecent = PlayerManager.getInstance(appContext).getRecentPlays()
-            val recentPlays = if (useLocalRecentPlays) {
-                localRecent.take(3)
-            } else {
-                apiService.getUserPlayRecord(userId, cookie, 30).getOrDefault(emptyList()).take(3)
-            }
-
-            _uiState.update {
-                it.copy(
-                    recentPlays = recentPlays,
-                    isRecentLoading = false
-                )
-            }
-            markSectionDone()
-        }
-
-        viewModelScope.launch {
-            val personalFmTracks = apiService.getPersonalFm(cookie, 6).getOrDefault(emptyList())
-
-            _uiState.update {
-                it.copy(
-                    personalFmTracks = personalFmTracks,
-                    isFmLoading = false
-                )
-            }
-            markSectionDone()
-        }
-
-        viewModelScope.launch {
-            val likedSongIds = apiService.getLikedSongIds(userId, cookie).getOrDefault(emptySet())
-            _uiState.update { it.copy(likedSongIds = likedSongIds) }
-        }
-
-        viewModelScope.launch {
-            val playlistsResult = withTimeoutOrNull(10000L) {
-                apiService.getUserPlaylists(userId, cookie)
-            }
-
-            playlistsResult?.fold(
-                onSuccess = { response ->
-                    _uiState.update {
-                        it.copy(
-                            playlists = response.playlist ?: emptyList(),
-                            isPlaylistLoading = false,
-                            errorMessage = null
-                        )
-                    }
-                    markSectionDone()
-                },
-                onFailure = { e ->
-                    _uiState.update {
-                        it.copy(
-                            isPlaylistLoading = false,
-                            errorMessage = e.message
-                        )
-                    }
-                    markSectionDone()
+            coroutineScope {
+                launch {
+                    val likedSongIds = apiService.getLikedSongIds(userId, cookie).getOrDefault(emptySet())
+                    _uiState.update { it.copy(likedSongIds = likedSongIds) }
                 }
-            ) ?: run {
-                _uiState.update {
-                        it.copy(
-                            isPlaylistLoading = false,
-                            errorMessage = appContext.getString(R.string.viewmodel_request_timeout)
-                        )
+
+                val recentDeferred = async {
+                    val useLocalRecentPlays = sessionManager.useLocalRecentPlays()
+                    val localRecent = PlayerManager.getInstance(appContext).getRecentPlays()
+                    val recentPlays = if (useLocalRecentPlays) {
+                        localRecent.take(3)
+                    } else {
+                        apiService.getUserPlayRecord(userId, cookie, 30).getOrDefault(emptyList()).take(3)
                     }
-                markSectionDone()
+                    _uiState.update {
+                        it.copy(recentPlays = recentPlays, isRecentLoading = false)
+                    }
+                }
+
+                val fmDeferred = async {
+                    val personalFmTracks = apiService.getPersonalFm(cookie, 6).getOrDefault(emptyList())
+                    _uiState.update {
+                        it.copy(personalFmTracks = personalFmTracks, isFmLoading = false)
+                    }
+                }
+
+                val playlistDeferred = async {
+                    val playlistsResult = withTimeoutOrNull(10000L) {
+                        apiService.getUserPlaylists(userId, cookie)
+                    }
+                    playlistsResult?.fold(
+                        onSuccess = { response ->
+                            _uiState.update {
+                                it.copy(
+                                    playlists = response.playlist ?: emptyList(),
+                                    isPlaylistLoading = false,
+                                    errorMessage = null
+                                )
+                            }
+                        },
+                        onFailure = { e ->
+                            _uiState.update {
+                                it.copy(isPlaylistLoading = false, errorMessage = e.message)
+                            }
+                        }
+                    ) ?: run {
+                        _uiState.update {
+                            it.copy(
+                                isPlaylistLoading = false,
+                                errorMessage = appContext.getString(R.string.viewmodel_request_timeout)
+                            )
+                        }
+                    }
+                }
+
+                awaitAll(recentDeferred, fmDeferred, playlistDeferred)
             }
+            _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
         }
     }
 }
