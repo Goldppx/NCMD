@@ -136,14 +136,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/sms/captcha/sent")
@@ -186,14 +179,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/w/login/cellphone")
@@ -325,14 +311,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/user/playlist")
@@ -372,14 +351,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/v6/playlist/detail")
@@ -418,14 +390,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/v3/song/detail")
@@ -475,14 +440,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/v6/playlist/detail")
@@ -520,14 +478,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/v6/playlist/detail")
@@ -579,14 +530,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/song/enhance/player/url/v1")
@@ -633,14 +577,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/song/lyric")
@@ -678,12 +615,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/v1/play/record")
@@ -758,12 +690,7 @@ class NeteaseApiService {
         try {
             val params = mapOf("csrf_token" to "")
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/v1/radio/get")
@@ -851,12 +778,7 @@ class NeteaseApiService {
         try {
             val params = mapOf("uid" to uid.toString())
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/song/like/get")
@@ -896,12 +818,7 @@ class NeteaseApiService {
 
             val params = SongLikeParams(songId, userId, like)
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/song/like")
@@ -1224,12 +1141,7 @@ class NeteaseApiService {
                 "csrf_token" to ""
             )
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val weapiRequest = Request.Builder()
                 .url("$BASE_URL/weapi/search/suggest/web")
@@ -1275,12 +1187,7 @@ class NeteaseApiService {
 
             val params = mapOf("csrf_token" to "")
             val jsonParams = Json.encodeToString(params)
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val weapiRequest = Request.Builder()
                 .url("$BASE_URL/weapi/search/hot/detail")
