@@ -1,6 +1,6 @@
 package com.gem.neteasecloudmd.api
 
-import android.util.Log
+import com.gem.neteasecloudmd.utils.Logger
 import com.gem.neteasecloudmd.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -145,11 +145,11 @@ class NeteaseApiService {
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                 .build()
 
-            Log.d(TAG, "Sending captcha to: ${request.url}")
+            Logger.d(TAG, "Sending captcha to: ${request.url}")
 
             val body = request.executeWithUse()
 
-            Log.d(TAG, "Captcha sent response: $body")
+            Logger.d(TAG, "Captcha sent response: $body")
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -162,7 +162,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.msg ?: "Failed to send captcha"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -188,7 +188,7 @@ class NeteaseApiService {
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                 .build()
 
-            Log.d(TAG, "Login with captcha to: ${request.url}")
+            Logger.d(TAG, "Login with captcha to: ${request.url}")
 
             val (body, cookies) = client.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: ""
@@ -205,7 +205,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.msg ?: result.message ?: "Login failed with code ${result.code}"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -224,7 +224,7 @@ class NeteaseApiService {
             )
 
             val jsonParams = Json.encodeToString(params)
-            Log.d(TAG, "JSON params: $jsonParams")
+            Logger.d(TAG, "JSON params: $jsonParams")
             
             val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
@@ -235,7 +235,7 @@ class NeteaseApiService {
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                 .build()
 
-            Log.d(TAG, "Sending request to: ${request.url}")
+            Logger.d(TAG, "Sending request to: ${request.url}")
             
             val (body, cookies, responseCode) = client.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: ""
@@ -254,7 +254,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.msg ?: result.message ?: "Login failed with code ${result.code}"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -271,7 +271,7 @@ class NeteaseApiService {
 
             val body = request.executeWithUse()
             
-            Log.d(TAG, "Cookie login response: $body")
+            Logger.d(TAG, "Cookie login response: $body")
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -284,7 +284,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.msg ?: result.message ?: "Login failed with code ${result.code}"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -314,8 +314,8 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            Log.d(TAG, "Get playlists for uid: $uid")
-            Log.d(TAG, "Cookie length: ${cookie.length}")
+            Logger.d(TAG, "Get playlists for uid: $uid")
+            Logger.d(TAG, "Cookie length: ${cookie.length}")
 
             val body = request.executeWithUse()
 
@@ -330,7 +330,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.message ?: "Failed to get playlists"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -368,7 +368,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.message ?: "Failed to get playlist detail"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -419,7 +419,7 @@ class NeteaseApiService {
                 Result.failure(Exception("Failed to get song details"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -457,7 +457,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.message ?: "Failed to get playlist detail"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -481,11 +481,11 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            Log.d(TAG, "Get playlist detail for id: $id")
+            Logger.d(TAG, "Get playlist detail for id: $id")
 
             val body = request.executeWithUse()
 
-            Log.d(TAG, "Playlist detail response: ${body.take(500)}")
+            Logger.d(TAG, "Playlist detail response: ${body.take(500)}")
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -508,7 +508,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.message ?: "Failed to get playlist detail"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -533,11 +533,11 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            Log.d(TAG, "Get song url for id: $id")
+            Logger.d(TAG, "Get song url for id: $id")
 
             val body = request.executeWithUse()
 
-            Log.d(TAG, "Song url response: $body")
+            Logger.d(TAG, "Song url response: $body")
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -555,7 +555,7 @@ class NeteaseApiService {
                 Result.failure(Exception("Failed to get song url"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -593,7 +593,7 @@ class NeteaseApiService {
                 Result.failure(Exception("Failed to get lyrics with code ${result.code}"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Lyric Exception: ${e.message}", e)
+            Logger.e(TAG, "Lyric Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -674,7 +674,7 @@ class NeteaseApiService {
 
             Result.success(fallbackTracks)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -721,7 +721,7 @@ class NeteaseApiService {
 
             Result.success(tracks)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -793,7 +793,7 @@ class NeteaseApiService {
 
             Result.success((result.ids ?: emptyList()).toSet())
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -835,7 +835,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.msg ?: result.message ?: "Like operation failed"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "setSongLiked failed", e)
+            Logger.e(TAG, "setSongLiked failed", e)
             Result.failure(e)
         }
     }
@@ -915,7 +915,7 @@ class NeteaseApiService {
                 Result.failure(Exception(result.msg ?: result.message ?: "Playlist operation failed"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Logger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -959,7 +959,7 @@ class NeteaseApiService {
                 ?.toLongOrNull()
             Result.success(songId)
         } catch (e: Exception) {
-            Log.e(TAG, "audioMatch exception: ${e.message}", e)
+            Logger.e(TAG, "audioMatch exception: ${e.message}", e)
             Result.failure(e)
         }
     }
