@@ -54,7 +54,6 @@ class MusicRepository(
     }
     
     suspend fun saveCurrentPlaylist(tracks: List<TrackItem>, currentIndex: Int) {
-        currentPlaylistDao.clearPlaylist()
         val entities = tracks.mapIndexed { index, track ->
             CurrentPlaylistEntity(
                 id = track.id,
@@ -66,8 +65,7 @@ class MusicRepository(
                 isCurrent = index == currentIndex
             )
         }
-        currentPlaylistDao.insertPlaylist(entities)
-        currentPlaylistDao.updatePosition(currentIndex)
+        currentPlaylistDao.replacePlaylist(entities, currentIndex)
     }
     
     suspend fun updateCurrentPosition(position: Int) {

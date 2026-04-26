@@ -59,6 +59,8 @@ enum class PlayMode {
     REPEAT_ONE
 }
 
+private fun Long.toIntSafe(): Int = coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+
 @UnstableApi
 class PlayerManager private constructor(private val context: Context) {
     var isPlaying by mutableStateOf(false)
@@ -123,8 +125,8 @@ class PlayerManager private constructor(private val context: Context) {
         override fun run() {
             exoPlayer?.let { player ->
                 if (player.isPlaying) {
-                    currentPosition = player.currentPosition.toInt()
-                    duration = player.duration.toInt().coerceAtLeast(0)
+                    currentPosition = player.currentPosition.toIntSafe()
+                    duration = player.duration.toIntSafe()
                 }
             }
             mainHandler.postDelayed(this, 1000)

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.gem.neteasecloudmd.data.local.entity.CurrentPlaylistEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -26,4 +27,11 @@ interface CurrentPlaylistDao {
     
     @Query("SELECT COUNT(*) FROM current_playlist")
     suspend fun getCount(): Int
+
+    @Transaction
+    suspend fun replacePlaylist(tracks: List<CurrentPlaylistEntity>, currentIndex: Int) {
+        clearPlaylist()
+        insertPlaylist(tracks)
+        updatePosition(currentIndex)
+    }
 }
