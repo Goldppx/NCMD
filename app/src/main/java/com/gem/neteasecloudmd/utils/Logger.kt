@@ -8,9 +8,14 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.Locale
 
 enum class LogLevel {
     DEBUG, INFO, WARN, ERROR
+}
+
+private val dateFormat = ThreadLocal.withInitial {
+    SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
 }
 
 data class LogEntry(
@@ -20,15 +25,14 @@ data class LogEntry(
     val message: String
 ) {
     fun format(): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-        return "${sdf.format(Date(timestamp))} [${level.name}] $tag: $message"
+        return "${dateFormat.get().format(Date(timestamp))} [${level.name}] $tag: $message"
     }
 }
 
 object Logger {
     private const val TAG = "NCMD"
     private const val LOG_FILE_NAME = "app_logs.txt"
-    private const val MAX_FILE_SIZE = 1024 * 1024 // 1MB
+    private const val MAX_FILE_SIZE = 1024 * 1024
 
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs = _logs.asStateFlow()
@@ -68,8 +72,7 @@ object Logger {
             val levelPart = parts[2].removeSurrounding("[", "]")
             val tagAndMsg = parts[3].split(": ", limit = 2)
             
-            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-            val timestamp = sdf.parse(dateStr)?.time ?: System.currentTimeMillis()
+            val timestamp = dateFormat.get().parse(dateStr)?.time ?: System.currentTimeMillis()
             
             LogEntry(
                 timestamp = timestamp,

@@ -1,15 +1,16 @@
 package com.gem.neteasecloudmd.api
 
 import java.security.KeyFactory
+import java.security.SecureRandom
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
-import kotlin.random.Random
 
 object CryptoUtil {
     private const val AES_KEY = "0CoJUm6Qyw8W8jud"
     private const val IV = "0102030405060708"
     private const val BASE62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    private val secureRandom = SecureRandom()
     
     private val PUBLIC_KEY_PEM = """
         -----BEGIN PUBLIC KEY-----
@@ -43,7 +44,7 @@ object CryptoUtil {
     }
 
     private fun generateSecretKey(length: Int): String {
-        return (1..length).map { BASE62[Random.nextInt(BASE62.length)] }.joinToString("")
+        return (1..length).map { BASE62[secureRandom.nextInt(BASE62.length)] }.joinToString("")
     }
 
     private fun aesEncrypt(text: String, key: String): String {
