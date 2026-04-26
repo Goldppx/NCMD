@@ -99,8 +99,8 @@ fun MainScreen(
 
     val showAccountDialog = remember { mutableStateOf(false) }
     val showSleepTimerDialog = remember { mutableStateOf(false) }
-    var sleepPreset by remember { mutableIntStateOf(sessionManager.getSleepTimerPresetMinutes()) }
-    var sleepCustomMinutes by remember { mutableIntStateOf(sessionManager.getSleepTimerCustomMinutes()) }
+    var sleepPreset by remember { mutableStateOf(sessionManager.getSleepTimerPresetMinutes()) }
+    var sleepCustomMinutes by remember { mutableStateOf(sessionManager.getSleepTimerCustomMinutes()) }
     var waitForQueueEnd by remember { mutableStateOf(sessionManager.getSleepTimerWaitForQueueEnd()) }
     var customInput by remember { mutableStateOf(sleepCustomMinutes.toString()) }
 

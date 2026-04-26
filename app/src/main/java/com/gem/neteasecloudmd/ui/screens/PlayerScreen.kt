@@ -121,7 +121,7 @@ fun PlayerScreen(
     var showQueueSheet by remember { mutableStateOf(false) }
     var showSideQueue by remember { mutableStateOf(false) }
     var showLandscapeControls by remember { mutableStateOf(sessionManager.isLandscapeControlsVisible()) }
-    var infoDisplayMode by remember { mutableIntStateOf(sessionManager.getLandscapeInfoMode()) } // 0: None, 1: Text, 2: Text + Shadow
+    var infoDisplayMode by remember { mutableStateOf(sessionManager.getLandscapeInfoMode()) } // 0: None, 1: Text, 2: Text + Shadow
     var selectedTrackForMenu by remember { mutableStateOf<TrackItem?>(null) }
     var playlistsForMenu by remember { mutableStateOf(emptyList<com.gem.neteasecloudmd.api.PlaylistItem>()) }
 

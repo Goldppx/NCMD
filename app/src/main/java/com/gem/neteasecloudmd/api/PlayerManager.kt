@@ -8,7 +8,7 @@ import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,7 +66,7 @@ class PlayerManager private constructor(private val context: Context) {
         private set
     var currentPlaylist by mutableStateOf<List<TrackItem>>(emptyList())
         private set
-    var currentTrackIndex by mutableIntStateOf(0)
+    var currentTrackIndex by mutableStateOf(0)
         private set
     var currentUrl by mutableStateOf<String?>(null)
         private set
@@ -78,12 +78,12 @@ class PlayerManager private constructor(private val context: Context) {
     var currentLyric by mutableStateOf<String?>(null)
         private set
 
-    var currentPosition by mutableIntStateOf(0)
+    var currentPosition by mutableStateOf(0)
         private set
-    var duration by mutableIntStateOf(0)
+    var duration by mutableStateOf(0)
         private set
 
-    var themeSeedArgb by mutableIntStateOf(0)
+    var themeSeedArgb by mutableStateOf(0)
         private set
 
     var playMode by mutableStateOf(PlayMode.SEQUENTIAL)

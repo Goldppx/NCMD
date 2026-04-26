@@ -53,7 +53,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -267,7 +267,7 @@ fun StorageSettingsScreen(
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
 
-    var maxCacheSizeMb by remember { mutableIntStateOf(sessionManager.getMaxCacheSizeMb()) }
+    var maxCacheSizeMb by remember { mutableStateOf(sessionManager.getMaxCacheSizeMb()) }
     var showSizeLimitPicker by remember { mutableStateOf(false) }
 
     SubSettingsScaffold(
@@ -366,8 +366,8 @@ fun DisplaySettingsScreen(
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
 
-    var themeMode by remember { mutableIntStateOf(sessionManager.getThemeMode()) }
-    var languageMode by remember { mutableIntStateOf(sessionManager.getLanguageMode()) }
+    var themeMode by remember { mutableStateOf(sessionManager.getThemeMode()) }
+    var languageMode by remember { mutableStateOf(sessionManager.getLanguageMode()) }
     var enableCoverPalette by remember { mutableStateOf(sessionManager.isCoverPaletteEnabled()) }
     var disableCoverOverflow by remember { mutableStateOf(sessionManager.isCoverOverflowDisabled()) }
     var showThemeDialog by remember { mutableStateOf(false) }
