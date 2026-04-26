@@ -13,7 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,8 +36,8 @@ fun NCMDApp() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val player = rememberPlayerManager(context)
-    var themeMode by remember { mutableIntStateOf(sessionManager.getThemeMode()) }
-    var languageMode by remember { mutableIntStateOf(sessionManager.getLanguageMode()) }
+    var themeMode by remember { mutableStateOf(sessionManager.getThemeMode()) }
+    var languageMode by remember { mutableStateOf(sessionManager.getLanguageMode()) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     

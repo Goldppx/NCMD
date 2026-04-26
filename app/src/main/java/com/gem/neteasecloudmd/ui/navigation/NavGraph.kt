@@ -112,7 +112,9 @@ fun NavGraph(
                     navController.navigate(Screen.PlaylistDetail.createRoute(type, playlistId, playlistName))
                 },
                 onNavigateToPlayer = {
-                    navController.navigate(Screen.Player.route)
+                    navController.navigate(Screen.Player.route) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
