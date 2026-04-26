@@ -155,7 +155,7 @@ class PlayerManager private constructor(private val context: Context) {
                             Player.STATE_READY -> {
                                 this@PlayerManager.isLoading = false
                                 this@PlayerManager.isPlaying = this@PlayerManager.exoPlayer?.isPlaying == true
-                                this@PlayerManager.duration = this@PlayerManager.exoPlayer?.duration?.toInt() ?: 0
+                                this@PlayerManager.duration = this@PlayerManager.exoPlayer?.duration?.toIntSafe() ?: 0
                                 Logger.d("Player", "Player READY, duration: ${this@PlayerManager.duration}")
                             }
                             Player.STATE_ENDED -> {
@@ -377,7 +377,9 @@ class PlayerManager private constructor(private val context: Context) {
         duration = 0
         
         managerScope.launch(Dispatchers.IO) {
-            musicRepository.saveCurrentPlaylist(tracks, currentTrackIndex)
+            runCatching {
+                musicRepository.saveCurrentPlaylist(tracks, currentTrackIndex)
+            }.onFailure { Logger.e("Player", "Failed to save playlist: ${it.message}") }
         }
         
         loadAndPlayCurrentTrack()
@@ -419,8 +421,8 @@ class PlayerManager private constructor(private val context: Context) {
         }
 
         // Use pre-fetched URL if available for instant transition
-        if (currentTrackIndex == prefetchedTrackIndex && prefetchedNextUrl != null) {
-            val url = prefetchedNextUrl!!
+        if (currentTrackIndex == prefetchedTrackIndex) {
+            val url = prefetchedNextUrl ?: return
             prefetchedNextUrl = null
             prefetchedTrackIndex = -1
             currentUrl = url
@@ -582,10 +584,12 @@ class PlayerManager private constructor(private val context: Context) {
             currentPosition = 0
             duration = 0
             managerScope.launch(Dispatchers.IO) {
+            runCatching {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
                 currentTrack?.let { track ->
                     musicRepository.addRecentPlay(track)
                 }
+            }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
             }
             loadAndPlayCurrentTrack()
             return
@@ -597,10 +601,12 @@ class PlayerManager private constructor(private val context: Context) {
             duration = 0
 
             managerScope.launch(Dispatchers.IO) {
+            runCatching {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
                 currentTrack?.let { track ->
                     musicRepository.addRecentPlay(track)
                 }
+            }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
             }
 
             loadAndPlayCurrentTrack()
@@ -620,10 +626,12 @@ class PlayerManager private constructor(private val context: Context) {
         duration = 0
         
         managerScope.launch(Dispatchers.IO) {
+            runCatching {
             musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
             currentTrack?.let { track ->
                 musicRepository.addRecentPlay(track)
             }
+            }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
         }
         
         loadAndPlayCurrentTrack()
@@ -698,7 +706,9 @@ class PlayerManager private constructor(private val context: Context) {
             currentPosition = 0
             duration = 0
             managerScope.launch(Dispatchers.IO) {
+            runCatching {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
+            }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
             }
             loadAndPlayCurrentTrack()
             return
@@ -710,10 +720,12 @@ class PlayerManager private constructor(private val context: Context) {
             duration = 0
             
             managerScope.launch(Dispatchers.IO) {
+            runCatching {
                 musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
                 currentTrack?.let { track ->
                     musicRepository.addRecentPlay(track)
                 }
+            }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
             }
             
             loadAndPlayCurrentTrack()
@@ -759,7 +771,9 @@ class PlayerManager private constructor(private val context: Context) {
             exoPlayer?.clearMediaItems()
         }
         managerScope.launch(Dispatchers.IO) {
+            runCatching {
             musicRepository.clearCurrentPlaylist()
+            }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
         }
     }
 
@@ -778,7 +792,9 @@ class PlayerManager private constructor(private val context: Context) {
         }
 
         managerScope.launch(Dispatchers.IO) {
+            runCatching {
             musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
+            }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
         }
     }
 
@@ -809,7 +825,9 @@ class PlayerManager private constructor(private val context: Context) {
         }
 
         managerScope.launch(Dispatchers.IO) {
+            runCatching {
             musicRepository.saveCurrentPlaylist(currentPlaylist, currentTrackIndex)
+            }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
         }
     }
     
