@@ -226,14 +226,7 @@ class NeteaseApiService {
             val jsonParams = Json.encodeToString(params)
             Log.d(TAG, "JSON params: $jsonParams")
             
-            val encryptedParams = CryptoUtil.weapi(jsonParams)
-
-            val encodedParams = encryptedParams["params"]
-                ?.replace("/", "%2F")
-                ?.replace("+", "%2B")
-                ?.replace("=", "%3D")
-            
-            val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
+            val requestBody = buildWeapiBody(jsonParams).getOrElse { return@withContext Result.failure(it) }
 
             val request = Request.Builder()
                 .url("$BASE_URL/weapi/w/login/cellphone")
