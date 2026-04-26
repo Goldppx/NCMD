@@ -2,7 +2,7 @@
 
 > 上次更新: 2026-04-26
 > 原始 38 项问题 + 本轮新发现 **14 项** = 总计 **52 项**
-> 已修复: **40 项** | 剩余: **12 项**
+> 已修复: **44 项** | 剩余: **8 项**
 
 ## 修复优先级说明
 
@@ -82,7 +82,7 @@
 - [ ] **M16** `LoginScreen.kt` — 全部登录业务在 Composable 中（原 Q4 升级）
   - 4 处 `scope.launch` 直接调用网络 API，无 ViewModel
   - 修复：抽取到 LoginViewModel
-- [ ] **M17** `MainScreen.kt:834,1189,1220,1256` + `PlayerScreen.kt:143,480` — 6 处 `scope.launch` 在 Composable 中直接调用网络 API
+- [x] **M17** `MainScreen.kt:834,1189,1220,1256` + `PlayerScreen.kt:143,480` — 6 处 `scope.launch` 在 Composable 中直接调用网络 API
   - `rememberCoroutineScope()` 只能跟随 composable 生命周期，不跟随 Activity
   - 修复：提取到 ViewModel 或至少用生命周期感知方式
 - [x] **M18** `NeteaseApiService.kt` 多处 — 仍混用 `Log` 和 `Logger`
@@ -136,7 +136,7 @@
   - 处理：清理或标记待废弃
 - [x] **Q14** 全部 5 文件 13 处 `mutableIntStateOf` → `mutableStateOf`
 - [x] **Q15** `SubSettingsScreens.kt:720` — 硬编码 `"GitHub"`（品牌名，可接受但建议抽离）
-- [ ] **Q16** `PlayerManager.kt` — `@OptIn(UnstableApi::class)` 未解释具体原因
+- [x] **Q16** `PlayerManager.kt` — `@OptIn(UnstableApi::class)` 未解释具体原因
 - [x] **Q17** `LogScreen.kt:106` — 硬编码 `"Share Logs"` 未本地化
 - [x] **Q18** 大量 composable 硬编码英文 contentDescription（已在 M15 中覆盖）
 
@@ -147,7 +147,7 @@
 ### 待处理
 - [x] **A1** `ApiProvider.kt` — `@Suppress("UNUSED_PARAMETER")` 表明 context 参数多余
 - [ ] **A2** `PlayerManager` — 职责过重（播放+状态+通知+持久化+歌单管理）
-- [ ] **A3** `MainViewModel.loadHomeData()` — 用 `AtomicInteger` 手动计数并发请求
+- [x] **A3** `MainViewModel.loadHomeData()` — 用 `AtomicInteger` 手动计数并发请求
 - [ ] **A4** 5 个 ViewModel 用 `AndroidViewModel` 仅为了 `getApplication()`
   - 实际只有 `MainViewModel` 有 1 处合法 `getString()` 调用；其余 4 个可改为普通 `ViewModel`
 - [ ] **A5** `NeteaseApiService` 在 ViewModel/Composable 中多处创建
