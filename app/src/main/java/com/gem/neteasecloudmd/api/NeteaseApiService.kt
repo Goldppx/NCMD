@@ -99,6 +99,19 @@ class NeteaseApiService {
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    private fun Request.executeWithUse(): String {
+        return client.newCall(this).execute().use { response ->
+            response.body?.string() ?: ""
+        }
+    }
+
+    private fun buildWeapiBody(jsonParams: String): Result<String> {
+        val encryptedParams = CryptoUtil.weapi(jsonParams)
+        val raw = encryptedParams["params"] ?: return Result.failure(Exception("Encryption failed"))
+        val encoded = raw.replace("/", "%2F").replace("+", "%2B").replace("=", "%3D")
+        return Result.success("params=$encoded&encSecKey=${encryptedParams["encSecKey"]}")
+    }
+
     private val json = Json { ignoreUnknownKeys = true }
 
     companion object {
@@ -141,8 +154,7 @@ class NeteaseApiService {
 
             Log.d(TAG, "Sending captcha to: ${request.url}")
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
 
             Log.d(TAG, "Captcha sent response: $body")
 
@@ -192,14 +204,13 @@ class NeteaseApiService {
 
             Log.d(TAG, "Login with captcha to: ${request.url}")
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
-
-            if (body.isEmpty()) {
-                return@withContext Result.failure(Exception("Empty response"))
+            val (body, cookies) = client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                if (body.isEmpty()) {
+                    return@withContext Result.failure(Exception("Empty response"))
+                }
+                Pair(body, response.headers("Set-Cookie"))
             }
-
-            val cookies = response.headers("Set-Cookie")
             val result = json.decodeFromString<LoginResult>(body)
             if (result.code == 200) {
                 val loginResult = result.copy(cookie = cookies.ifEmpty { result.cookie })
@@ -247,14 +258,15 @@ class NeteaseApiService {
 
             Log.d(TAG, "Sending request to: ${request.url}")
             
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val (body, cookies, responseCode) = client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                Triple(body, response.headers("Set-Cookie"), response.code)
+            }
             
             if (body.isEmpty()) {
-                return@withContext Result.failure(Exception("Empty response. Code: ${response.code}"))
+                return@withContext Result.failure(Exception("Empty response. Code: $responseCode"))
             }
 
-            val cookies = response.headers("Set-Cookie")
             val result = json.decodeFromString<LoginResult>(body)
             if (result.code == 200) {
                 val loginResult = result.copy(cookie = cookies.ifEmpty { result.cookie })
@@ -278,8 +290,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
             
             Log.d(TAG, "Cookie login response: $body")
 
@@ -334,11 +345,7 @@ class NeteaseApiService {
             Log.d(TAG, "Get playlists for uid: $uid")
             Log.d(TAG, "Cookie length: ${cookie.length}")
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
-
-            Log.d(TAG, "Playlists response code: ${response.code}")
-            Log.d(TAG, "Playlists response: $body")
+            val body = request.executeWithUse()
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -382,8 +389,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -429,8 +435,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -487,8 +492,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -535,8 +539,7 @@ class NeteaseApiService {
 
             Log.d(TAG, "Get playlist detail for id: $id")
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
 
             Log.d(TAG, "Playlist detail response: ${body.take(500)}")
 
@@ -595,8 +598,7 @@ class NeteaseApiService {
 
             Log.d(TAG, "Get song url for id: $id")
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
 
             Log.d(TAG, "Song url response: $body")
 
@@ -648,8 +650,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
 
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
@@ -692,8 +693,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
             }
@@ -728,8 +728,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val fallbackResponse = client.newCall(fallbackRequest).execute()
-            val fallbackBody = fallbackResponse.body?.string() ?: ""
+            val fallbackBody = fallbackRequest.executeWithUse()
             if (fallbackBody.isEmpty()) {
                 return@withContext Result.success(emptyList())
             }
@@ -774,8 +773,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
             }
@@ -818,8 +816,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
             }
@@ -869,8 +866,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
             }
@@ -915,8 +911,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
             }
@@ -972,8 +967,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
             if (body.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty response"))
             }
@@ -1001,8 +995,7 @@ class NeteaseApiService {
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                     .header("Cookie", cookie)
                     .build()
-                val retryResp = client.newCall(retryReq).execute()
-                val retryResponseBody = retryResp.body?.string() ?: ""
+                val retryResponseBody = retryReq.executeWithUse()
                 if (retryResponseBody.isNotEmpty()) {
                     val retryResult = runCatching { json.decodeFromString<SimpleCodeResponse>(retryResponseBody) }.getOrNull()
                     if (retryResult?.code == 200) return@withContext Result.success(true)
@@ -1036,8 +1029,7 @@ class NeteaseApiService {
                 .header("Cookie", cookie)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
+            val body = request.executeWithUse()
             if (body.isBlank()) {
                 return@withContext Result.failure(Exception("Empty response"))
             }
@@ -1085,8 +1077,7 @@ class NeteaseApiService {
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                     .build()
 
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
+                val body = request.executeWithUse()
                 if (body.isEmpty()) continue
 
                 val result = runCatching { json.decodeFromString<SearchSongResponse>(body) }.getOrNull() ?: continue
@@ -1133,8 +1124,7 @@ class NeteaseApiService {
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                     .build()
 
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
+                val body = request.executeWithUse()
                 if (body.isEmpty()) continue
 
                 val result = runCatching { json.decodeFromString<SearchPlaylistResponse>(body) }.getOrNull() ?: continue
@@ -1179,8 +1169,7 @@ class NeteaseApiService {
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                     .build()
 
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
+                val body = request.executeWithUse()
                 if (body.isEmpty()) continue
 
                 val result = runCatching { json.decodeFromString<SearchAlbumResponse>(body) }.getOrNull() ?: continue
@@ -1223,8 +1212,7 @@ class NeteaseApiService {
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                     .build()
 
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
+                val body = request.executeWithUse()
                 if (body.isEmpty()) continue
 
                 val suggestions = parseSuggestKeywords(body)
@@ -1250,8 +1238,7 @@ class NeteaseApiService {
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                 .build()
 
-            val weapiResponse = client.newCall(weapiRequest).execute()
-            val weapiBody = weapiResponse.body?.string() ?: ""
+            val weapiBody = weapiRequest.executeWithUse()
             val weapiSuggestions = parseSuggestKeywords(weapiBody)
             if (weapiSuggestions.isNotEmpty()) {
                 return@withContext Result.success(weapiSuggestions)
@@ -1279,8 +1266,7 @@ class NeteaseApiService {
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                     .build()
 
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
+                val body = request.executeWithUse()
                 if (body.isEmpty()) continue
 
                 val words = parseHotWords(body)
@@ -1303,8 +1289,7 @@ class NeteaseApiService {
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
                 .build()
 
-            val weapiResponse = client.newCall(weapiRequest).execute()
-            val weapiBody = weapiResponse.body?.string() ?: ""
+            val weapiBody = weapiRequest.executeWithUse()
             val weapiWords = parseHotWords(weapiBody)
             if (weapiWords.isNotEmpty()) {
                 return@withContext Result.success(weapiWords)
@@ -1335,8 +1320,7 @@ class NeteaseApiService {
                     }
                     .build()
 
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
+                val body = request.executeWithUse()
                 if (body.isEmpty()) continue
 
                 val tracks = parseAlbumTracks(body)
