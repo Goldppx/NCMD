@@ -16,3 +16,4 @@
 *.keystore
 local.properties
 app/release/
+.opencode/
