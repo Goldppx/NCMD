@@ -3,6 +3,7 @@ package com.gem.neteasecloudmd.ui.screens
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -70,6 +71,7 @@ import com.gem.neteasecloudmd.ui.components.SongLongPressMenu
 import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
 import com.gem.neteasecloudmd.utils.LyricParser
 import com.gem.neteasecloudmd.utils.LyricLine
+import com.gem.neteasecloudmd.utils.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -142,13 +144,16 @@ fun PlayerScreen(
 
     fun loadMenuPlaylists() {
         scope.launch {
-            val result = mainViewModel.apiService.getUserPlaylists(
+            mainViewModel.apiService.getUserPlaylists(
                 uiState.userId,
                 uiState.cookie
             )
-            result.onSuccess {
-                playlistsForMenu = it.playlist ?: emptyList()
-            }
+                .onSuccess {
+                    playlistsForMenu = it.playlist ?: emptyList()
+                }
+                .onFailure { e ->
+                    Logger.e("PlayerScreen", "Failed to load playlists: ${e.message}")
+                }
         }
     }
 
@@ -480,6 +485,12 @@ fun PlayerScreen(
             onAddToPlaylist = { trackId, playlistId ->
                 scope.launch {
                     mainViewModel.apiService.addTrackToPlaylist(playlistId, trackId, uiState.cookie)
+                        .onSuccess {
+                            Toast.makeText(context, context.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
+                        }
+                        .onFailure { e ->
+                            Logger.e("PlayerScreen", "Failed to add to playlist: ${e.message}")
+                        }
                 }
             },
             onCopyShareLink = { track ->

@@ -68,6 +68,7 @@ import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SleepTimerPolicy
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
+import com.gem.neteasecloudmd.utils.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -833,9 +834,13 @@ fun PlaybackBar(
         val cookie = sessionManager.getCookie()
         if (uid > 0 && cookie.isNotBlank()) {
             scope.launch {
-                apiService.getUserPlaylists(uid, cookie).onSuccess { response ->
-                    playlistsForMenu = response.playlist ?: emptyList()
-                }
+                apiService.getUserPlaylists(uid, cookie)
+                    .onSuccess { response ->
+                        playlistsForMenu = response.playlist ?: emptyList()
+                    }
+                    .onFailure { e ->
+                        Logger.e("MainScreen", "Failed to load playlists: ${e.message}")
+                    }
             }
         }
     }
@@ -1195,6 +1200,9 @@ fun PlaybackBar(
                                     player.updateLikedSongIds(ids)
                                 }
                             }
+                            .onFailure { e ->
+                                Logger.e("MainScreen", "Failed to toggle like: ${e.message}")
+                            }
                     }
                 }
             )
@@ -1261,6 +1269,9 @@ fun PlaybackBar(
                             val ids = apiService.getLikedSongIds(userId, cookie).getOrNull() ?: emptySet()
                             player.updateLikedSongIds(ids)
                         }
+                    }
+                    .onFailure { e ->
+                        Logger.e("MainScreen", "Failed to toggle like: ${e.message}")
                     }
             }
         }
