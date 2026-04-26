@@ -82,7 +82,7 @@ fun PlaylistDetailScreen(
     }
 
     LaunchedEffect(Unit) {
-        player.setApiService(ApiProvider.get(context))
+        player.setApiService(ApiProvider.get())
         loadTracks()
     }
 

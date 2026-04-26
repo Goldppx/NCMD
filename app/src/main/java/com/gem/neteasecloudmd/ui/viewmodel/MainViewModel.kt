@@ -42,7 +42,7 @@ data class MainUiState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val appContext = application.applicationContext
     private val sessionManager = SessionManager(appContext)
-    val apiService = ApiProvider.get(appContext)
+    val apiService = ApiProvider.get()
 
     private val _uiState = MutableStateFlow(
         MainUiState(

@@ -72,6 +72,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.gem.neteasecloudmd.api.ApiProvider
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
 
@@ -819,7 +820,7 @@ fun PlaybackBar(
     val sessionManager = remember { SessionManager(context) }
     val player = rememberPlayerManager(context)
     val scope = rememberCoroutineScope()
-    val apiService = remember { com.gem.neteasecloudmd.api.ApiProvider.get(context) }
+    val apiService = remember { ApiProvider.get() }
     val hapticFeedback = androidx.compose.ui.platform.LocalHapticFeedback.current
     val disableCoverOverflow = sessionManager.isCoverOverflowDisabled()
     val enableCoverPalette = sessionManager.isCoverPaletteEnabled()

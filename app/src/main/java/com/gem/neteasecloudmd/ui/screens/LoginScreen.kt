@@ -27,7 +27,7 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
-    val apiService = remember { ApiProvider.get(context) }
+    val apiService = remember { ApiProvider.get() }
     val sessionManager = remember { SessionManager(context) }
     val scope = rememberCoroutineScope()
 

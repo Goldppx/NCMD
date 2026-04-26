@@ -36,7 +36,7 @@ data class SearchUiState(
 
 class SearchViewModel(application: Application) : AndroidViewModel(application) {
     private val appContext = application.applicationContext
-    private val apiService = ApiProvider.get(appContext)
+    private val apiService = ApiProvider.get()
     private val sessionManager = SessionManager(appContext)
 
     private val _uiState = MutableStateFlow(SearchUiState())

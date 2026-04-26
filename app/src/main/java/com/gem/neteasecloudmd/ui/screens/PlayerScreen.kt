@@ -83,7 +83,7 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val player = rememberPlayerManager(context)
-    val apiService = remember { ApiProvider.get(context) }
+    val apiService = remember { ApiProvider.get() }
     val track = player.currentTrack
     val pagerState = rememberPagerState(pageCount = { 2 })
     
