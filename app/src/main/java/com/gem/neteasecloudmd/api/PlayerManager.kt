@@ -4,7 +4,6 @@ import com.gem.neteasecloudmd.utils.Logger
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -400,7 +399,7 @@ class PlayerManager private constructor(private val context: Context) {
         val apiService = currentApiService ?: return
         
         if (currentCookie.isEmpty()) {
-            Log.e("PlayerManager", "Cookie is empty!")
+            Logger.e("Player", "Cookie is empty!")
             errorMessage = context.getString(R.string.player_error_not_logged_in)
             return
         }
@@ -415,7 +414,7 @@ class PlayerManager private constructor(private val context: Context) {
             try {
                 musicRepository.addRecentPlay(track)
             } catch (e: Exception) {
-                Log.e("PlayerManager", "Failed to save recent play: ${e.message}")
+                Logger.e("Player", "Failed to save recent play: ${e.message}")
             }
         }
 
@@ -434,12 +433,12 @@ class PlayerManager private constructor(private val context: Context) {
                     }
                     urlResult.fold(
                         onSuccess = { url ->
-                            Log.d("PlayerManager", "Got song URL: ${url.take(100)}...")
+                            Logger.d("Player", "Got song URL: ${url.take(100)}...")
                             currentUrl = url
                             playFromUrl(url)
                         },
                         onFailure = { e ->
-                            Log.e("PlayerManager", "Failed to get song URL: ${e.message}")
+                            Logger.e("Player", "Failed to get song URL: ${e.message}")
                             errorMessage = context.getString(
                                 R.string.player_error_url_failed,
                                 e.message ?: ""
@@ -448,7 +447,7 @@ class PlayerManager private constructor(private val context: Context) {
                         }
                     )
                 } catch (e: Exception) {
-                    Log.e("PlayerManager", "Exception: ${e.message}")
+                    Logger.e("Player", "Exception: ${e.message}")
                     errorMessage = e.message
                     isLoading = false
                 }
@@ -472,7 +471,7 @@ class PlayerManager private constructor(private val context: Context) {
                     currentLyric = response.lrc?.lyric
                 },
                 onFailure = { e ->
-                    Log.e("PlayerManager", "Failed to fetch lyric: ${e.message}")
+                    Logger.e("Player", "Failed to fetch lyric: ${e.message}")
                     currentLyric = null
                 }
             )
@@ -506,7 +505,7 @@ class PlayerManager private constructor(private val context: Context) {
                 applyVolumeNormalization()
                 prefetchNextUrl()
             } catch (e: Exception) {
-                Log.e("PlayerManager", "Exception playing: ${e.message}")
+                Logger.e("Player", "Exception playing: ${e.message}")
                 errorMessage = e.message
                 isLoading = false
             }
@@ -827,7 +826,7 @@ class PlayerManager private constructor(private val context: Context) {
                 if (isPlaying) stop()
                 release()
             } catch (e: Exception) {
-                Log.w("PlayerManager", "Error releasing player", e)
+                Logger.w("Player", "Error releasing player: ${e.message}")
             }
         }
         exoPlayer = null
@@ -857,7 +856,7 @@ class PlayerManager private constructor(private val context: Context) {
                 )
             }
         } catch (e: Exception) {
-            Log.e("PlayerManager", "Failed to get recent plays: ${e.message}")
+            Logger.e("Player", "Failed to get recent plays: ${e.message}")
             emptyList()
         }
     }
@@ -892,7 +891,7 @@ class PlayerManager private constructor(private val context: Context) {
                 false
             }
         } catch (e: Exception) {
-            Log.e("PlayerManager", "Failed to restore playlist: ${e.message}")
+            Logger.e("Player", "Failed to restore playlist: ${e.message}")
             false
         }
     }
