@@ -1180,7 +1180,22 @@ fun PlaybackBar(
             PlaybackQueueSheet(
                 player = player,
                 onDismiss = { showQueueSheet = false },
-                onTrackLongClick = { track -> selectedTrackForMenu = track }
+                onTrackLongClick = { track -> selectedTrackForMenu = track },
+                likedSongIds = player.likedSongIds,
+                onLikeToggle = { songId ->
+                    val cookie = sessionManager.getCookie()
+                    val userId = sessionManager.getUserId()
+                    val currentlyLiked = player.likedSongIds.contains(songId)
+                    scope.launch {
+                        apiService.setSongLiked(songId, !currentlyLiked, cookie, userId)
+                            .onSuccess {
+                                if (userId > 0L && cookie.isNotBlank()) {
+                                    val ids = apiService.getLikedSongIds(userId, cookie).getOrNull() ?: emptySet()
+                                    player.updateLikedSongIds(ids)
+                                }
+                            }
+                    }
+                }
             )
         }
     }
@@ -1232,7 +1247,22 @@ fun PlaybackBar(
             }
         },
         showCopyShareLink = true,
-        showRemoveFromCurrent = true
+        showRemoveFromCurrent = true,
+        isLiked = selectedTrackForMenu?.let { player.likedSongIds.contains(it.id) } ?: false,
+        onLikeToggle = { track ->
+            val cookie = sessionManager.getCookie()
+            val userId = sessionManager.getUserId()
+            val currentlyLiked = player.likedSongIds.contains(track.id)
+            scope.launch {
+                apiService.setSongLiked(track.id, !currentlyLiked, cookie, userId)
+                    .onSuccess {
+                        if (userId > 0L && cookie.isNotBlank()) {
+                            val ids = apiService.getLikedSongIds(userId, cookie).getOrNull() ?: emptySet()
+                            player.updateLikedSongIds(ids)
+                        }
+                    }
+            }
+        }
     )
 }
 

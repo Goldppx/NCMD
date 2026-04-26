@@ -234,6 +234,7 @@ fun PlaylistDetailScreen(
         emptyText = resources.getString(R.string.playlist_detail_empty),
         showLikeIndicator = true,
         isTrackLiked = { track -> uiState.likedSongIds.contains(track.id) },
+        onLikeToggle = { track -> playlistDetailViewModel.toggleSongLike(track.id) },
         onSingleRightAction = null,
         singleRightActionDescription = "",
         onLoadMore = { playlistDetailViewModel.loadMore() },

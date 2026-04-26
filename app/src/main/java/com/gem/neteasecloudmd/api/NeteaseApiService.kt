@@ -897,40 +897,18 @@ class NeteaseApiService {
         }
     }
 
-    suspend fun setSongLiked(songId: Long, like: Boolean, cookie: String): Result<Boolean> = withContext(Dispatchers.IO) {
+    @Serializable
+    private data class SongLikeParams(
+        val trackId: Long,
+        val userid: Long,
+        val like: Boolean
+    )
+
+    suspend fun setSongLiked(songId: Long, like: Boolean, cookie: String, userId: Long = 0L): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val now = System.currentTimeMillis()
-            val directLikeUrls = listOf(
-                "$BASE_URL/api/like?id=$songId&like=$like&timestamp=$now",
-                "$BASE_URL/api/song/like?id=$songId&like=$like&timestamp=$now",
-                "$BASE_URL/like?id=$songId&like=$like&timestamp=$now"
-            )
+            if (userId <= 0L) return@withContext Result.failure(Exception("Invalid userId"))
 
-            for (url in directLikeUrls) {
-                val request = Request.Builder()
-                    .url(url)
-                    .get()
-                    .header("Referer", "https://music.163.com")
-                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
-                    .header("Cookie", cookie)
-                    .build()
-
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
-                if (body.isNotEmpty()) {
-                    runCatching { json.decodeFromString<SimpleCodeResponse>(body) }
-                        .getOrNull()
-                        ?.let { result ->
-                            if (result.code == 200) return@withContext Result.success(true)
-                        }
-                }
-            }
-
-            val params = mapOf(
-                "id" to songId.toString(),
-                "like" to like.toString(),
-                "time" to "3"
-            )
+            val params = SongLikeParams(songId, userId, like)
             val jsonParams = Json.encodeToString(params)
             val encryptedParams = CryptoUtil.weapi(jsonParams)
             val encodedParams = encryptedParams["params"]
@@ -939,34 +917,30 @@ class NeteaseApiService {
                 ?.replace("=", "%3D")
             val requestBody = "params=$encodedParams&encSecKey=${encryptedParams["encSecKey"]}"
 
-            val weapiLikeUrls = listOf(
-                "$BASE_URL/weapi/song/like",
-                "$BASE_URL/weapi/like"
-            )
+            val request = Request.Builder()
+                .url("$BASE_URL/weapi/song/like")
+                .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .header("Referer", "https://music.163.com")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
+                .header("Cookie", cookie)
+                .build()
 
-            for (url in weapiLikeUrls) {
-                val request = Request.Builder()
-                    .url(url)
-                    .post(requestBody.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
-                    .header("Referer", "https://music.163.com")
-                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
-                    .header("Cookie", cookie)
-                    .build()
-
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
-                if (body.isNotEmpty()) {
-                    runCatching { json.decodeFromString<SimpleCodeResponse>(body) }
-                        .getOrNull()
-                        ?.let { result ->
-                            if (result.code == 200) return@withContext Result.success(true)
-                        }
-                }
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (body.isEmpty()) {
+                return@withContext Result.failure(Exception("Empty response"))
             }
 
-            Result.failure(Exception("Like operation failed"))
+            val result = runCatching { json.decodeFromString<SimpleCodeResponse>(body) }.getOrNull()
+                ?: return@withContext Result.failure(Exception("Failed to parse response"))
+
+            if (result.code == 200) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception(result.msg ?: result.message ?: "Like operation failed"))
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            Log.e(TAG, "setSongLiked failed", e)
             Result.failure(e)
         }
     }

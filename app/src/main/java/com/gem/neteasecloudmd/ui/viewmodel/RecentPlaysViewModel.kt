@@ -19,7 +19,8 @@ data class RecentPlaysUiState(
     val recentPlays: List<TrackItem> = emptyList(),
     val playlistsForMenu: List<PlaylistItem> = emptyList(),
     val isLoading: Boolean = true,
-    val useLocalRecentPlays: Boolean = true
+    val useLocalRecentPlays: Boolean = true,
+    val likedSongIds: Set<Long> = emptySet()
 )
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -59,13 +60,34 @@ class RecentPlaysViewModel(application: Application) : AndroidViewModel(applicat
                 apiService.getUserPlayRecord(userId, cookie, 100).getOrDefault(emptyList())
             }
 
+            val likedIds = if (userId > 0L && cookie.isNotBlank()) {
+                apiService.getLikedSongIds(userId, cookie).getOrNull() ?: emptySet()
+            } else {
+                emptySet()
+            }
+
             _uiState.update {
                 it.copy(
                     recentPlays = recentPlays,
+                    likedSongIds = likedIds,
                     isLoading = false,
                     useLocalRecentPlays = useLocal
                 )
             }
+        }
+    }
+
+    fun toggleSongLike(songId: Long) {
+        val cookie = sessionManager.getCookie()
+        val userId = sessionManager.getUserId()
+        if (cookie.isBlank() || userId <= 0L) return
+        val currentlyLiked = _uiState.value.likedSongIds.contains(songId)
+
+        viewModelScope.launch {
+            apiService.setSongLiked(songId, !currentlyLiked, cookie, userId)
+            val ids = apiService.getLikedSongIds(userId, cookie).getOrNull() ?: emptySet()
+            _uiState.update { it.copy(likedSongIds = ids) }
+            playerManager.updateLikedSongIds(ids)
         }
     }
 

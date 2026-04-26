@@ -256,4 +256,17 @@ class PlaylistDetailViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun getCookie(): String = sessionManager.getCookie()
+
+    fun toggleSongLike(songId: Long) {
+        val cookie = sessionManager.getCookie()
+        val userId = sessionManager.getUserId()
+        if (cookie.isBlank() || userId <= 0L) return
+        val currentlyLiked = _uiState.value.likedSongIds.contains(songId)
+
+        viewModelScope.launch {
+            apiService.setSongLiked(songId, !currentlyLiked, cookie, userId)
+            val ids = apiService.getLikedSongIds(userId, cookie).getOrNull() ?: emptySet()
+            _uiState.update { it.copy(likedSongIds = ids) }
+        }
+    }
 }

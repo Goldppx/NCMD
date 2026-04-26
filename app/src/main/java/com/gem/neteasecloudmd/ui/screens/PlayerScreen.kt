@@ -58,6 +58,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
 import com.gem.neteasecloudmd.R
+import com.gem.neteasecloudmd.api.ApiProvider
+import com.gem.neteasecloudmd.api.NeteaseApiService
 import com.gem.neteasecloudmd.api.PlayerManager
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.TrackItem
@@ -80,6 +82,7 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val player = rememberPlayerManager(context)
+    val apiService = remember { ApiProvider.get(context) }
     val track = player.currentTrack
     val pagerState = rememberPagerState(pageCount = { 2 })
     
@@ -120,6 +123,21 @@ fun PlayerScreen(
     var infoDisplayMode by remember { mutableIntStateOf(sessionManager.getLandscapeInfoMode()) } // 0: None, 1: Text, 2: Text + Shadow
     var selectedTrackForMenu by remember { mutableStateOf<TrackItem?>(null) }
     var playlistsForMenu by remember { mutableStateOf(emptyList<com.gem.neteasecloudmd.api.PlaylistItem>()) }
+
+    val playerCookie = sessionManager.getCookie()
+    val playerUserId = sessionManager.getUserId()
+    val onLikeToggle: (Long) -> Unit = { songId ->
+        val currentlyLiked = player.likedSongIds.contains(songId)
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val result = apiService.setSongLiked(songId, !currentlyLiked, playerCookie, playerUserId)
+            result.onSuccess {
+                if (playerUserId > 0L && playerCookie.isNotBlank()) {
+                    val ids = apiService.getLikedSongIds(playerUserId, playerCookie).getOrNull() ?: emptySet()
+                    player.updateLikedSongIds(ids)
+                }
+            }
+        }
+    }
 
     fun loadMenuPlaylists() {
         scope.launch {
@@ -269,7 +287,8 @@ fun PlayerScreen(
                                 onShowQueue = { showSideQueue = true },
                                 isLandscape = true,
                                 showOnlyInfo = true,
-                                infoDisplayMode = infoDisplayMode
+                                infoDisplayMode = infoDisplayMode,
+                                onLikeToggle = onLikeToggle
                             )
                         }
                         Box(modifier = Modifier.weight(1.2f)) {
@@ -397,7 +416,8 @@ fun PlayerScreen(
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
                             onShowQueue = { showQueueSheet = true },
-                            isLandscape = false
+                            isLandscape = false,
+                            onLikeToggle = onLikeToggle
                         )
                         1 -> PlayerLyricsPage(player, isLandscape = false)
                     }
@@ -423,16 +443,20 @@ fun PlayerScreen(
                     player = player,
                     onDismiss = { showSideQueue = false },
                     onTrackLongClick = { track -> selectedTrackForMenu = track },
+                    likedSongIds = player.likedSongIds,
+                    onLikeToggle = onLikeToggle,
                     modifier = Modifier.fillMaxSize(),
                     maxHeight = false
                 )
             }
         }
 
-        if (showQueueSheet) {
-            PlaybackQueueSheet(
-                player = player,
-                onDismiss = { showQueueSheet = false },
+    if (showQueueSheet) {
+        PlaybackQueueSheet(
+            player = player,
+            onDismiss = { showQueueSheet = false },
+            likedSongIds = player.likedSongIds,
+            onLikeToggle = onLikeToggle,
                 onTrackLongClick = { track -> selectedTrackForMenu = track }
             )
         }
@@ -469,7 +493,9 @@ fun PlayerScreen(
                 }
             },
             showCopyShareLink = true,
-            showRemoveFromCurrent = true
+            showRemoveFromCurrent = true,
+            isLiked = selectedTrackForMenu?.let { player.likedSongIds.contains(it.id) } ?: false,
+            onLikeToggle = { track -> onLikeToggle(track.id) }
         )
     }
 }
@@ -483,7 +509,8 @@ private fun PlayerMainPage(
     onShowQueue: () -> Unit,
     isLandscape: Boolean,
     showOnlyInfo: Boolean = false,
-    infoDisplayMode: Int = 2 // Default to Text + Shadow
+    infoDisplayMode: Int = 2, // Default to Text + Shadow
+    onLikeToggle: (Long) -> Unit = {}
 ) {
     val track = player.currentTrack
 
@@ -711,8 +738,14 @@ private fun PlayerMainPage(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                IconButton(onClick = { /* Favorite */ }) {
-                    Icon(Icons.Rounded.FavoriteBorder, contentDescription = "Favorite", tint = Color.White)
+                val currentTrackId = track?.id ?: 0L
+                val isCurrentLiked = currentTrackId != 0L && player.likedSongIds.contains(currentTrackId)
+                IconButton(onClick = { if (currentTrackId != 0L) onLikeToggle(currentTrackId) }) {
+                    Icon(
+                        imageVector = if (isCurrentLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        contentDescription = if (isCurrentLiked) "Liked" else "Favorite",
+                        tint = if (isCurrentLiked) MaterialTheme.colorScheme.primary else Color.White
+                    )
                 }
                 IconButton(onClick = onShowQueue) {
                     Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = "Queue", tint = Color.White)

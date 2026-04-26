@@ -77,7 +77,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val currentlyLiked = state.likedSongIds.contains(songId)
         viewModelScope.launch {
-            val result = apiService.setSongLiked(songId, !currentlyLiked, state.cookie)
+            val result = apiService.setSongLiked(songId, !currentlyLiked, state.cookie, state.userId)
             result.onSuccess {
                 val ids = apiService.getLikedSongIds(state.userId, state.cookie).getOrNull() ?: emptySet()
                 _uiState.update { it.copy(likedSongIds = ids) }

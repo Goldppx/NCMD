@@ -102,7 +102,8 @@ fun TrackCollectionScaffold(
     singleRightActionDescription: String = "",
     onLoadMore: (() -> Unit)? = null,
     isLoadingMore: Boolean = false,
-    totalTrackCount: Int = tracks.size
+    totalTrackCount: Int = tracks.size,
+    onLikeToggle: ((TrackItem) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -377,7 +378,8 @@ fun TrackCollectionScaffold(
                                     } else {
                                         onPlayTrackAt(index, track)
                                     }
-                                }
+                                },
+                                onLikeToggle = onLikeToggle
                             )
                         }
 
@@ -434,7 +436,9 @@ fun TrackCollectionScaffold(
         onCopyShareLink = onCopyShareLink,
         onRemoveFromCurrent = onRemoveSingleFromCurrent,
         showCopyShareLink = showCopyShareLinkInMenu,
-        showRemoveFromCurrent = showRemoveFromCurrentInMenu
+        showRemoveFromCurrent = showRemoveFromCurrentInMenu,
+        isLiked = selectedTrackForMenu?.let { isTrackLiked(it) } ?: false,
+        onLikeToggle = onLikeToggle
     )
 
     if (showBatchPlaylistPicker) {
@@ -551,7 +555,8 @@ private fun TrackCollectionItemCard(
     singleRightActionDescription: String,
     onToggleSelect: () -> Unit,
     onLongClick: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLikeToggle: ((TrackItem) -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -633,15 +638,29 @@ private fun TrackCollectionItemCard(
                     }
 
                     showLikeIndicator -> {
-                        Icon(
-                            imageVector = if (isTrackLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (isTrackLiked) {
-                                stringResource(R.string.playlist_detail_liked)
-                            } else {
-                                stringResource(R.string.playlist_detail_unliked)
-                            },
-                            tint = if (isTrackLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (onLikeToggle != null) {
+                            IconButton(onClick = { onLikeToggle(track) }) {
+                                Icon(
+                                    imageVector = if (isTrackLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = if (isTrackLiked) {
+                                        stringResource(R.string.playlist_detail_liked)
+                                    } else {
+                                        stringResource(R.string.playlist_detail_unliked)
+                                    },
+                                    tint = if (isTrackLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = if (isTrackLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (isTrackLiked) {
+                                    stringResource(R.string.playlist_detail_liked)
+                                } else {
+                                    stringResource(R.string.playlist_detail_unliked)
+                                },
+                                tint = if (isTrackLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

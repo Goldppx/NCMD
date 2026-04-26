@@ -42,7 +42,9 @@ fun SongLongPressMenu(
     onCopyShareLink: (TrackItem) -> Unit,
     onRemoveFromCurrent: (TrackItem) -> Unit,
     showCopyShareLink: Boolean = true,
-    showRemoveFromCurrent: Boolean = true
+    showRemoveFromCurrent: Boolean = true,
+    isLiked: Boolean = false,
+    onLikeToggle: ((TrackItem) -> Unit)? = null
 ) {
     if (track == null) return
 
@@ -100,6 +102,25 @@ fun SongLongPressMenu(
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Start
             )
+        }
+
+        if (onLikeToggle != null) {
+            TextButton(
+                onClick = {
+                    onLikeToggle(track)
+                    onDismiss()
+                },
+                contentPadding = PaddingValues(horizontal = 0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = if (isLiked) stringResource(R.string.playlist_detail_unliked) else stringResource(R.string.playlist_detail_liked),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Start
+                )
+            }
         }
 
         TextButton(

@@ -157,8 +157,9 @@ fun RecentPlaysScreen(
         },
         showCopyShareLinkInMenu = false,
         emptyText = resources.getString(R.string.recent_empty),
-        showLikeIndicator = false,
-        isTrackLiked = { false },
+        showLikeIndicator = true,
+        isTrackLiked = { track -> uiState.likedSongIds.contains(track.id) },
+        onLikeToggle = { track -> recentPlaysViewModel.toggleSongLike(track.id) },
         onSingleRightAction = { track ->
             removeLocalRecent(setOf(track.id))
         },

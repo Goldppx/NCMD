@@ -24,7 +24,9 @@ import com.gem.neteasecloudmd.api.TrackItem
 fun PlaybackQueueSheet(
     player: PlayerManager,
     onDismiss: () -> Unit,
-    onTrackLongClick: (TrackItem) -> Unit
+    onTrackLongClick: (TrackItem) -> Unit,
+    likedSongIds: Set<Long> = emptySet(),
+    onLikeToggle: ((Long) -> Unit)? = null
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -35,6 +37,8 @@ fun PlaybackQueueSheet(
             player = player,
             onDismiss = onDismiss,
             onTrackLongClick = onTrackLongClick,
+            likedSongIds = likedSongIds,
+            onLikeToggle = onLikeToggle,
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -46,6 +50,8 @@ fun PlaybackQueueContent(
     player: PlayerManager,
     onDismiss: () -> Unit,
     onTrackLongClick: (TrackItem) -> Unit,
+    likedSongIds: Set<Long> = emptySet(),
+    onLikeToggle: ((Long) -> Unit)? = null,
     modifier: Modifier = Modifier,
     maxHeight: Boolean = true
 ) {
@@ -225,6 +231,22 @@ fun PlaybackQueueContent(
                             )
                         }
 
+                        if (onLikeToggle != null) {
+                            val isLiked = likedSongIds.contains(track.id)
+                            IconButton(onClick = { onLikeToggle(track.id) }) {
+                                Icon(
+                                    imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = null,
+                                    tint = if (isLiked) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else if (isCurrent) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                        }
                         IconButton(onClick = { player.removeTrackAt(index) }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,

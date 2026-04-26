@@ -94,6 +94,13 @@ class PlayerManager private constructor(private val context: Context) {
     var volumeNormalizationEnabled by mutableStateOf(false)
         private set
 
+    var likedSongIds by mutableStateOf<Set<Long>>(emptySet())
+        private set
+
+    fun updateLikedSongIds(ids: Set<Long>) {
+        likedSongIds = ids
+    }
+
     private var prefetchedNextUrl: String? = null
     private var prefetchedTrackIndex: Int = -1
 

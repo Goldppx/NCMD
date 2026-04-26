@@ -35,6 +35,7 @@ object Toast {
 
         return AndroidToast(context).apply {
             this.duration = duration
+            @Suppress("DEPRECATION")
             view = container
         }
     }

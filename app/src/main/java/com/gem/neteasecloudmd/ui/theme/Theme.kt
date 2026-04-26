@@ -13,12 +13,10 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.materialkolor.Contrast
-import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamicColorScheme
 
 private val DarkColorScheme = darkColorScheme(
@@ -109,7 +107,6 @@ fun NeteaseCloudMDTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primaryContainer.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
@@ -169,6 +166,21 @@ private fun animateColorScheme(target: ColorScheme): ColorScheme {
     val surfaceContainerLow = animateColorAsState(target.surfaceContainerLow, animationSpec = animationSpec, label = "surfaceContainerLow").value
     val surfaceContainerLowest = animateColorAsState(target.surfaceContainerLowest, animationSpec = animationSpec, label = "surfaceContainerLowest").value
 
+    val primaryFixed = animateColorAsState(target.primaryFixed, animationSpec = animationSpec, label = "primaryFixed").value
+    val primaryFixedDim = animateColorAsState(target.primaryFixedDim, animationSpec = animationSpec, label = "primaryFixedDim").value
+    val onPrimaryFixed = animateColorAsState(target.onPrimaryFixed, animationSpec = animationSpec, label = "onPrimaryFixed").value
+    val onPrimaryFixedVariant = animateColorAsState(target.onPrimaryFixedVariant, animationSpec = animationSpec, label = "onPrimaryFixedVariant").value
+
+    val secondaryFixed = animateColorAsState(target.secondaryFixed, animationSpec = animationSpec, label = "secondaryFixed").value
+    val secondaryFixedDim = animateColorAsState(target.secondaryFixedDim, animationSpec = animationSpec, label = "secondaryFixedDim").value
+    val onSecondaryFixed = animateColorAsState(target.onSecondaryFixed, animationSpec = animationSpec, label = "onSecondaryFixed").value
+    val onSecondaryFixedVariant = animateColorAsState(target.onSecondaryFixedVariant, animationSpec = animationSpec, label = "onSecondaryFixedVariant").value
+
+    val tertiaryFixed = animateColorAsState(target.tertiaryFixed, animationSpec = animationSpec, label = "tertiaryFixed").value
+    val tertiaryFixedDim = animateColorAsState(target.tertiaryFixedDim, animationSpec = animationSpec, label = "tertiaryFixedDim").value
+    val onTertiaryFixed = animateColorAsState(target.onTertiaryFixed, animationSpec = animationSpec, label = "onTertiaryFixed").value
+    val onTertiaryFixedVariant = animateColorAsState(target.onTertiaryFixedVariant, animationSpec = animationSpec, label = "onTertiaryFixedVariant").value
+
     return ColorScheme(
         primary = primary,
         onPrimary = onPrimary,
@@ -205,6 +217,18 @@ private fun animateColorScheme(target: ColorScheme): ColorScheme {
         surfaceContainerHigh = surfaceContainerHigh,
         surfaceContainerHighest = surfaceContainerHighest,
         surfaceContainerLow = surfaceContainerLow,
-        surfaceContainerLowest = surfaceContainerLowest
+        surfaceContainerLowest = surfaceContainerLowest,
+        primaryFixed = primaryFixed,
+        primaryFixedDim = primaryFixedDim,
+        onPrimaryFixed = onPrimaryFixed,
+        onPrimaryFixedVariant = onPrimaryFixedVariant,
+        secondaryFixed = secondaryFixed,
+        secondaryFixedDim = secondaryFixedDim,
+        onSecondaryFixed = onSecondaryFixed,
+        onSecondaryFixedVariant = onSecondaryFixedVariant,
+        tertiaryFixed = tertiaryFixed,
+        tertiaryFixedDim = tertiaryFixedDim,
+        onTertiaryFixed = onTertiaryFixed,
+        onTertiaryFixedVariant = onTertiaryFixedVariant
     )
 }
