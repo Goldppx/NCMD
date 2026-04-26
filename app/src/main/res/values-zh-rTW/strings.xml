@@ -181,4 +181,10 @@
     <string name="player_now_playing">正在播放</string>
     <string name="player_lyrics">歌詞</string>
     <string name="player_no_lyrics">暫無歌詞</string>
+
+        <string name="common_more">更多</string>
+        <string name="log_share_title">分享日誌</string>
+        <string name="player_skip_previous">上一首</string>
+        <string name="player_play_pause">播放/暫停</string>
+        <string name="player_skip_next">下一首</string>
 </resources>

@@ -181,4 +181,10 @@
     <string name="player_now_playing">NOW PLAYING</string>
     <string name="player_lyrics">LYRICS</string>
     <string name="player_no_lyrics">No lyrics found</string>
+
+        <string name="common_more">More</string>
+        <string name="log_share_title">Share Logs</string>
+        <string name="player_skip_previous">Previous</string>
+        <string name="player_play_pause">Play/Pause</string>
+        <string name="player_skip_next">Next</string>
 </resources>

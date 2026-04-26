@@ -717,7 +717,7 @@ fun AboutSettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "GitHub",
+                                text = stringResource(R.string.settings_github),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

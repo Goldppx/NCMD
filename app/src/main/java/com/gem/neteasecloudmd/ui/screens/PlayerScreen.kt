@@ -218,7 +218,7 @@ fun PlayerScreen(
                             IconButton(onClick = onNavigateBack) {
                                 Icon(
                                     imageVector = Icons.Rounded.KeyboardArrowDown,
-                                    contentDescription = "Back",
+                                    contentDescription = stringResource(R.string.common_back),
                                     tint = Color.White,
                                     modifier = Modifier.size(32.dp)
                                 )
@@ -226,7 +226,7 @@ fun PlayerScreen(
                         },
                         actions = {
                             IconButton(onClick = { /* More options */ }) {
-                                Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = Color.White)
+                                Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.common_more), tint = Color.White)
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -320,7 +320,7 @@ fun PlayerScreen(
                                 // Playback Controls (Left)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(onClick = { player.previous() }) {
-                                        Icon(Icons.Rounded.SkipPrevious, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(28.dp))
+                                        Icon(Icons.Rounded.SkipPrevious, contentDescription = stringResource(R.string.player_skip_previous), tint = Color.White, modifier = Modifier.size(28.dp))
                                     }
                                     IconButton(onClick = { player.togglePlayPause() }) {
                                         if (player.isLoading) {
@@ -328,14 +328,14 @@ fun PlayerScreen(
                                         } else {
                                             Icon(
                                                 imageVector = if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                                contentDescription = "Play/Pause",
+                                                contentDescription = stringResource(R.string.player_play_pause),
                                                 tint = Color.White,
                                                 modifier = Modifier.size(36.dp)
                                             )
                                         }
                                     }
                                     IconButton(onClick = { player.next() }) {
-                                        Icon(Icons.Rounded.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(28.dp))
+                                        Icon(Icons.Rounded.SkipNext, contentDescription = stringResource(R.string.player_skip_next), tint = Color.White, modifier = Modifier.size(28.dp))
                                     }
                                 }
                                 
@@ -371,7 +371,7 @@ fun PlayerScreen(
                                 // Extra Actions (Right)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(onClick = { showSideQueue = true }) {
-                                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = "Queue", tint = Color.White)
+                                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = stringResource(R.string.main_queue_title), tint = Color.White)
                                     }
                                 }
                             }
@@ -394,13 +394,13 @@ fun PlayerScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.common_back),
                                 tint = Color.White,
                                 modifier = Modifier.size(32.dp)
                             )
                         }
                         IconButton(onClick = { /* More */ }) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = Color.White)
+                            Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.common_more), tint = Color.White)
                         }
                     }
                 }
@@ -695,7 +695,7 @@ private fun PlayerMainPage(
                     IconButton(onClick = { player.previous() }) {
                         Icon(
                             Icons.Rounded.SkipPrevious,
-                            contentDescription = "Previous",
+                            contentDescription = stringResource(R.string.player_skip_previous),
                             tint = Color.White,
                             modifier = Modifier.size(if (isLandscape) 28.dp else 48.dp)
                         )
@@ -714,7 +714,7 @@ private fun PlayerMainPage(
                         } else {
                             Icon(
                                 imageVector = if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                contentDescription = "Play/Pause",
+                                contentDescription = stringResource(R.string.player_play_pause),
                                 tint = Color.White,
                                 modifier = Modifier.size(if (isLandscape) 32.dp else 56.dp)
                             )
@@ -724,7 +724,7 @@ private fun PlayerMainPage(
                     IconButton(onClick = { player.next() }) {
                         Icon(
                             Icons.Rounded.SkipNext,
-                            contentDescription = "Next",
+                            contentDescription = stringResource(R.string.player_skip_next),
                             tint = Color.White,
                             modifier = Modifier.size(if (isLandscape) 28.dp else 48.dp)
                         )
@@ -744,12 +744,12 @@ private fun PlayerMainPage(
                 IconButton(onClick = { if (currentTrackId != 0L) onLikeToggle(currentTrackId) }) {
                     Icon(
                         imageVector = if (isCurrentLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = if (isCurrentLiked) "Liked" else "Favorite",
+                        contentDescription = if (isCurrentLiked) stringResource(R.string.playlist_detail_liked) else stringResource(R.string.playlist_detail_unliked),
                         tint = if (isCurrentLiked) MaterialTheme.colorScheme.primary else Color.White
                     )
                 }
                 IconButton(onClick = onShowQueue) {
-                    Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = "Queue", tint = Color.White)
+                    Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = stringResource(R.string.main_queue_title), tint = Color.White)
                 }
             }
         }
