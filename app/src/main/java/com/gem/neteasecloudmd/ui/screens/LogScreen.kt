@@ -29,7 +29,8 @@ import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.utils.LogLevel
 import com.gem.neteasecloudmd.utils.Logger
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
