@@ -70,6 +70,7 @@ import com.gem.neteasecloudmd.ui.components.SongLongPressMenu
 import com.gem.neteasecloudmd.ui.viewmodel.MainViewModel
 import com.gem.neteasecloudmd.utils.LyricParser
 import com.gem.neteasecloudmd.utils.LyricLine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -128,7 +129,7 @@ fun PlayerScreen(
     val playerUserId = sessionManager.getUserId()
     val onLikeToggle: (Long) -> Unit = { songId ->
         val currentlyLiked = player.likedSongIds.contains(songId)
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        scope.launch(Dispatchers.IO) {
             val result = apiService.setSongLiked(songId, !currentlyLiked, playerCookie, playerUserId)
             result.onSuccess {
                 if (playerUserId > 0L && playerCookie.isNotBlank()) {
@@ -826,7 +827,7 @@ private fun PlayerLyricsPage(player: PlayerManager, isLandscape: Boolean) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                player.seekTo(line.time.toInt())
+                                player.seekTo(line.time.toInt().coerceIn(0, Int.MAX_VALUE))
                             }
                     )
                 }

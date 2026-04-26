@@ -15,7 +15,7 @@ object SleepTimerPolicy {
 
     fun remainingMinutesCeil(remainingMs: Long): Int {
         if (remainingMs <= 0L) return 0
-        return ((remainingMs + 59_999L) / 60_000L).toInt()
+        return ((remainingMs + 59_999L) / 60_000L).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
     }
 
     fun shouldStopAtQueueEnd(currentTrackIndex: Int, queueSize: Int): Boolean {
