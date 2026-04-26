@@ -6,17 +6,13 @@
     <string name="common_search">搜索</string>
     <string name="common_settings">设置</string>
     <string name="common_login">登录</string>
-    <string name="common_expand">展开</string>
-    <string name="common_collapse">折叠</string>
-    <string name="common_refresh">刷新</string>
+    <string name="common_expand">展开</string>    <string name="common_refresh">刷新</string>
     <string name="common_play">播放</string>
     <string name="common_pause">暂停</string>
     <string name="common_delete">删除</string>
     <string name="common_request_timeout">请求超时</string>
     <string name="common_error_with_prefix">错误: %1$s</string>
     <string name="common_load_failed">加载失败</string>
-    <string name="common_unknown_error">未知错误</string>
-
     <string name="main_login_required">请先登录</string>
     <string name="main_recent_plays">最近播放</string>
     <string name="main_my_playlists">我的歌单</string>
@@ -116,30 +112,11 @@
     <string name="search_song_tab">单曲</string>
     <string name="search_playlist_tab">歌单</string>
     <string name="search_album_tab">专辑</string>
-
-    <string name="search_detail_load_failed">加载失败: %1$s</string>
-    <string name="search_detail_empty">暂无歌曲</string>
-    <string name="search_detail_start_play_all">开始播放全部 %1$d 首</string>
-
-    <string name="settings_title">设置</string>
-    <string name="settings_section_account">账号</string>
-    <string name="settings_section_ui">界面</string>
-    <string name="settings_section_feature">功能</string>
-    <string name="settings_section_debug">调试</string>
-    <string name="settings_copy_cookie">复制 Cookie</string>
-    <string name="settings_logout">退出登录</string>
+    <string name="settings_title">设置</string>    <string name="settings_section_ui">界面</string>    <string name="settings_logout">退出登录</string>
     <string name="settings_theme_light">浅色模式</string>
     <string name="settings_theme_dark">深色模式</string>
-    <string name="settings_theme_system">跟随系统</string>
-    <string name="settings_use_local_recent">使用本地最近播放记录</string>
-    <string name="settings_enable_cover_palette">启用歌曲封面取色</string>
-    <string name="settings_disable_cover_overflow">禁用封面超出控制栏</string>
-    <string name="settings_no_cookie">当前没有可复制的 Cookie</string>
-    <string name="settings_cookie_copied">Cookie 已复制</string>
-    <string name="settings_logged_out">已退出登录</string>
-    <string name="settings_cookie_key">cookie</string>
-    <string name="settings_cookie_length">Cookie 长度: %1$d</string>
-    <string name="settings_language">语言</string>
+    <string name="settings_theme_system">跟随系统</string>    <string name="settings_enable_cover_palette">启用歌曲封面取色</string>
+    <string name="settings_disable_cover_overflow">禁用封面超出控制栏</string>    <string name="settings_logged_out">已退出登录</string>    <string name="settings_language">语言</string>
     <string name="settings_language_system">跟随系统</string>
     <string name="settings_language_zh_cn">简体中文</string>
     <string name="settings_language_zh_tw">繁体中文</string>
@@ -175,8 +152,6 @@
     <string name="log_clear">清空</string>
 
     <string name="nav_default_playlist_name">歌单</string>
-    <string name="nav_default_detail_name">详情</string>
-
     <string name="player_error_playback">播放错误: %1$s</string>
     <string name="player_error_not_logged_in">未登录或Cookie失效</string>
     <string name="player_error_url_failed">获取播放链接失败: %1$s</string>
