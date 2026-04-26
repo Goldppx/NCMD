@@ -2,7 +2,7 @@
 
 > 上次更新: 2026-04-26
 > 原始 38 项问题 + 本轮新发现 **14 项** = 总计 **52 项**
-> 已修复: **28 项** | 剩余: **24 项**
+> 已修复: **40 项** | 剩余: **12 项**
 
 ## 修复优先级说明
 
@@ -76,7 +76,7 @@
 - [x] **M14** `SleepTimerPolicy.kt:18` — `remainingMs.toInt()` 溢出
   - 虽然实际值通常较小，但理论上有溢出风险
   - 修复：用 `coerceIn` 或 `toIntSafe()`
-- [ ] **M15** `PlayerScreen.kt` — 14 处硬编码英文 `contentDescription` 未本地化
+- [x] **M15** `PlayerScreen.kt` — 14 处硬编码英文 `contentDescription` 未本地化
   - 行号：220, 228, 322, 330, 337, 373, 396, 402, 697, 716, 726, 746, 751
   - 修复：提取到 string resources
 - [ ] **M16** `LoginScreen.kt` — 全部登录业务在 Composable 中（原 Q4 升级）
@@ -85,10 +85,10 @@
 - [ ] **M17** `MainScreen.kt:834,1189,1220,1256` + `PlayerScreen.kt:143,480` — 6 处 `scope.launch` 在 Composable 中直接调用网络 API
   - `rememberCoroutineScope()` 只能跟随 composable 生命周期，不跟随 Activity
   - 修复：提取到 ViewModel 或至少用生命周期感知方式
-- [ ] **M18** `NeteaseApiService.kt` 多处 — 仍混用 `Log` 和 `Logger`
+- [x] **M18** `NeteaseApiService.kt` 多处 — 仍混用 `Log` 和 `Logger`
   - 方法内大量使用 `Log.d(TAG, ...)` 而非 `Logger.d(TAG, ...)`
   - 修复：统一到 `Logger`
-- [ ] **M19** `NeteaseApiService.kt:318` — `Log.d(TAG, "Cookie length: ${cookie.length}")`
+- [x] **M19** `NeteaseApiService.kt:318` — `Log.d(TAG, "Cookie length: ${cookie.length}")`
   - 虽然只打长度，但也属于信息泄露（攻击者可据此判断 cookie 格式）
   - 修复：移除或加 `BuildConfig.DEBUG` 守卫
 
@@ -113,14 +113,15 @@
 - [x] **Q10** `PlayerManager.kt` — `managerScope.coroutineContext.cancel()` 应改为 `managerScope.cancel()`
 
 ### 待修复
-- [ ] **Q1** 7 个文件（22 处） — 通配符 import
+- [x] **Q1(partial)** Logger.kt + LogScreen.kt java.util.* 已修
+  - [ ] **Q1(remaining)** 5 个文件（20 处） — 通配符 import（layout.*, material3.*, runtime.* 等）
   - 涉及：`LoginScreen.kt`, `LogScreen.kt`, `MainScreen.kt`, `PlayerScreen.kt`, `PlaybackQueueSheet.kt`, `PlaylistListScreen.kt`, `Logger.kt`
 - [x] **Q2** `Color.kt:5-11` — 6 个未使用颜色常量（Purple80/Pink40 等模板遗留）
 - [x] **Q3** `Type.kt:18-33` — 注释掉的模板代码
 - [ ] **Q5** `Theme.kt` — `animateColorScheme` 过于冗长（~80行样板代码）
 - [ ] **Q6** `PlayerManager.kt` — 状态暴露过宽（`mutableStateOf` + `internal get`）
-- [ ] **Q7** `App.kt:39-40` — `themeMode`/`languageMode` 用 `mutableIntStateOf` 不与 SessionManager 同步
-- [ ] **Q8** `NavGraph.kt` — 导航缺少 `launchSingleTop`
+- [x] **Q7** `App.kt:39-40` — `themeMode`/`languageMode` 用 `mutableIntStateOf` 不与 SessionManager 同步
+- [x] **Q8** `NavGraph.kt` — 导航缺少 `launchSingleTop`
 - [ ] **Q9** `NeteaseApiService.kt` — 大量重复代码（parameter encoding — 部分已用 `buildWeapiBody` 缓解）
 - [ ] **Q11** `CurrentPlaylistDao.kt:21` — `updatePosition` SQL 使用表达式赋值
 - [x] **Q12** `PlayerManager.kt` — `managerScope.launch(IO)` 无错误处理
@@ -133,20 +134,18 @@
     `settings_copy_cookie`, `settings_no_cookie`, `settings_section_account`,
     `settings_section_debug`, `settings_section_feature`, `settings_use_local_recent`
   - 处理：清理或标记待废弃
-- [ ] **Q14** 7 个文件（14 处） — 使用 `mutableIntStateOf`（实验性 API）
-  - 涉及：`PlayerManager.kt`(4), `MainScreen.kt`(2), `SubSettingsScreens.kt`(4), `App.kt`(2), `PlayerScreen.kt`(1)
-  - 虽当前可用，但非 stable API，可能在未来版本变更
-- [ ] **Q15** `SubSettingsScreens.kt:720` — 硬编码 `"GitHub"`（品牌名，可接受但建议抽离）
+- [x] **Q14** 全部 5 文件 13 处 `mutableIntStateOf` → `mutableStateOf`
+- [x] **Q15** `SubSettingsScreens.kt:720` — 硬编码 `"GitHub"`（品牌名，可接受但建议抽离）
 - [ ] **Q16** `PlayerManager.kt` — `@OptIn(UnstableApi::class)` 未解释具体原因
-- [ ] **Q17** `LogScreen.kt:106` — 硬编码 `"Share Logs"` 未本地化
-- [ ] **Q18** 大量 composable 硬编码英文 contentDescription（已在 M15 中覆盖）
+- [x] **Q17** `LogScreen.kt:106` — 硬编码 `"Share Logs"` 未本地化
+- [x] **Q18** 大量 composable 硬编码英文 contentDescription（已在 M15 中覆盖）
 
 ---
 
 ## ⚪ Architecture（7项 — 新增3）
 
 ### 待处理
-- [ ] **A1** `ApiProvider.kt` — `@Suppress("UNUSED_PARAMETER")` 表明 context 参数多余
+- [x] **A1** `ApiProvider.kt` — `@Suppress("UNUSED_PARAMETER")` 表明 context 参数多余
 - [ ] **A2** `PlayerManager` — 职责过重（播放+状态+通知+持久化+歌单管理）
 - [ ] **A3** `MainViewModel.loadHomeData()` — 用 `AtomicInteger` 手动计数并发请求
 - [ ] **A4** 5 个 ViewModel 用 `AndroidViewModel` 仅为了 `getApplication()`
