@@ -2,7 +2,7 @@
 
 > 上次更新: 2026-04-26
 > 原始 38 项 + 新发现 14 项 = 总计 52 项
-> 已修复: **44 项** | 无需修复: **2 项** | 剩余待评估: **6 项**
+> 已修复: **45 项** | 无需修复: **2 项** | 剩余待评估: **5 项**
 
 ## 已修复（44项）
 
@@ -19,7 +19,7 @@
 
 ## 待评估
 
-- **Q1(remaining)** 2 文件（MainScreen, PlayerScreen）Compose 通配符 import
+- **Q1** 全部 7 文件 22 处通配符 import 已扩展为具体 import
 - **A4** 5 个 ViewModel 用 AndroidViewModel（均合法需要 Context）
 - **A8** SessionManager 15+ 实例（SharedPreferences 底层单例，无实际影响）
 - **A9** 4 个 composable 超过 300 行（设计模式取舍）
