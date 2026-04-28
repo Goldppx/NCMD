@@ -15,6 +15,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -59,11 +61,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -1239,18 +1243,18 @@ fun PlaybackBar(
         playlists = playlistsForMenu,
         onDismiss = { selectedTrackForMenu = null },
         onRequestLoadPlaylists = { loadMenuPlaylists() },
-        onPlayTrack = { track ->
+        onPlayTrack = { track: com.gem.neteasecloudmd.api.TrackItem ->
             val index = player.currentPlaylist.indexOfFirst { it.id == track.id }
             if (index >= 0) {
                 player.seekToTrack(index)
                 player.play()
             }
         },
-        onAddToQueue = { track ->
+        onAddToQueue = { track: com.gem.neteasecloudmd.api.TrackItem ->
             player.appendToQueue(listOf(track))
             Toast.makeText(context, context.getString(R.string.song_menu_queue_success), Toast.LENGTH_SHORT).show()
         },
-        onAddToPlaylist = { trackId, playlistId ->
+        onAddToPlaylist = { trackId: Long, playlistId: Long ->
             scope.launch {
                 val cookie = sessionManager.getCookie()
                 val result = apiService.addTrackToPlaylist(playlistId, trackId, cookie)
@@ -1268,13 +1272,13 @@ fun PlaybackBar(
                 )
             }
         },
-        onCopyShareLink = { track ->
+        onCopyShareLink = { track: com.gem.neteasecloudmd.api.TrackItem ->
             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             val link = "https://music.163.com/#/song?id=${track.id}"
             clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.common_search), link))
             Toast.makeText(context, context.getString(R.string.song_menu_share_link_copied), Toast.LENGTH_SHORT).show()
         },
-        onRemoveFromCurrent = { track ->
+        onRemoveFromCurrent = { track: com.gem.neteasecloudmd.api.TrackItem ->
             val index = player.currentPlaylist.indexOfFirst { it.id == track.id }
             if (index >= 0) {
                 player.removeTrackAt(index)
@@ -1283,7 +1287,7 @@ fun PlaybackBar(
         showCopyShareLink = true,
         showRemoveFromCurrent = true,
         isLiked = selectedTrackForMenu?.let { player.likedSongIds.contains(it.id) } ?: false,
-        onLikeToggle = { track ->
+        onLikeToggle = { track: com.gem.neteasecloudmd.api.TrackItem ->
             val cookie = sessionManager.getCookie()
             val userId = sessionManager.getUserId()
             val currentlyLiked = player.likedSongIds.contains(track.id)
