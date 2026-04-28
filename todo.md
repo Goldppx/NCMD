@@ -19,7 +19,7 @@
 
 ## 待评估
 
-- **Q1(remaining)** 5 文件 20 处 Compose 通配符 import（layout.*, material3.*, runtime.*）
+- **Q1(remaining)** 2 文件（MainScreen, PlayerScreen）Compose 通配符 import
 - **A4** 5 个 ViewModel 用 AndroidViewModel（均合法需要 Context）
 - **A8** SessionManager 15+ 实例（SharedPreferences 底层单例，无实际影响）
 - **A9** 4 个 composable 超过 300 行（设计模式取舍）
