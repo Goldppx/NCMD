@@ -23,7 +23,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
-import androidx.core.content.ContextCompat
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.data.local.AppDatabase
 import com.gem.neteasecloudmd.data.repository.MusicRepository

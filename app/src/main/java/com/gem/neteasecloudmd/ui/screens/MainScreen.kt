@@ -14,7 +14,6 @@ import com.gem.neteasecloudmd.ui.components.PlaybackQueueSheet
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,13 +23,8 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Radio
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -40,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -61,15 +54,12 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.media3.common.util.UnstableApi
 import androidx.palette.graphics.Palette
 import com.gem.neteasecloudmd.R
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import com.gem.neteasecloudmd.ui.components.SongLongPressMenu
 import com.gem.neteasecloudmd.api.PlaylistItem
 import com.gem.neteasecloudmd.api.SleepTimerPolicy
 import com.gem.neteasecloudmd.api.TrackItem
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.utils.Logger
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
