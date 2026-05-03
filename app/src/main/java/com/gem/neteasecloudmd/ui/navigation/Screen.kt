@@ -1,13 +1,13 @@
 package com.gem.neteasecloudmd.ui.navigation
 
-import android.net.Uri
+import java.net.URLEncoder
 
 sealed class Screen(val route: String) {
     data object Login : Screen("login")
     data object Main : Screen("main")
     data object PlaylistDetail : Screen("collection/{type}/{playlistId}/{playlistName}") {
         fun createRoute(type: String, playlistId: Long, playlistName: String) =
-            "collection/$type/$playlistId/${Uri.encode(playlistName)}"
+            "collection/$type/$playlistId/${URLEncoder.encode(playlistName, "UTF-8").replace("+", "%20")}"
     }
     data object PlaylistList : Screen("playlist_list")
     data object RecentPlays : Screen("recent_plays")

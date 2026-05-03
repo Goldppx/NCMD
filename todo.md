@@ -2,7 +2,7 @@
 
 > 上次更新: 2026-04-28
 > 原始 38 项 + 新发现 14 项 = 总计 **52 项**
-> 已修复: **46 项** | 无需修复: **2 项** | 剩余待评估: **4 项**
+> 已修复: **47 项** | 无需修复: **2 项** | 剩余待评估: **3 项**
 > 编译状态: ✅ **0 错误, 0 警告**
 
 ## 修复统计
@@ -13,7 +13,7 @@
 | 🟠 Major | 19 | 17 | 2 (M5, M16) | 0 |
 | 🟡 Deprecation | 4 | 4 | 0 | 0 |
 | 🔵 Code Quality | 18 | 18 | 0 | 0 |
-| ⚪ Architecture | 10 | 3 | 0 | 7 (含A2/A4-A10) |
+| ⚪ Architecture | 10 | 4 | 0 | 6 |
 
 ## 已修复 ✅
 
@@ -48,8 +48,10 @@
 - Q14: mutableIntStateOf→mutableStateOf
 - Q15-Q18: GitHub硬编码、UnstableApi、本地化、contentDescription
 
-### ⚪ Architecture (3/10)
+### ⚪ Architecture (4/10)
 - A1: ApiProvider UNUSED_PARAMETER
+- A7: **新增 46 个单元测试**（LyricParser 17 + Screen 16 + LogEntry 13）
+- Screen: **用 java.net.URLEncoder 替代 android.net.Uri** 消除 Android SDK 依赖
 - A3: AtomicInteger→async/awaitAll
 
 ## 无需修复
@@ -63,7 +65,7 @@
 - **A4** 5 个 ViewModel 用 AndroidViewModel（均合法需要 Context）
 - **A5** `NeteaseApiService` 在 ViewModel/Composable 中多处创建
 - **A6** `PlaylistDetailScreen.kt` — 大量 lambda 回调传递
-- **A7** 测试覆盖率极低（仅 2 个模板测试）
+- **A7** 测试覆盖率（已新增 46 个测试，覆盖 LyricParser / Screen / LogEntry / LogLevel）
 - **A8** SessionManager 15+ 实例（SharedPreferences 底层单例，无实际影响）
 - **A9** 4 个 composable 超过 300 行（设计模式取舍）
 - **A10** composable 中 scope.launch 网络请求（部分在 M17 已修）
