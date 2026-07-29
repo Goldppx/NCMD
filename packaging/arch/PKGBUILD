@@ -16,6 +16,7 @@ depends=(
   'libxi'
   'libxrender'
   'libxtst'
+  'wayland'
   'xdg-utils'
 )
 options=('!strip')

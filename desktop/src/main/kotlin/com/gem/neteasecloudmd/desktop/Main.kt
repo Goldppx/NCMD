@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import com.gem.neteasecloudmd.core.library.LibraryDestination
 import com.gem.neteasecloudmd.core.library.LibraryStore
 import com.gem.neteasecloudmd.core.library.LibraryUiState
@@ -75,10 +76,13 @@ import java.io.File
 import java.net.URI
 import javax.imageio.ImageIO
 
-fun main() = application {
+fun main() {
+    DesktopRuntime.configure()
+    application {
     Window(
         onCloseRequest = ::exitApplication,
-        title = "NCMD Desktop"
+        title = "NCMD Desktop",
+        state = rememberWindowState(width = 1_160.dp, height = 760.dp)
     ) {
         MaterialTheme {
             Surface(modifier = Modifier.fillMaxSize()) {
@@ -106,6 +110,7 @@ fun main() = application {
             }
         }
     }
+}
 }
 
 @Composable
