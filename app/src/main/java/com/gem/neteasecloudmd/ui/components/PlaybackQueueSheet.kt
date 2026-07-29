@@ -42,12 +42,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.util.UnstableApi
 import com.gem.neteasecloudmd.R
 import com.gem.neteasecloudmd.api.PlayerManager
 import com.gem.neteasecloudmd.api.PlayMode
 import com.gem.neteasecloudmd.api.TrackItem
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, UnstableApi::class)
 @Composable
 fun PlaybackQueueSheet(
     player: PlayerManager,
@@ -72,7 +73,7 @@ fun PlaybackQueueSheet(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, UnstableApi::class)
 @Composable
 fun PlaybackQueueContent(
     player: PlayerManager,

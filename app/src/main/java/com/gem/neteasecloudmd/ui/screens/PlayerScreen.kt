@@ -96,6 +96,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -139,6 +140,7 @@ fun PlayerScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val player = rememberPlayerManager(context)
     val apiService = remember { ApiProvider.get() }
     val track = player.currentTrack
@@ -552,7 +554,7 @@ fun PlayerScreen(
                 scope.launch {
                     mainViewModel.apiService.addTrackToPlaylist(playlistId, trackId, uiState.cookie)
                         .onSuccess {
-                            Toast.makeText(context, context.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
                         }
                         .onFailure { e ->
                             Logger.e("PlayerScreen", "Failed to add to playlist: ${e.message}")
@@ -578,6 +580,7 @@ fun PlayerScreen(
     }
 }
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun PlayerMainPage(
@@ -833,6 +836,7 @@ private fun PlayerMainPage(
     }
 }
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 private fun PlayerLyricsPage(player: PlayerManager, isLandscape: Boolean) {
     val lyrics = player.currentLyric

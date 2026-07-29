@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
@@ -69,6 +70,7 @@ fun LogScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val logs by Logger.logs.collectAsStateWithLifecycle()
     var filterLevel by remember { mutableStateOf<LogLevel?>(null) }
     var filterMenuExpanded by remember { mutableStateOf(false) }
@@ -135,7 +137,7 @@ fun LogScreen(
                                 putExtra(Intent.EXTRA_STREAM, uri)
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
-                            context.startActivity(Intent.createChooser(intent, context.getString(R.string.log_share_title)))
+                            context.startActivity(Intent.createChooser(intent, resources.getString(R.string.log_share_title)))
                         }
                     }) {
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.log_share))

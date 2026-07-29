@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -217,6 +218,7 @@ private fun SelectionAlertDialog(
 // region Playback Settings
 
 @Composable
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 fun PlaybackSettingsScreen(
     onNavigateBack: () -> Unit
 ) {
@@ -364,6 +366,7 @@ fun DisplaySettingsScreen(
     onLanguageModeChanged: (Int) -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val sessionManager = remember { SessionManager(context) }
 
     var themeMode by remember { mutableStateOf(sessionManager.getThemeMode()) }
@@ -480,7 +483,7 @@ fun DisplaySettingsScreen(
                 if (changed) {
                     Toast.makeText(
                         context,
-                        context.getString(R.string.settings_language_switched_toast),
+                        resources.getString(R.string.settings_language_switched_toast),
                         Toast.LENGTH_SHORT
                     ).show()
                     (context as? Activity)?.recreate()
@@ -499,7 +502,8 @@ fun AccountSettingsScreen(
     onNavigateBack: () -> Unit,
     onLoggedOut: () -> Unit
 ) {
-            val context = LocalContext.current
+    val context = LocalContext.current
+    val resources = LocalResources.current
     val sessionManager = remember { SessionManager(context) }
     val isLoggedIn = sessionManager.isLoggedIn()
     val nickname = sessionManager.getNickname()
@@ -617,7 +621,7 @@ fun AccountSettingsScreen(
                         onClick = {
                             Logger.i("Settings", "User logged out")
                             sessionManager.logout()
-                            Toast.makeText(context, context.getString(R.string.settings_logged_out), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(R.string.settings_logged_out), Toast.LENGTH_SHORT).show()
                             onLoggedOut()
                         },
                         modifier = Modifier

@@ -853,6 +853,7 @@ fun PlaybackBar(
     if (!showPlayBar) return
 
     val context = LocalContext.current
+    val resources = LocalResources.current
     val sessionManager = remember { SessionManager(context) }
     val player = rememberPlayerManager(context)
     val scope = rememberCoroutineScope()
@@ -1258,7 +1259,7 @@ fun PlaybackBar(
         },
         onAddToQueue = { track: com.gem.neteasecloudmd.api.TrackItem ->
             player.appendToQueue(listOf(track))
-            Toast.makeText(context, context.getString(R.string.song_menu_queue_success), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, resources.getString(R.string.song_menu_queue_success), Toast.LENGTH_SHORT).show()
         },
         onAddToPlaylist = { trackId: Long, playlistId: Long ->
             scope.launch {
@@ -1266,12 +1267,12 @@ fun PlaybackBar(
                 val result = apiService.addTrackToPlaylist(playlistId, trackId, cookie)
                 result.fold(
                     onSuccess = {
-                        Toast.makeText(context, context.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, resources.getString(R.string.song_menu_add_success), Toast.LENGTH_SHORT).show()
                     },
                     onFailure = { e ->
                         Toast.makeText(
                             context,
-                            context.getString(R.string.song_menu_add_failed, e.message ?: ""),
+                            resources.getString(R.string.song_menu_add_failed, e.message ?: ""),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -1281,8 +1282,8 @@ fun PlaybackBar(
         onCopyShareLink = { track: com.gem.neteasecloudmd.api.TrackItem ->
             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             val link = "https://music.163.com/#/song?id=${track.id}"
-            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.common_search), link))
-            Toast.makeText(context, context.getString(R.string.song_menu_share_link_copied), Toast.LENGTH_SHORT).show()
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(resources.getString(R.string.common_search), link))
+            Toast.makeText(context, resources.getString(R.string.song_menu_share_link_copied), Toast.LENGTH_SHORT).show()
         },
         onRemoveFromCurrent = { track: com.gem.neteasecloudmd.api.TrackItem ->
             val index = player.currentPlaylist.indexOfFirst { it.id == track.id }
