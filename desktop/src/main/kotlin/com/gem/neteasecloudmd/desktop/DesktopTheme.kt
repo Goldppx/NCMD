@@ -1,8 +1,5 @@
 package com.gem.neteasecloudmd.desktop
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -38,37 +35,7 @@ fun DesktopTheme(artworkUri: String?, darkTheme: Boolean, content: @Composable (
         lightColorScheme()
     }
 
-    MaterialTheme(colorScheme = animateDesktopColorScheme(targetScheme), content = content)
-}
-
-@Composable
-private fun animateDesktopColorScheme(target: ColorScheme): ColorScheme {
-    val animation = tween<Color>(durationMillis = COLOR_TRANSITION_MS)
-    val primary by animateColorAsState(target.primary, animation, label = "desktopPrimary")
-    val primaryContainer by animateColorAsState(target.primaryContainer, animation, label = "desktopPrimaryContainer")
-    val secondaryContainer by animateColorAsState(target.secondaryContainer, animation, label = "desktopSecondaryContainer")
-    val tertiaryContainer by animateColorAsState(target.tertiaryContainer, animation, label = "desktopTertiaryContainer")
-    val surface by animateColorAsState(target.surface, animation, label = "desktopSurface")
-    val surfaceContainerLow by animateColorAsState(
-        target.surfaceContainerLow,
-        animation,
-        label = "desktopSurfaceLow"
-    )
-    val surfaceContainerHigh by animateColorAsState(
-        target.surfaceContainerHigh,
-        animation,
-        label = "desktopSurfaceHigh"
-    )
-
-    return target.copy(
-        primary = primary,
-        primaryContainer = primaryContainer,
-        secondaryContainer = secondaryContainer,
-        tertiaryContainer = tertiaryContainer,
-        surface = surface,
-        surfaceContainerLow = surfaceContainerLow,
-        surfaceContainerHigh = surfaceContainerHigh
-    )
+    MaterialTheme(colorScheme = targetScheme, content = content)
 }
 
 private object DesktopArtworkColorExtractor {
@@ -143,5 +110,3 @@ private object DesktopArtworkColorExtractor {
     private const val RED_BUCKET_SHIFT = 10
     private const val GREEN_BUCKET_SHIFT = 5
 }
-
-private const val COLOR_TRANSITION_MS = 550

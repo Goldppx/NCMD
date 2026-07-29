@@ -1,6 +1,7 @@
 package com.gem.neteasecloudmd.desktop
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
@@ -55,7 +58,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,8 +65,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -117,22 +122,42 @@ fun main() {
             }
             val state by store.state.collectAsState()
             val systemDark = isSystemInDarkTheme()
-            var darkTheme by remember { mutableStateOf(systemDark) }
-            var themeTransitionGeneration by remember { mutableIntStateOf(0) }
-            DesktopTheme(artworkUri = state.playback.currentTrack?.albumPicUrl, darkTheme = darkTheme) {
-                Surface(modifier = Modifier.fillMaxSize()) {
+            var appliedDarkTheme by remember { mutableStateOf(systemDark) }
+            var themeTransition by remember { mutableStateOf<ThemeTransition?>(null) }
+            var nextThemeTransitionId by remember { mutableStateOf(0L) }
+            val themeScope = rememberCoroutineScope()
+            DesktopTheme(artworkUri = state.playback.currentTrack?.albumPicUrl, darkTheme = appliedDarkTheme) {
+                Box(modifier = Modifier.fillMaxSize()) {
                     DesktopApp(
                         state = state,
                         store = store,
                         library = library,
                         player = player,
-                        darkTheme = darkTheme,
-                        themeTransitionGeneration = themeTransitionGeneration,
-                        onToggleTheme = {
-                            darkTheme = !darkTheme
-                            themeTransitionGeneration += 1
+                        darkTheme = appliedDarkTheme,
+                        onToggleTheme = { fromColor ->
+                            if (themeTransition == null) {
+                                val targetDarkTheme = !appliedDarkTheme
+                                val transition = ThemeTransition(
+                                    id = nextThemeTransitionId,
+                                    targetDarkTheme = targetDarkTheme,
+                                    phase = ThemeTransitionPhase.COVERING,
+                                    fromColor = fromColor
+                                )
+                                nextThemeTransitionId += 1L
+                                themeTransition = transition
+                                themeScope.launch {
+                                    kotlinx.coroutines.delay(THEME_COVER_DURATION_MS.toLong())
+                                    appliedDarkTheme = targetDarkTheme
+                                    themeTransition = transition.copy(phase = ThemeTransitionPhase.SWAPPING)
+                                    kotlinx.coroutines.delay(THEME_COLOR_SWAP_DURATION_MS.toLong())
+                                    themeTransition = transition.copy(phase = ThemeTransitionPhase.REVEALING)
+                                    kotlinx.coroutines.delay(THEME_REVEAL_DURATION_MS.toLong())
+                                    themeTransition = null
+                                }
+                            }
                         }
                     )
+                    ThemeTransitionOverlay(themeTransition)
                 }
             }
         }
@@ -147,10 +172,10 @@ private fun DesktopApp(
     library: DesktopLocalLibrary,
     player: DesktopPlaybackEngine,
     darkTheme: Boolean,
-    themeTransitionGeneration: Int,
-    onToggleTheme: () -> Unit
+    onToggleTheme: (Color) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val themeSurface = MaterialTheme.colorScheme.surface
     var statusMessage by remember { mutableStateOf("Import local music to start your desktop library.") }
 
     fun importEntries(entries: List<java.nio.file.Path>) {
@@ -177,8 +202,7 @@ private fun DesktopApp(
             }
         },
         topBar = {
-            ThemeWaveElement(themeTransitionGeneration, delayMillis = TOP_BAR_THEME_DELAY_MS) {
-                TopAppBar(
+            TopAppBar(
                     title = {
                         Column {
                             Text("NCMD")
@@ -199,12 +223,10 @@ private fun DesktopApp(
                             Text("Add folder")
                         }
                     }
-                )
-            }
+            )
         },
         bottomBar = {
-            ThemeWaveElement(themeTransitionGeneration, delayMillis = PLAYER_THEME_DELAY_MS) {
-                DesktopPlayerBar(
+            DesktopPlayerBar(
                     state = state,
                     onTogglePlayback = {
                         state.playback.currentTrack?.let { track ->
@@ -214,8 +236,7 @@ private fun DesktopApp(
                     onPrevious = { store.selectPreviousTrack()?.let(player::play) },
                     onNext = { store.selectNextTrack()?.let(player::play) },
                     onSeek = player::seekTo
-                )
-            }
+            )
         }
     ) { padding ->
         Row(
@@ -227,8 +248,7 @@ private fun DesktopApp(
                 selected = state.destination,
                 onNavigate = store::navigate,
                 darkTheme = darkTheme,
-                themeTransitionGeneration = themeTransitionGeneration,
-                onToggleTheme = onToggleTheme
+                onToggleTheme = { onToggleTheme(themeSurface) }
             )
             Column(
                 modifier = Modifier
@@ -248,24 +268,20 @@ private fun DesktopApp(
                     Spacer(Modifier.height(16.dp))
                 }
 
-                ThemeWaveElement(themeTransitionGeneration, delayMillis = CONTENT_HEADER_THEME_DELAY_MS) {
-                    Column {
-                        Text(
-                            text = when (state.destination) {
-                                LibraryDestination.HOME -> "Your library"
-                                LibraryDestination.SEARCH -> "Search results"
-                                LibraryDestination.QUEUE -> "Playback queue"
-                            },
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = statusMessage,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                Text(
+                    text = when (state.destination) {
+                        LibraryDestination.HOME -> "Your library"
+                        LibraryDestination.SEARCH -> "Search results"
+                        LibraryDestination.QUEUE -> "Playback queue"
+                    },
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = statusMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(12.dp))
 
                 if (state.visibleTracks.isEmpty()) {
@@ -273,11 +289,7 @@ private fun DesktopApp(
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         itemsIndexed(state.visibleTracks, key = { _, track -> track.id }) { index, track ->
-                            ThemeWaveElement(
-                                generation = themeTransitionGeneration,
-                                delayMillis = trackThemeDelay(index, state.visibleTracks.size)
-                            ) {
-                                TrackRow(
+                            TrackRow(
                                     track = track,
                                     isCurrent = state.playback.currentTrack?.id == track.id,
                                     onClick = {
@@ -299,8 +311,7 @@ private fun DesktopApp(
                                     } else {
                                         null
                                     }
-                                )
-                            }
+                            )
                         }
                     }
                 }
@@ -345,42 +356,33 @@ private fun DesktopNavigation(
     selected: LibraryDestination,
     onNavigate: (LibraryDestination) -> Unit,
     darkTheme: Boolean,
-    themeTransitionGeneration: Int,
     onToggleTheme: () -> Unit
 ) {
     NavigationRail(modifier = Modifier.fillMaxHeight()) {
-        ThemeWaveElement(themeTransitionGeneration, NAVIGATION_HOME_THEME_DELAY_MS) {
-            NavigationRailItem(
-                selected = selected == LibraryDestination.HOME,
-                onClick = { onNavigate(LibraryDestination.HOME) },
-                icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                label = { Text("Home") }
-            )
-        }
-        ThemeWaveElement(themeTransitionGeneration, NAVIGATION_SEARCH_THEME_DELAY_MS) {
-            NavigationRailItem(
-                selected = selected == LibraryDestination.SEARCH,
-                onClick = { onNavigate(LibraryDestination.SEARCH) },
-                icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                label = { Text("Search") }
-            )
-        }
-        ThemeWaveElement(themeTransitionGeneration, NAVIGATION_QUEUE_THEME_DELAY_MS) {
-            NavigationRailItem(
-                selected = selected == LibraryDestination.QUEUE,
-                onClick = { onNavigate(LibraryDestination.QUEUE) },
-                icon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue") },
-                label = { Text("Queue") }
-            )
-        }
+        NavigationRailItem(
+            selected = selected == LibraryDestination.HOME,
+            onClick = { onNavigate(LibraryDestination.HOME) },
+            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+            label = { Text("Home") }
+        )
+        NavigationRailItem(
+            selected = selected == LibraryDestination.SEARCH,
+            onClick = { onNavigate(LibraryDestination.SEARCH) },
+            icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+            label = { Text("Search") }
+        )
+        NavigationRailItem(
+            selected = selected == LibraryDestination.QUEUE,
+            onClick = { onNavigate(LibraryDestination.QUEUE) },
+            icon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue") },
+            label = { Text("Queue") }
+        )
         Spacer(Modifier.weight(1f))
-        ThemeWaveElement(themeTransitionGeneration, NAVIGATION_TOGGLE_THEME_DELAY_MS) {
-            IconButton(onClick = onToggleTheme) {
-                Icon(
-                    imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                    contentDescription = if (darkTheme) "Switch to light theme" else "Switch to dark theme"
-                )
-            }
+        IconButton(onClick = onToggleTheme) {
+            Icon(
+                imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                contentDescription = if (darkTheme) "Switch to light theme" else "Switch to dark theme"
+            )
         }
     }
 }
@@ -482,30 +484,26 @@ private fun DesktopPlayerBar(
     val track = state.playback.currentTrack
     val durationMs = state.playback.durationMs
     var isSeeking by remember(track?.id) { mutableStateOf(false) }
-    var sliderPosition by remember(track?.id) { mutableFloatStateOf(0f) }
+    var sliderPositionMs by remember(track?.id) { mutableFloatStateOf(0f) }
     LaunchedEffect(state.playback.positionMs, durationMs, isSeeking) {
         if (!isSeeking) {
-            sliderPosition = if (durationMs > 0L) {
-                state.playback.positionMs.toFloat() / durationMs
-            } else {
-                0f
-            }.coerceIn(0f, 1f)
+            sliderPositionMs = state.playback.positionMs.coerceIn(0L, durationMs).toFloat()
         }
     }
     Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Slider(
-                value = sliderPosition,
+                value = sliderPositionMs,
                 onValueChange = {
                     isSeeking = true
-                    sliderPosition = it
+                    sliderPositionMs = it
                 },
                 onValueChangeFinished = {
-                    if (durationMs > 0L) onSeek((sliderPosition * durationMs).toLong())
+                    if (durationMs > 0L) onSeek(sliderPositionMs.toLong())
                     isSeeking = false
                 },
                 enabled = track != null && durationMs > 0L,
-                valueRange = 0f..1f,
+                valueRange = 0f..durationMs.toFloat(),
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Row(
@@ -549,40 +547,92 @@ private fun DesktopPlayerBar(
     }
 }
 
+private enum class ThemeTransitionPhase {
+    COVERING,
+    SWAPPING,
+    REVEALING
+}
+
+private data class ThemeTransition(
+    val id: Long,
+    val targetDarkTheme: Boolean,
+    val phase: ThemeTransitionPhase,
+    val fromColor: Color
+)
+
+/**
+ * A full-screen veil makes the theme switch atomic from the user's perspective: the old surface
+ * is covered first, the content changes behind it, then the veil reveals the new color scheme.
+ */
 @Composable
-private fun ThemeWaveElement(
-    generation: Int,
-    delayMillis: Int,
-    content: @Composable () -> Unit
-) {
-    val alpha = remember { Animatable(1f) }
-    LaunchedEffect(generation) {
-        if (generation == 0) return@LaunchedEffect
-        alpha.snapTo(THEME_WAVE_START_ALPHA)
-        alpha.animateTo(
+private fun ThemeTransitionOverlay(transition: ThemeTransition?) {
+    if (transition == null) return
+
+    val opacity = remember(transition.id) { Animatable(0f) }
+    val targetSurface = MaterialTheme.colorScheme.surface
+    val overlayTarget = if (transition.phase == ThemeTransitionPhase.COVERING) {
+        transition.fromColor
+    } else {
+        targetSurface
+    }
+    val overlayColor by animateColorAsState(
+        targetValue = overlayTarget,
+        animationSpec = tween(durationMillis = THEME_COLOR_SWAP_DURATION_MS),
+        label = "themeTransitionColor"
+    )
+
+    LaunchedEffect(transition.id) {
+        opacity.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = THEME_WAVE_DURATION_MS, delayMillis = delayMillis)
+            animationSpec = tween(durationMillis = THEME_COVER_DURATION_MS)
         )
     }
-    Box(modifier = Modifier.graphicsLayer(alpha = alpha.value)) {
-        content()
+    LaunchedEffect(transition.phase) {
+        when (transition.phase) {
+            ThemeTransitionPhase.COVERING -> Unit
+            ThemeTransitionPhase.SWAPPING -> Unit
+
+            ThemeTransitionPhase.REVEALING -> {
+                opacity.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = THEME_REVEAL_DURATION_MS)
+                )
+            }
+        }
+    }
+
+    val gradientEnd = if (transition.targetDarkTheme) {
+        lerp(overlayColor, Color.Black, THEME_DARK_GRADIENT_DEPTH)
+    } else {
+        lerp(overlayColor, Color.White, THEME_LIGHT_GRADIENT_DEPTH)
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer(alpha = opacity.value)
+            .background(Brush.linearGradient(listOf(overlayColor, gradientEnd))),
+        contentAlignment = Alignment.Center
+    ) {
+        Crossfade(
+            targetState = transition.phase != ThemeTransitionPhase.COVERING,
+            animationSpec = tween(durationMillis = THEME_ICON_CROSSFADE_DURATION_MS),
+            label = "themeTransitionIcon"
+        ) { showingTargetIcon ->
+            val showDarkIcon = if (showingTargetIcon) transition.targetDarkTheme else !transition.targetDarkTheme
+            Icon(
+                imageVector = if (showDarkIcon) Icons.Default.DarkMode else Icons.Default.LightMode,
+                contentDescription = null,
+                modifier = Modifier.size(THEME_TRANSITION_ICON_SIZE_DP.dp),
+                tint = if (showDarkIcon) Color.White else Color(0xFF202124)
+            )
+        }
     }
 }
 
-private fun trackThemeDelay(index: Int, total: Int): Int {
-    val rowsFromBottom = (total - index - 1).coerceIn(0, MAX_TRACK_THEME_STEPS)
-    return TRACK_THEME_BASE_DELAY_MS + rowsFromBottom * TRACK_THEME_STEP_MS
-}
-
-private const val THEME_WAVE_START_ALPHA = 0.32f
-private const val THEME_WAVE_DURATION_MS = 260
-private const val PLAYER_THEME_DELAY_MS = 0
-private const val NAVIGATION_TOGGLE_THEME_DELAY_MS = 0
-private const val NAVIGATION_QUEUE_THEME_DELAY_MS = 70
-private const val NAVIGATION_SEARCH_THEME_DELAY_MS = 120
-private const val NAVIGATION_HOME_THEME_DELAY_MS = 170
-private const val TRACK_THEME_BASE_DELAY_MS = 100
-private const val TRACK_THEME_STEP_MS = 45
-private const val MAX_TRACK_THEME_STEPS = 8
-private const val CONTENT_HEADER_THEME_DELAY_MS = 490
-private const val TOP_BAR_THEME_DELAY_MS = 610
+private const val THEME_COVER_DURATION_MS = 320
+private const val THEME_COLOR_SWAP_DURATION_MS = 260
+private const val THEME_REVEAL_DURATION_MS = 360
+private const val THEME_ICON_CROSSFADE_DURATION_MS = 220
+private const val THEME_TRANSITION_ICON_SIZE_DP = 64
+private const val THEME_DARK_GRADIENT_DEPTH = 0.28f
+private const val THEME_LIGHT_GRADIENT_DEPTH = 0.22f

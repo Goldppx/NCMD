@@ -145,9 +145,9 @@ class DesktopPlaybackEngine(
         var positionMs = initialPositionMs
         try {
             openDecodedStream(path).use { stream ->
-                durationMs = stream.durationMs().takeIf { it > 0L } ?: expectedDurationMs
+                durationMs = expectedDurationMs.takeIf { it > 0L } ?: stream.durationMs()
                 val startPositionMs = initialPositionMs.coerceIn(0L, durationMs.takeIf { it > 0L } ?: initialPositionMs)
-                stream.skipToPosition(startPositionMs)
+                stream.discardUntilPosition(startPositionMs)
                 synchronized(lock) {
                     currentDurationMs = durationMs
                     currentPositionMs = startPositionMs
@@ -242,13 +242,14 @@ class DesktopPlaybackEngine(
         return (frameLength * MILLIS_PER_SECOND / format.frameRate).toLong()
     }
 
-    private fun AudioInputStream.skipToPosition(positionMs: Long) {
+    private fun AudioInputStream.discardUntilPosition(positionMs: Long) {
         if (positionMs <= 0L || format.frameRate <= 0f || format.frameSize <= 0) return
         var remainingBytes = (positionMs * format.frameRate / MILLIS_PER_SECOND).toLong() * format.frameSize
+        val buffer = ByteArray(minOf(BUFFER_SIZE.toLong(), remainingBytes).toInt())
         while (remainingBytes > 0L) {
-            val skipped = skip(remainingBytes)
-            if (skipped <= 0L) break
-            remainingBytes -= skipped
+            val bytesRead = read(buffer, 0, minOf(buffer.size.toLong(), remainingBytes).toInt())
+            if (bytesRead <= 0) break
+            remainingBytes -= bytesRead
         }
     }
 
