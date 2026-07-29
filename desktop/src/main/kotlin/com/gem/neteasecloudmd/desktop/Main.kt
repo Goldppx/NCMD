@@ -79,38 +79,38 @@ import javax.imageio.ImageIO
 fun main() {
     DesktopRuntime.configure()
     application {
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "NCMD Desktop",
-        state = rememberWindowState(width = 1_160.dp, height = 760.dp)
-    ) {
-        MaterialTheme {
-            Surface(modifier = Modifier.fillMaxSize()) {
-                val store = remember { LibraryStore(emptyList()) }
-                val library = remember { DesktopLocalLibrary(store) }
-                LaunchedEffect(library) {
-                    withContext(Dispatchers.IO) { library.loadSavedLibrary() }
+        Window(
+            onCloseRequest = ::exitApplication,
+            title = "NCMD Desktop",
+            state = rememberWindowState(width = 1_160.dp, height = 760.dp)
+        ) {
+            val store = remember { LibraryStore(emptyList()) }
+            val library = remember { DesktopLocalLibrary(store) }
+            LaunchedEffect(library) {
+                withContext(Dispatchers.IO) { library.loadSavedLibrary() }
+            }
+            val player = remember(library) {
+                DesktopPlaybackEngine(library::pathForTrack) { update ->
+                    store.updatePlayback(
+                        status = update.status,
+                        isPlaying = update.isPlaying,
+                        positionMs = update.positionMs,
+                        durationMs = update.durationMs,
+                        errorMessage = update.errorMessage
+                    )
                 }
-                val player = remember(library) {
-                    DesktopPlaybackEngine(library::pathForTrack) { update ->
-                        store.updatePlayback(
-                            status = update.status,
-                            isPlaying = update.isPlaying,
-                            positionMs = update.positionMs,
-                            durationMs = update.durationMs,
-                            errorMessage = update.errorMessage
-                        )
-                    }
+            }
+            DisposableEffect(player) {
+                onDispose(player::release)
+            }
+            val state by store.state.collectAsState()
+            DesktopTheme(artworkUri = state.playback.currentTrack?.albumPicUrl) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    DesktopApp(state = state, store = store, library = library, player = player)
                 }
-                DisposableEffect(player) {
-                    onDispose(player::release)
-                }
-                val state by store.state.collectAsState()
-                DesktopApp(state = state, store = store, library = library, player = player)
             }
         }
     }
-}
 }
 
 @Composable

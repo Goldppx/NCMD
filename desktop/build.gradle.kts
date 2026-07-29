@@ -14,6 +14,7 @@ dependencies {
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
     implementation(libs.jaudiotagger)
+    implementation(libs.material.kolor)
     implementation(libs.mp3spi)
 }
 
