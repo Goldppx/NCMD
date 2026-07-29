@@ -61,11 +61,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.gem.neteasecloudmd.BuildConfig
 import com.gem.neteasecloudmd.R
+import com.gem.neteasecloudmd.api.GitHubUpdateChecker
 import com.gem.neteasecloudmd.api.PlayerManager
 import com.gem.neteasecloudmd.api.SessionManager
+import com.gem.neteasecloudmd.api.UpdateCheckResult
 import com.gem.neteasecloudmd.ui.common.Toast
 import com.gem.neteasecloudmd.utils.Logger
+import kotlinx.coroutines.launch
 
 // region Shared Components
 
@@ -638,6 +642,9 @@ fun AboutSettingsScreen(
     onNavigateToLicenses: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateResult by remember { mutableStateOf<UpdateCheckResult?>(null) }
 
     SubSettingsScaffold(
         title = stringResource(R.string.settings_about),
@@ -733,7 +740,13 @@ fun AboutSettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { }
+                            .clickable(enabled = !isCheckingUpdate) {
+                                isCheckingUpdate = true
+                                scope.launch {
+                                    updateResult = GitHubUpdateChecker.check()
+                                    isCheckingUpdate = false
+                                }
+                            }
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -750,7 +763,11 @@ fun AboutSettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = stringResource(R.string.settings_check_update_desc),
+                                text = if (isCheckingUpdate) {
+                                    stringResource(R.string.settings_update_checking)
+                                } else {
+                                    stringResource(R.string.settings_check_update_desc)
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -844,6 +861,71 @@ fun AboutSettingsScreen(
 
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
+    }
+
+    updateResult?.let { result ->
+        val release = when (result) {
+            is UpdateCheckResult.UpToDate -> Triple(result.releaseTag, result.releaseSha, result.releaseUrl)
+            is UpdateCheckResult.UpdateAvailable -> Triple(result.releaseTag, result.releaseSha, result.releaseUrl)
+            is UpdateCheckResult.DevelopmentBuild -> Triple(result.releaseTag, result.releaseSha, result.releaseUrl)
+            is UpdateCheckResult.DifferentHistory -> Triple(result.releaseTag, result.releaseSha, result.releaseUrl)
+            is UpdateCheckResult.Failure -> null
+        }
+        val title = when (result) {
+            is UpdateCheckResult.UpToDate -> stringResource(R.string.settings_update_latest_title)
+            is UpdateCheckResult.UpdateAvailable -> stringResource(R.string.settings_update_available_title)
+            is UpdateCheckResult.DevelopmentBuild -> stringResource(R.string.settings_update_development_title)
+            is UpdateCheckResult.DifferentHistory -> stringResource(R.string.settings_update_different_history_title)
+            is UpdateCheckResult.Failure -> stringResource(R.string.settings_update_failure_title)
+        }
+        val message = when (result) {
+            is UpdateCheckResult.UpToDate -> stringResource(R.string.settings_update_latest_message)
+            is UpdateCheckResult.UpdateAvailable -> stringResource(R.string.settings_update_available_message)
+            is UpdateCheckResult.DevelopmentBuild -> stringResource(R.string.settings_update_development_message)
+            is UpdateCheckResult.DifferentHistory -> stringResource(R.string.settings_update_different_history_message)
+            is UpdateCheckResult.Failure -> stringResource(R.string.settings_update_failure_message)
+        }
+        AlertDialog(
+            onDismissRequest = { updateResult = null },
+            title = { Text(title) },
+            text = {
+                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    Text(message)
+                    Text(
+                        text = stringResource(
+                            R.string.settings_update_current_build,
+                            BuildConfig.VERSION_NAME,
+                            BuildConfig.GIT_SHA.take(7)
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    release?.let { (tag, sha, _) ->
+                        Text(
+                            text = stringResource(R.string.settings_update_release_detail, tag, sha.take(7)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (release != null) {
+                    TextButton(
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.third)))
+                        }
+                    ) {
+                        Text(stringResource(R.string.settings_update_open_release))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { updateResult = null }) {
+                    Text(stringResource(R.string.settings_update_close))
+                }
+            }
+        )
     }
 }
 

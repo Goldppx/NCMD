@@ -5,6 +5,15 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val gitSha = runCatching {
+    ProcessBuilder("git", "rev-parse", "HEAD")
+        .directory(rootProject.projectDir)
+        .start()
+        .inputStream
+        .bufferedReader()
+        .use { it.readText().trim() }
+}.getOrDefault("unknown").ifBlank { "unknown" }
+
 android {
     namespace = "com.gem.neteasecloudmd"
     compileSdk {
@@ -59,6 +68,11 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    defaultConfig {
+        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
     }
 }
 
