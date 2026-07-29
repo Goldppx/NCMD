@@ -135,33 +135,34 @@ jobs:
           set -euo pipefail
           apk_path=$(find app/build/outputs/apk/release -type f -name '*arm64-v8a*release*.apk' -print -quit)
           test -n "$apk_path"
-          mkdir -p dist
+          asset_dir="$RUNNER_TEMP/release-assets"
+          mkdir -p "$asset_dir"
           apk_name="ncmd-${RELEASE_TAG}-arm64-v8a.apk"
-          cp "$apk_path" "dist/$apk_name"
-          sha256sum "dist/$apk_name" > "dist/$apk_name.sha256"
+          cp "$apk_path" "$asset_dir/$apk_name"
+          sha256sum "$asset_dir/$apk_name" > "$asset_dir/$apk_name.sha256"
           arch_package=$(find packaging/arch -maxdepth 1 -type f -name 'ncmd-*.pkg.tar.zst' -print -quit)
           test -n "$arch_package"
-          cp "$arch_package" dist/
-          sha256sum "dist/$(basename "$arch_package")" > "dist/$(basename "$arch_package").sha256"
+          cp "$arch_package" "$asset_dir/"
+          sha256sum "$asset_dir/$(basename "$arch_package")" > "$asset_dir/$(basename "$arch_package").sha256"
           version_name=$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
-          linux_stage=dist/NCMD-linux-x64
+          linux_stage="$asset_dir/NCMD-linux-x64"
           mkdir -p "$linux_stage/bin" "$linux_stage/lib"
           cp -r desktop/build/compose/binaries/main/app/NCMD/lib/app "$linux_stage/lib/app"
           sed "s/@NCMD_VERSION@/${version_name}/" packaging/arch/ncmd > "$linux_stage/bin/ncmd"
           chmod 755 "$linux_stage/bin/ncmd"
-          linux_bundle="dist/ncmd-${RELEASE_TAG}-linux-x64.tar.gz"
-          tar -C dist -czf "$linux_bundle" NCMD-linux-x64
+          linux_bundle="$asset_dir/ncmd-${RELEASE_TAG}-linux-x64.tar.gz"
+          tar -C "$asset_dir" -czf "$linux_bundle" NCMD-linux-x64
           rm -rf "$linux_stage"
           sha256sum "$linux_bundle" > "$linux_bundle.sha256"
           commit_sha=$(git rev-parse HEAD)
-          cat > dist/update.json <<EOF
+          cat > "$asset_dir/update.json" <<EOF
           {
             "tag": "${RELEASE_TAG}",
             "versionName": "${version_name}",
             "commitSha": "${commit_sha}",
             "releaseUrl": "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}",
             "apkUrl": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${apk_name}",
-            "apkSha256": "$(cut -d ' ' -f 1 "dist/$apk_name.sha256")"
+            "apkSha256": "$(cut -d ' ' -f 1 "$asset_dir/$apk_name.sha256")"
           }
           EOF
 
@@ -169,7 +170,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-assets-${{ needs.prepare.outputs.tag }}
-          path: dist/*
+          path: ${{ runner.temp }}/release-assets/*
           if-no-files-found: error
           retention-days: 30
 
