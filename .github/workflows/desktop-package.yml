@@ -63,6 +63,18 @@ jobs:
       - name: Package desktop application
         run: ${{ matrix.command }}
 
+      - name: Smoke test Linux application startup
+        if: matrix.platform == 'Linux'
+        shell: bash
+        run: |
+          set +e
+          timeout --signal=TERM 10s xvfb-run -a \
+            desktop/build/compose/binaries/main/app/NCMD/bin/NCMD
+          status=$?
+          if [[ "$status" -ne 124 && "$status" -ne 143 ]]; then
+            exit "$status"
+          fi
+
       - name: Upload ${{ matrix.platform }} packages
         uses: actions/upload-artifact@v4
         with:

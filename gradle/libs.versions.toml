@@ -20,7 +20,7 @@ animationCore = "1.11.0"
 composeMultiplatform = "1.6.11"
 mp3spi = "1.9.5.4"
 jaudiotagger = "3.0.1"
-materialKolor = "3.0.1"
+materialKolor = "1.6.2"
 
 [libraries]
 androidx-compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
