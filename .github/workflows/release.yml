@@ -213,7 +213,7 @@ jobs:
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $visualStudio) { throw 'Visual Studio C++ build tools were not found.' }
-          $devCommand = "`"$visualStudio\Common7\Tools\VsDevCmd.bat`" -no_logo -arch=x64 && cl.exe /nologo /std:c++17 /O2 /MT /DUNICODE /D_UNICODE /EHsc `"$launcherSource`" /Fe:`"$stage\NCMD.exe`" /link /SUBSYSTEM:WINDOWS Advapi32.lib Shell32.lib"
+          $devCommand = "`"$visualStudio\Common7\Tools\VsDevCmd.bat`" -no_logo -arch=x64 && cl.exe /nologo /std:c++17 /O2 /MT /DUNICODE /D_UNICODE /EHsc `"$launcherSource`" /Fe:`"$stage\NCMD.exe`" /link /SUBSYSTEM:WINDOWS Advapi32.lib Shell32.lib User32.lib"
           cmd.exe /c $devCommand
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
