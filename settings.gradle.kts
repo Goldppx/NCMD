@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "NeteaseCloudMD"
 include(":app")
 include(":shared")
+include(":desktop")

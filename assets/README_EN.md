@@ -61,6 +61,15 @@ cd NCMD
 ./gradlew assembleDebug
 ```
 
+### Desktop preview (Windows / Linux)
+```bash
+./gradlew :desktop:run
+```
+
+Use `:desktop:packageMsi` on Windows, or `:desktop:packageDeb` / `:desktop:packageRpm`
+on Linux. The Desktop client currently previews the shared state and UI; account login,
+networking, and the audio engine will be connected in subsequent migration work.
+
 ---
 
 ## 📸 Preview (Coming Soon)

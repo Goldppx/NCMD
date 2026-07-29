@@ -61,6 +61,15 @@ cd NCMD
 ./gradlew assembleDebug
 ```
 
+### Desktop 预览（Windows / Linux）
+```bash
+./gradlew :desktop:run
+```
+
+在 Windows 上可用 `:desktop:packageMsi` 打包 MSI；在 Linux 上可用
+`:desktop:packageDeb` 或 `:desktop:packageRpm` 打包。Desktop 当前是共享状态与 UI 的预览，
+实际账号登录、网络与音频引擎会在后续迁移中接入。
+
 ---
 
 ## 📸 预览（预留）
