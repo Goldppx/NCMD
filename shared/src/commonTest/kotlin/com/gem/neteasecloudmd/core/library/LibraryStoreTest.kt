@@ -40,4 +40,26 @@ class LibraryStoreTest {
 
         assertFalse(store.state.value.playback.isPlaying)
     }
+
+    @Test
+    fun replacingCatalogPreservesTheSelectedTrack() {
+        val store = LibraryStore(tracks)
+        store.selectTrack(2)
+
+        store.replaceCatalog(listOf(tracks[1], tracks[0]))
+
+        assertEquals(0, store.state.value.playback.queue.currentIndex)
+        assertTrue(store.state.value.playback.isPlaying)
+    }
+
+    @Test
+    fun replacingCatalogStopsPlaybackWhenTheTrackWasRemoved() {
+        val store = LibraryStore(tracks)
+        store.selectTrack(2)
+
+        store.replaceCatalog(listOf(tracks[0]))
+
+        assertFalse(store.state.value.playback.isPlaying)
+        assertEquals(0, store.state.value.playback.queue.currentIndex)
+    }
 }

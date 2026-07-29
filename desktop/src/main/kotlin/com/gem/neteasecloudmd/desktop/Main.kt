@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
@@ -32,13 +34,22 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -47,17 +58,21 @@ import com.gem.neteasecloudmd.core.library.LibraryDestination
 import com.gem.neteasecloudmd.core.library.LibraryStore
 import com.gem.neteasecloudmd.core.library.LibraryUiState
 import com.gem.neteasecloudmd.core.model.Track
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
-        title = "NCMD Desktop Preview"
+        title = "NCMD Desktop"
     ) {
         MaterialTheme {
             Surface(modifier = Modifier.fillMaxSize()) {
-                val store = remember { LibraryStore(previewTracks) }
+                val store = remember { LibraryStore(emptyList()) }
+                val library = remember { DesktopLocalLibrary(store) }
                 val state by store.state.collectAsState()
-                DesktopApp(state = state, store = store)
+                DesktopApp(state = state, store = store, library = library)
             }
         }
     }
@@ -65,23 +80,75 @@ fun main() = application {
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun DesktopApp(state: LibraryUiState, store: LibraryStore) {
+private fun DesktopApp(
+    state: LibraryUiState,
+    store: LibraryStore,
+    library: DesktopLocalLibrary
+) {
+    val scope = rememberCoroutineScope()
+    var statusMessage by remember { mutableStateOf("Import local music to start your desktop library.") }
+
+    fun importEntries(entries: List<java.nio.file.Path>) {
+        if (entries.isEmpty()) return
+        scope.launch {
+            statusMessage = "Importing music…"
+            val result = withContext(Dispatchers.IO) { library.importEntries(entries) }
+            statusMessage = when {
+                result.addedTrackCount > 0 -> "Added ${result.addedTrackCount} track(s) to your library."
+                result.ignoredEntryCount > 0 -> "No supported audio files were found."
+                else -> "Those tracks are already in your library."
+            }
+        }
+    }
+
     Scaffold(
+        modifier = Modifier.onPreviewKeyEvent { event ->
+            if (event.type == KeyEventType.KeyDown && event.key == Key.Spacebar) {
+                store.togglePlayback()
+                true
+            } else {
+                false
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
                     Column {
                         Text("NCMD")
                         Text(
-                            text = "Kotlin Multiplatform desktop preview",
+                            text = "Local music desktop alpha",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                },
+                actions = {
+                    TextButton(onClick = { importEntries(selectAudioFiles()) }) {
+                        Text("Add files")
+                    }
+                    TextButton(onClick = { importEntries(selectMusicFolder()) }) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add folder")
+                    }
                 }
             )
         },
-        bottomBar = { DesktopPlayerBar(state, store::togglePlayback) }
+        bottomBar = {
+            DesktopPlayerBar(
+                state = state,
+                onTogglePlayback = store::togglePlayback,
+                onOpenExternally = {
+                    state.playback.currentTrack?.id?.let { trackId ->
+                        statusMessage = library.openInSystemPlayer(trackId)
+                            .fold(
+                                onSuccess = { "Opened the selected track in your system player." },
+                                onFailure = { error -> error.message ?: "Could not open the selected track." }
+                            )
+                    }
+                }
+            )
+        }
     ) { padding ->
         Row(
             modifier = Modifier
@@ -118,17 +185,16 @@ private fun DesktopApp(state: LibraryUiState, store: LibraryStore) {
                     },
                     style = MaterialTheme.typography.headlineSmall
                 )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = statusMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(12.dp))
 
                 if (state.visibleTracks.isEmpty()) {
-                    Text(
-                        text = if (state.destination == LibraryDestination.SEARCH) {
-                            "Type a song, artist, or album name to search."
-                        } else {
-                            "No tracks available yet."
-                        },
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    EmptyLibraryContent(state.destination, importFiles = { importEntries(selectAudioFiles()) })
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(state.visibleTracks, key = Track::id) { track ->
@@ -140,6 +206,37 @@ private fun DesktopApp(state: LibraryUiState, store: LibraryStore) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyLibraryContent(destination: LibraryDestination, importFiles: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Icon(
+            imageVector = Icons.Default.FolderOpen,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = when (destination) {
+                LibraryDestination.SEARCH -> "No matching local tracks."
+                LibraryDestination.QUEUE -> "The queue is empty."
+                LibraryDestination.HOME -> "Your local library is empty."
+            },
+            style = MaterialTheme.typography.titleMedium
+        )
+        if (destination == LibraryDestination.HOME) {
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = importFiles) {
+                Text("Add music files")
             }
         }
     }
@@ -211,7 +308,11 @@ private fun TrackRow(track: Track, isCurrent: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DesktopPlayerBar(state: LibraryUiState, onTogglePlayback: () -> Unit) {
+private fun DesktopPlayerBar(
+    state: LibraryUiState,
+    onTogglePlayback: () -> Unit,
+    onOpenExternally: () -> Unit
+) {
     val track = state.playback.currentTrack
     Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Row(
@@ -221,12 +322,15 @@ private fun DesktopPlayerBar(state: LibraryUiState, onTogglePlayback: () -> Unit
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(track?.name ?: "Choose a track to start")
+                Text(track?.name ?: "Choose a local track to start")
                 Text(
-                    text = track?.artists ?: "Playback controls are shared-state preview only",
+                    text = track?.artists ?: "Space toggles queue state; open uses your system player.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            IconButton(onClick = onOpenExternally, enabled = track != null) {
+                Icon(Icons.Default.OpenInNew, contentDescription = "Open in system player")
             }
             IconButton(onClick = onTogglePlayback, enabled = track != null) {
                 Icon(
@@ -237,9 +341,3 @@ private fun DesktopPlayerBar(state: LibraryUiState, onTogglePlayback: () -> Unit
         }
     }
 }
-
-private val previewTracks = listOf(
-    Track(1, "Graduation", "BrAnTB", "Graduation", null),
-    Track(2, "Rain", "SASIOVERLXRD", "Night", null),
-    Track(3, "Trouble Maker", "Yamy", "Trouble Maker", null)
-)

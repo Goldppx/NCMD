@@ -62,6 +62,34 @@ class LibraryStore(initialCatalog: List<Track>) {
         _state.update { it.copy(query = query) }
     }
 
+    /**
+     * Replaces the library supplied by a platform repository while preserving the selected track
+     * when it still exists. This lets Android, Desktop, and future iOS repositories share the
+     * same queue and filtering behavior.
+     */
+    fun replaceCatalog(catalog: List<Track>) {
+        _state.update { state ->
+            val currentTrackId = state.playback.currentTrack?.id
+            val selectedIndex = catalog.indexOfFirst { it.id == currentTrackId }
+            val hasSelectedTrack = selectedIndex >= 0
+            val queue = QueueState(
+                items = catalog,
+                currentIndex = if (hasSelectedTrack) selectedIndex else 0,
+                playMode = state.playback.queue.playMode
+            )
+
+            state.copy(
+                catalog = catalog,
+                playback = state.playback.copy(
+                    queue = queue,
+                    status = if (hasSelectedTrack) state.playback.status else PlaybackStatus.IDLE,
+                    isPlaying = hasSelectedTrack && state.playback.isPlaying,
+                    errorMessage = if (hasSelectedTrack) state.playback.errorMessage else null
+                )
+            )
+        }
+    }
+
     fun selectTrack(trackId: Long) {
         _state.update { state ->
             val index = state.playback.queue.items.indexOfFirst { it.id == trackId }
