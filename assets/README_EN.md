@@ -1,12 +1,12 @@
 # NCMD — A Pure & Elegant Netease Music Client
 
-[![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com/)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Desktop%20Foundation-green.svg)](https://www.jetbrains.com/compose-multiplatform/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.0-blue.svg)](https://kotlinlang.org/)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.10-orange.svg)](https://developer.android.com/jetpack/compose)
 
 [Back to Chinese Version](../README.md)
 
-NCMD is a modern, third-party Netease Cloud Music client built exclusively for Android. We don't chase feature bloat; we focus on bringing you the most pure and immersive listening experience. Based on the latest **Material 3** design system, it’s not just beautiful—it’s intuitive.
+NCMD is a modern, third-party Netease Cloud Music client. We don't chase feature bloat; we focus on bringing you the most pure and immersive listening experience. The Android client uses **Material 3**, while the project is moving to Kotlin Multiplatform to support Windows and Linux desktop clients.
 
 ---
 
@@ -28,6 +28,13 @@ The soul of NCMD. When you rotate your phone, a whole new vision unfolds:
 - **Lightweight & Fast**: Single-Activity architecture with Navigation Compose for lightning-fast responsiveness.
 - **Persistent State**: Remembers your playlists, UI preferences, and login session.
 
+### 🌐 Kotlin Multiplatform migration status
+- **Shared now**: lyric parsing, playback queue and request policies, sleep timer policy, domain models, and the playback-controller contract.
+- **Verified now**: the shared module is tested on Android and Desktop JVM in continuous integration.
+- **Next**: build a Compose Desktop client for Windows and Linux, then progressively move screen state and reusable UI into the shared module.
+
+> The Android client is the current end-user product. The Desktop client is under development and has not been released yet.
+
 ---
 
 ## 🛠️ Technical Stack
@@ -37,7 +44,7 @@ NCMD leverages the cutting edge of Android development:
 - **Media**: Media3 (ExoPlayer, Session)
 - **Network**: OkHttp, Kotlin Serialization
 - **Storage**: Room Database, SharedPreferences
-- **Architecture**: MVVM (Model-View-ViewModel)
+- **Architecture**: MVVM (Android) + Kotlin Multiplatform shared core
 
 ---
 

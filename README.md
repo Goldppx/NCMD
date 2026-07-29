@@ -1,12 +1,12 @@
 # NCMD — 纯粹的某音乐客户端
 
-[![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com/)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Desktop%20Foundation-green.svg)](https://www.jetbrains.com/compose-multiplatform/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.0-blue.svg)](https://kotlinlang.org/)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.10-orange.svg)](https://developer.android.com/jetpack/compose)
 
 [English Version Available Here](assets/README_EN.md)
 
-NCMD 是一款专为 Android 打造的现代音乐客户端。不追求功能的堆砌，只为带给你最纯粹、最沉浸的听歌体验。基于最新的 **Material 3** 设计语言。
+NCMD 是一款现代音乐客户端。不追求功能的堆砌，只为带给你最纯粹、最沉浸的听歌体验。Android 客户端基于 **Material 3** 设计语言；项目正迁移至 Kotlin Multiplatform，以支持 Windows 与 Linux 桌面端。
 
 ---
 
@@ -28,6 +28,13 @@ NCMD 是一款专为 Android 打造的现代音乐客户端。不追求功能的
 - **轻量且快速**：单 Activity 架构配合 Navigation Compose，响应极速。
 - **离线持久化**：记住你的播放列表、UI 偏好与登录状态。
 
+### 🌐 Kotlin Multiplatform 迁移进度
+- **已共享**：歌词解析、播放队列与播放请求策略、睡眠计时策略、领域模型与播放控制契约。
+- **已验证**：共享模块同时进行 Android 与 Desktop JVM 测试，并由 CI 持续校验。
+- **下一步**：建立 Windows/Linux 的 Compose Desktop 客户端，将页面状态与通用 UI 逐步迁入共享模块。
+
+> 当前可供最终用户使用的是 Android 客户端；Desktop 客户端仍在开发中，尚未发布。
+
 ---
 
 ## 🛠️ 技术细节
@@ -37,7 +44,7 @@ NCMD 采用了 Android 开发领域的前沿技术栈：
 - **媒体**: Media3 (ExoPlayer, Session)
 - **网络**: OkHttp, Kotlin Serialization
 - **存储**: Room Database, SharedPreferences
-- **架构**: MVVM (Model-View-ViewModel)
+- **架构**: MVVM (Android) + Kotlin Multiplatform shared core
 
 ---
 
