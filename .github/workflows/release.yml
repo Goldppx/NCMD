@@ -57,7 +57,7 @@ jobs:
           echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build signed arm64-v8a APK
+    name: Build Android and Arch Linux release assets
     needs: prepare
     runs-on: ubuntu-latest
     outputs:
@@ -69,6 +69,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.tag }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -99,6 +100,28 @@ jobs:
           ./gradlew :app:assembleRelease -PsplitAbi=true -PabiFilters=arm64-v8a
           --no-daemon --stacktrace
 
+      - name: Build Desktop app image
+        run: ./gradlew :desktop:createDistributable --no-daemon --stacktrace
+
+      - name: Build pacman package in clean Arch container
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          docker run --rm \
+            --env "NCMD_VERSION=${version}" \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace/packaging/arch \
+            archlinux:base-devel \
+            bash -lc '
+              pacman -Syu --noconfirm
+              useradd --create-home builder
+              chown -R builder:builder /workspace
+              su builder -c "cd /workspace/packaging/arch && NCMD_VERSION=${NCMD_VERSION} makepkg --noconfirm --cleanbuild --nodeps"
+            '
+
       - name: Package release assets
         id: assets
         env:
@@ -112,6 +135,10 @@ jobs:
           apk_name="ncmd-${RELEASE_TAG}-arm64-v8a.apk"
           cp "$apk_path" "dist/$apk_name"
           sha256sum "dist/$apk_name" > "dist/$apk_name.sha256"
+          arch_package=$(find packaging/arch -maxdepth 1 -type f -name 'ncmd-*.pkg.tar.zst' -print -quit)
+          test -n "$arch_package"
+          cp "$arch_package" dist/
+          sha256sum "dist/$(basename "$arch_package")" > "dist/$(basename "$arch_package").sha256"
           version_name=$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
           commit_sha=$(git rev-parse HEAD)
           cat > dist/update.json <<EOF
@@ -157,4 +184,5 @@ jobs:
           files: |
             dist/*.apk
             dist/*.sha256
+            dist/*.pkg.tar.zst
             dist/update.json

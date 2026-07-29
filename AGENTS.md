@@ -163,8 +163,9 @@ This guide is for coding agents working in the NCMD repository.
 
 ## 10.1) GitHub Actions
 
-- `.github/workflows/ci.yml` verifies pull requests and `main` with Android debug build, JVM tests, desktop shared tests, and lint.
-- `.github/workflows/release.yml` publishes only version tags (`v*`) or an explicit manual release. It creates a signed arm64-v8a APK, SHA-256 sidecar, and `update.json` release asset.
+- `.github/workflows/ci.yml` verifies pull requests and `main` with Android debug build, JVM tests, Desktop compilation/tests, and lint.
+- `.github/workflows/desktop-package.yml` builds Windows MSI, Linux DEB/RPM, and an Arch Linux `pkg.tar.zst` artifact. The Arch package is built with `packaging/arch/PKGBUILD`, not converted from DEB.
+- `.github/workflows/release.yml` publishes only version tags (`v*`) or an explicit manual release. It creates a signed arm64-v8a APK, an Arch Linux `pkg.tar.zst`, SHA-256 sidecars, and the `update.json` release asset.
 - Release signing is supplied only through GitHub Actions Secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Never commit a keystore or credential file.
 - `update.json` is the preferred update-check source; it is a CDN-backed Release asset and avoids GitHub REST API rate limits. The app falls back to API/web lookup for older releases without this asset.
 
