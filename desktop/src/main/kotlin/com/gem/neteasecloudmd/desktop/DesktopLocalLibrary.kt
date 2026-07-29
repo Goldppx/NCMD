@@ -10,6 +10,8 @@ import java.util.Base64
 import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
+import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.tag.FieldKey
 
 private val supportedAudioExtensions = setOf("aac", "flac", "m4a", "mp3", "ogg", "opus", "wav")
 
@@ -20,9 +22,11 @@ data class ImportResult(
 
 class DesktopLocalLibrary(private val store: LibraryStore) {
     private val repository = LocalLibraryRepository()
+    private val artworkRepository = LocalArtworkRepository()
+    @Volatile
     private var pathsByTrackId: Map<Long, Path> = emptyMap()
 
-    init {
+    fun loadSavedLibrary() {
         updateLibrary(repository.loadPaths())
     }
 
@@ -70,22 +74,43 @@ class DesktopLocalLibrary(private val store: LibraryStore) {
         val fileName = path.fileName.toString()
         val titleWithoutExtension = fileName.substringBeforeLast('.', missingDelimiterValue = fileName)
         val parts = titleWithoutExtension.split(" - ", limit = 2)
-        val artist = parts.getOrNull(0)?.takeIf { parts.size == 2 } ?: "Local music"
-        val title = parts.getOrElse(if (parts.size == 2) 1 else 0) { titleWithoutExtension }
-        val album = path.parent?.name ?: "Local files"
+        val fallbackArtist = parts.getOrNull(0)?.takeIf { parts.size == 2 } ?: "Local music"
+        val fallbackTitle = parts.getOrElse(if (parts.size == 2) 1 else 0) { titleWithoutExtension }
+        val fallbackAlbum = path.parent?.name ?: "Local files"
         val normalizedPath = path.toAbsolutePath().normalize()
+        val id = stableTrackId(normalizedPath)
+        val metadata = readMetadata(normalizedPath, id)
 
         return LocalTrackEntry(
             path = normalizedPath,
             track = Track(
-                id = stableTrackId(normalizedPath),
-                name = title.ifBlank { fileName },
-                artists = artist,
-                albumName = album,
-                albumPicUrl = null
+                id = id,
+                name = metadata.title.ifBlank { fallbackTitle.ifBlank { fileName } },
+                artists = metadata.artist.ifBlank { fallbackArtist },
+                albumName = metadata.album.ifBlank { fallbackAlbum },
+                albumPicUrl = metadata.artworkUri,
+                duration = metadata.durationMs
             )
         )
     }
+
+    private fun readMetadata(path: Path, trackId: Long): LocalTrackMetadata = runCatching {
+        val audioFile = AudioFileIO.read(path.toFile())
+        val tag = audioFile.tag
+        val artwork = tag?.firstArtwork
+        val artworkUri = artwork?.binaryData
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { artworkRepository.save(trackId, it, artwork.mimeType) }
+        LocalTrackMetadata(
+            title = tag?.getFirst(FieldKey.TITLE).orEmpty(),
+            artist = tag?.getFirst(FieldKey.ARTIST).orEmpty(),
+            album = tag?.getFirst(FieldKey.ALBUM).orEmpty(),
+            artworkUri = artworkUri,
+            durationMs = (audioFile.audioHeader.trackLength * MILLIS_PER_SECOND).coerceAtLeast(0L)
+                .coerceAtMost(Int.MAX_VALUE.toLong())
+                .toInt()
+        )
+    }.getOrElse { LocalTrackMetadata() }
 
     private fun isSupportedAudioFile(path: Path): Boolean =
         path.fileName.toString().substringAfterLast('.', missingDelimiterValue = "").lowercase() in supportedAudioExtensions
@@ -93,9 +118,21 @@ class DesktopLocalLibrary(private val store: LibraryStore) {
     private fun stableTrackId(path: Path): Long = path.toString().fold(1125899906842597L) { hash, character ->
         hash * 31L + character.code
     }
+
+    private companion object {
+        const val MILLIS_PER_SECOND = 1_000L
+    }
 }
 
 private data class LocalTrackEntry(val path: Path, val track: Track)
+
+private data class LocalTrackMetadata(
+    val title: String = "",
+    val artist: String = "",
+    val album: String = "",
+    val artworkUri: String? = null,
+    val durationMs: Int = 0
+)
 
 private class LocalLibraryRepository {
     private val storageFile: Path = Path.of(
@@ -123,6 +160,22 @@ private class LocalLibraryRepository {
 
     private fun decodePath(value: String): String? = runCatching {
         String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8)
+    }.getOrNull()
+}
+
+private class LocalArtworkRepository {
+    private val artworkDirectory = Path.of(System.getProperty("user.home"), ".ncmd", "artwork")
+
+    fun save(trackId: Long, data: ByteArray, mimeType: String?): String? = runCatching {
+        Files.createDirectories(artworkDirectory)
+        val extension = when (mimeType?.lowercase()) {
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            else -> "jpg"
+        }
+        val artworkPath = artworkDirectory.resolve("$trackId.$extension")
+        Files.write(artworkPath, data)
+        artworkPath.toUri().toString()
     }.getOrNull()
 }
 

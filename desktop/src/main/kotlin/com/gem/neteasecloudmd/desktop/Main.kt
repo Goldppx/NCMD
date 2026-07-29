@@ -1,6 +1,8 @@
 package com.gem.neteasecloudmd.desktop
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
@@ -38,19 +41,25 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -62,6 +71,9 @@ import com.gem.neteasecloudmd.core.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URI
+import javax.imageio.ImageIO
 
 fun main() = application {
     Window(
@@ -72,6 +84,9 @@ fun main() = application {
             Surface(modifier = Modifier.fillMaxSize()) {
                 val store = remember { LibraryStore(emptyList()) }
                 val library = remember { DesktopLocalLibrary(store) }
+                LaunchedEffect(library) {
+                    withContext(Dispatchers.IO) { library.loadSavedLibrary() }
+                }
                 val player = remember(library) {
                     DesktopPlaybackEngine(library::pathForTrack) { update ->
                         store.updatePlayback(
@@ -213,7 +228,6 @@ private fun DesktopApp(
                             TrackRow(
                                 track = track,
                                 isCurrent = state.playback.currentTrack?.id == track.id,
-                                isPlaying = state.playback.isPlaying,
                                 onClick = {
                                     store.selectTrack(track.id)
                                     player.play(track)
@@ -286,7 +300,7 @@ private fun DesktopNavigation(
 }
 
 @Composable
-private fun TrackRow(track: Track, isCurrent: Boolean, isPlaying: Boolean, onClick: () -> Unit) {
+private fun TrackRow(track: Track, isCurrent: Boolean, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -303,16 +317,12 @@ private fun TrackRow(track: Track, isCurrent: Boolean, isPlaying: Boolean, onCli
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = if (isCurrent && isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(28.dp)
-            )
-            Spacer(Modifier.width(16.dp))
+            LocalArtwork(track.albumPicUrl, modifier = Modifier.size(48.dp))
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(track.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    text = "${track.artists} · ${track.albumName}",
+                    text = trackSubtitle(track),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -321,6 +331,48 @@ private fun TrackRow(track: Track, isCurrent: Boolean, isPlaying: Boolean, onCli
             }
         }
     }
+}
+
+@Composable
+private fun LocalArtwork(artworkUri: String?, modifier: Modifier = Modifier) {
+    val image by produceState<ImageBitmap?>(initialValue = null, artworkUri) {
+        value = withContext(Dispatchers.IO) {
+            artworkUri?.let { uri ->
+                runCatching { ImageIO.read(File(URI(uri)))?.toComposeImageBitmap() }.getOrNull()
+            }
+        }
+    }
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(8.dp)),
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        if (image != null) {
+            Image(
+                bitmap = requireNotNull(image),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.MusicNote,
+                contentDescription = null,
+                modifier = Modifier.padding(12.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+    }
+}
+
+private fun trackSubtitle(track: Track): String = buildList {
+    add(track.artists)
+    add(track.albumName)
+    if (track.duration > 0) add(formatDuration(track.duration))
+}.joinToString(" · ")
+
+private fun formatDuration(durationMs: Int): String {
+    val totalSeconds = durationMs / 1_000
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
 @Composable
@@ -345,10 +397,12 @@ private fun DesktopPlayerBar(
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                LocalArtwork(track?.albumPicUrl, modifier = Modifier.size(48.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(track?.name ?: "Choose a local track to start")
                     Text(
-                        text = track?.artists ?: "Play music locally in NCMD.",
+                        text = track?.let(::trackSubtitle) ?: "Play music locally in NCMD.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
