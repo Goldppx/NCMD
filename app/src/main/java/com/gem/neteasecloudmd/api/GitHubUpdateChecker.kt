@@ -43,6 +43,7 @@ sealed interface UpdateCheckResult {
 object GitHubUpdateChecker {
     private const val REPOSITORY = "Goldppx/NCMD"
     private const val API_BASE_URL = "https://api.github.com/repos/$REPOSITORY"
+    private const val WEB_BASE_URL = "https://github.com/$REPOSITORY"
     private const val TAG = "UpdateChecker"
 
     private val client = OkHttpClient.Builder()
@@ -57,25 +58,57 @@ object GitHubUpdateChecker {
             val currentSha = BuildConfig.GIT_SHA
             require(currentSha != "unknown") { "This build does not contain a Git commit hash." }
 
-            val release = requestJson("$API_BASE_URL/releases/latest")
-            val tag = release.string("tag_name")
-            val releaseUrl = release.string("html_url")
-            val releaseSha = resolveTagCommit(tag)
+            val release = runCatching { latestReleaseFromApi() }
+                .getOrElse { apiError ->
+                    Logger.w(TAG, "GitHub API unavailable (${apiError.message}); falling back to GitHub web.")
+                    latestReleaseFromWeb()
+                }
 
-            if (currentSha.equals(releaseSha, ignoreCase = true)) {
-                return@withContext UpdateCheckResult.UpToDate(tag, releaseSha, releaseUrl)
+            if (currentSha.equals(release.sha, ignoreCase = true)) {
+                return@withContext UpdateCheckResult.UpToDate(release.tag, release.sha, release.url)
             }
 
-            when (requestJson("$API_BASE_URL/compare/$currentSha...$releaseSha").string("status")) {
-                "ahead" -> UpdateCheckResult.UpdateAvailable(tag, releaseSha, releaseUrl)
-                "behind" -> UpdateCheckResult.DevelopmentBuild(tag, releaseSha, releaseUrl)
-                "identical" -> UpdateCheckResult.UpToDate(tag, releaseSha, releaseUrl)
-                else -> UpdateCheckResult.DifferentHistory(tag, releaseSha, releaseUrl)
+            when (runCatching {
+                requestJson("$API_BASE_URL/compare/$currentSha...${release.sha}").string("status")
+            }.getOrElse { compareError ->
+                Logger.w(TAG, "GitHub comparison unavailable: ${compareError.message}")
+                "unknown"
+            }) {
+                "ahead" -> UpdateCheckResult.UpdateAvailable(release.tag, release.sha, release.url)
+                "behind" -> UpdateCheckResult.DevelopmentBuild(release.tag, release.sha, release.url)
+                "identical" -> UpdateCheckResult.UpToDate(release.tag, release.sha, release.url)
+                else -> UpdateCheckResult.DifferentHistory(release.tag, release.sha, release.url)
             }
         } catch (error: Exception) {
             Logger.w(TAG, "Update check failed: ${error.message}")
             UpdateCheckResult.Failure(error)
         }
+    }
+
+    private fun latestReleaseFromApi(): LatestRelease {
+        val release = requestJson("$API_BASE_URL/releases/latest")
+        val tag = release.string("tag_name")
+        return LatestRelease(
+            tag = tag,
+            sha = resolveTagCommit(tag),
+            url = release.string("html_url")
+        )
+    }
+
+    /**
+     * GitHub REST has a small unauthenticated, IP-shared quota. The normal GitHub
+     * release and tag pages remain publicly available when that quota is exhausted.
+     */
+    private fun latestReleaseFromWeb(): LatestRelease {
+        val latestPage = requestPage("$WEB_BASE_URL/releases/latest")
+        val tag = latestPage.url.substringAfter("/releases/tag/", missingDelimiterValue = "")
+            .substringBefore('?')
+            .takeIf { it.isNotBlank() }
+            ?: error("GitHub did not redirect to a release tag.")
+        val tagPage = requestPage("$WEB_BASE_URL/tree/$tag")
+        val sha = CURRENT_OID_PATTERN.find(tagPage.body)?.groupValues?.get(1)
+            ?: error("GitHub tag page did not contain a commit hash.")
+        return LatestRelease(tag, sha, "$WEB_BASE_URL/releases/tag/$tag")
     }
 
     private fun resolveTagCommit(tag: String): String {
@@ -107,7 +140,26 @@ object GitHubUpdateChecker {
         json.parseToJsonElement(body).jsonObject
     }
 
+    private fun requestPage(url: String): GitHubPage = client.newCall(
+        Request.Builder()
+            .url(url)
+            .header("User-Agent", "NCMD-Android")
+            .build()
+    ).execute().use { response ->
+        check(response.isSuccessful) { "GitHub page request failed with HTTP ${response.code}." }
+        GitHubPage(
+            url = response.request.url.toString(),
+            body = response.body?.string().orEmpty()
+        )
+    }
+
     private fun Map<String, kotlinx.serialization.json.JsonElement>.string(name: String): String =
         get(name)?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
             ?: error("GitHub response did not contain '$name'.")
+
+    private data class LatestRelease(val tag: String, val sha: String, val url: String)
+
+    private data class GitHubPage(val url: String, val body: String)
+
+    private val CURRENT_OID_PATTERN = Regex("\\\"currentOid\\\":\\\"([0-9a-f]{40})\\\"")
 }

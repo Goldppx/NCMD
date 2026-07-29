@@ -152,7 +152,7 @@
     <string name="settings_update_latest_message">This build exactly matches the latest release.</string>
     <string name="settings_update_available_message">The latest release contains commits after this build.</string>
     <string name="settings_update_development_message">This build contains commits after the latest release; no update is needed.</string>
-    <string name="settings_update_different_history_message">This build and the latest release do not share a linear commit history.</string>
+    <string name="settings_update_different_history_message">This build differs from the latest release, but their order could not be determined.</string>
     <string name="settings_update_failure_message">Check your network connection and try again.</string>
     <string name="settings_update_open_release">Open release</string>
     <string name="settings_update_close">Close</string>

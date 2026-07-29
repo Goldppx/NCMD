@@ -152,7 +152,7 @@
     <string name="settings_update_latest_message">目前建置與最新發布完全一致。</string>
     <string name="settings_update_available_message">最新發布包含目前建置之後的提交。</string>
     <string name="settings_update_development_message">目前建置包含最新發布之後的提交，無需更新。</string>
-    <string name="settings_update_different_history_message">目前建置與最新發布不在同一條提交歷史上。</string>
+    <string name="settings_update_different_history_message">目前建置與最新發布的提交不同，暫時無法判斷二者的先後關係。</string>
     <string name="settings_update_failure_message">請檢查網路後重試。</string>
     <string name="settings_update_open_release">檢視發布頁</string>
     <string name="settings_update_close">關閉</string>
