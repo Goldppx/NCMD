@@ -65,7 +65,7 @@ jobs:
       - name: Install WiX Toolset
         if: matrix.platform == 'Windows'
         shell: pwsh
-        run: choco install wixtoolset --version=3.14.1 --yes --no-progress
+        run: choco install wixtoolset --yes --no-progress
 
       - name: Create desktop application staging image
         run: ${{ matrix.command }}
