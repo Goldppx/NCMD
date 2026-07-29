@@ -62,6 +62,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Set up WiX Toolset
+        if: matrix.platform == 'Windows'
+        uses: wixtoolset/setup-wix@v1
+
       - name: Create desktop application staging image
         run: ${{ matrix.command }}
 
@@ -99,8 +103,11 @@ jobs:
           $devCommand = "`"$visualStudio\Common7\Tools\VsDevCmd.bat`" -no_logo -arch=x64 && cl.exe /nologo /std:c++17 /O2 /MT /DUNICODE /D_UNICODE /EHsc `"$launcherSource`" /Fe:`"$stage\NCMD.exe`" /link /SUBSYSTEM:WINDOWS Advapi32.lib Shell32.lib User32.lib"
           cmd.exe /c $devCommand
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path "$stage\*" -DestinationPath "dist\ncmd-$version-windows-x64.zip" -Force
+          $wixTemp = Join-Path $env:RUNNER_TEMP 'ncmd-wix'
+          New-Item -ItemType Directory -Force -Path $wixTemp, dist | Out-Null
+          heat.exe dir "$stage" -cg ApplicationFiles -dr INSTALLFOLDER -gg -srd -scom -sreg -out "$wixTemp\NcmdFiles.wxs"
+          candle.exe -nologo -dProductVersion=$version -out "$wixTemp\" packaging\windows\NCMD.wxs "$wixTemp\NcmdFiles.wxs"
+          light.exe -nologo -out "dist\ncmd-$version-windows-x64.msi" "$wixTemp\NCMD.wixobj" "$wixTemp\NcmdFiles.wixobj"
 
       - name: Smoke test Linux application startup
         if: matrix.platform == 'Linux'

@@ -67,7 +67,7 @@ cd NCMD
 ./gradlew :desktop:run
 ```
 
-发布的桌面包均**不内置 Java**。请用系统包管理器安装 Java 21 或更新版本；Windows 启动器
+发布的桌面包均**不内置 Java**；Windows 提供可安装的 MSI。请用系统包管理器安装 Java 21 或更新版本；Windows 启动器
 在未找到运行时时会弹窗打开 JetBrains Runtime 下载页。Linux 的原生 Wayland 支持必须使用
 JetBrains Runtime 21；普通 OpenJDK 会走 XWayland。Arch 用户请参阅
 [packaging/arch/README.md](packaging/arch/README.md)。

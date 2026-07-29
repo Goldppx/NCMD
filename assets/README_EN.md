@@ -67,7 +67,7 @@ cd NCMD
 ./gradlew :desktop:run
 ```
 
-Released desktop bundles **do not include Java**. Install Java 21 or newer through the
+Released desktop bundles **do not include Java**; Windows is distributed as an installable MSI. Install Java 21 or newer through the
 system package manager. The Windows launcher opens the JetBrains Runtime download page
 when a runtime is missing. Native Wayland on Linux requires JetBrains Runtime 21; ordinary
 OpenJDK uses XWayland. Arch users should see [packaging/arch/README.md](../packaging/arch/README.md).
