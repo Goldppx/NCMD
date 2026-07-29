@@ -203,7 +203,11 @@ jobs:
           $version = (Select-String -Path app/build.gradle.kts -Pattern 'versionName\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
           $stage = Join-Path $env:RUNNER_TEMP 'NCMD'
           New-Item -ItemType Directory -Force -Path "$stage\lib" | Out-Null
-          Copy-Item desktop\build\compose\binaries\main\app\NCMD\lib\app "$stage\lib\app" -Recurse
+          $appLibraries = Get-ChildItem desktop\build\compose\binaries\main\app -Recurse -Directory |
+            Where-Object { $_.Name -eq 'app' -and $_.Parent.Name -eq 'lib' } |
+            Select-Object -First 1
+          if (-not $appLibraries) { throw 'Compose application libraries were not found.' }
+          Copy-Item $appLibraries.FullName "$stage\lib\app" -Recurse
           $source = (Get-Content packaging\windows\ncmd_launcher.cpp -Raw).Replace('@NCMD_VERSION@', $version)
           $launcherSource = Join-Path $env:RUNNER_TEMP 'ncmd_launcher.cpp'
           Set-Content -Path $launcherSource -Value $source -NoNewline
