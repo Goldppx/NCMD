@@ -65,11 +65,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -175,7 +173,7 @@ private fun DesktopApp(
     onToggleTheme: (Color) -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    val themeSurface = MaterialTheme.colorScheme.surface
+    val themeBackground = MaterialTheme.colorScheme.background
     var statusMessage by remember { mutableStateOf("Import local music to start your desktop library.") }
 
     fun importEntries(entries: List<java.nio.file.Path>) {
@@ -248,7 +246,7 @@ private fun DesktopApp(
                 selected = state.destination,
                 onNavigate = store::navigate,
                 darkTheme = darkTheme,
-                onToggleTheme = { onToggleTheme(themeSurface) }
+                onToggleTheme = { onToggleTheme(themeBackground) }
             )
             Column(
                 modifier = Modifier
@@ -569,11 +567,11 @@ private fun ThemeTransitionOverlay(transition: ThemeTransition?) {
     if (transition == null) return
 
     val opacity = remember(transition.id) { Animatable(0f) }
-    val targetSurface = MaterialTheme.colorScheme.surface
+    val targetBackground = MaterialTheme.colorScheme.background
     val overlayTarget = if (transition.phase == ThemeTransitionPhase.COVERING) {
         transition.fromColor
     } else {
-        targetSurface
+        targetBackground
     }
     val overlayColor by animateColorAsState(
         targetValue = overlayTarget,
@@ -601,16 +599,11 @@ private fun ThemeTransitionOverlay(transition: ThemeTransition?) {
         }
     }
 
-    val gradientEnd = if (transition.targetDarkTheme) {
-        lerp(overlayColor, Color.Black, THEME_DARK_GRADIENT_DEPTH)
-    } else {
-        lerp(overlayColor, Color.White, THEME_LIGHT_GRADIENT_DEPTH)
-    }
     Box(
         modifier = Modifier
             .fillMaxSize()
             .graphicsLayer(alpha = opacity.value)
-            .background(Brush.linearGradient(listOf(overlayColor, gradientEnd))),
+            .background(overlayColor),
         contentAlignment = Alignment.Center
     ) {
         Crossfade(
@@ -634,5 +627,3 @@ private const val THEME_COLOR_SWAP_DURATION_MS = 260
 private const val THEME_REVEAL_DURATION_MS = 360
 private const val THEME_ICON_CROSSFADE_DURATION_MS = 220
 private const val THEME_TRANSITION_ICON_SIZE_DP = 64
-private const val THEME_DARK_GRADIENT_DEPTH = 0.28f
-private const val THEME_LIGHT_GRADIENT_DEPTH = 0.22f
