@@ -2,7 +2,7 @@
 
 All notable changes to NCMD are documented in this file.
 
-## v0.0.6 — KMP foundation and verified releases
+## v0.0.7 — KMP foundation and verified releases
 
 Released: 2026-07-29
 
