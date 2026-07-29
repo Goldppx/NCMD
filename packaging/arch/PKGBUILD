@@ -1,7 +1,7 @@
 # Maintained by the NCMD repository. The bundled runtime makes a system JDK unnecessary.
 pkgname=ncmd
 pkgver=${NCMD_VERSION:-0.0.7}
-pkgrel=1
+pkgrel=2
 pkgdesc='A Kotlin Multiplatform music client'
 arch=('x86_64')
 url='https://github.com/Goldppx/NCMD'
