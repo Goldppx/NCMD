@@ -3,7 +3,7 @@
 # here: that makes security updates the responsibility of the distribution.
 set -euo pipefail
 
-readonly APP_HOME=/opt/ncmd
+readonly APP_HOME="${NCMD_APP_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 readonly APP_DIR="${APP_HOME}/lib/app"
 readonly MAIN_CLASS=com.gem.neteasecloudmd.desktop.MainKt
 

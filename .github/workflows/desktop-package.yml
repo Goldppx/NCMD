@@ -10,6 +10,7 @@ on:
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "packaging/arch/**"
+      - "packaging/windows/**"
       - ".github/workflows/desktop-package.yml"
   push:
     branches: [main]
@@ -21,6 +22,7 @@ on:
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "packaging/arch/**"
+      - "packaging/windows/**"
       - ".github/workflows/desktop-package.yml"
   workflow_dispatch:
 
@@ -40,10 +42,10 @@ jobs:
         include:
           - platform: Linux
             runner: ubuntu-latest
-            command: ./gradlew :desktop:packageDistributionForCurrentOS --no-daemon --stacktrace
+            command: ./gradlew :desktop:createDistributable --no-daemon --stacktrace
           - platform: Windows
             runner: windows-latest
-            command: .\gradlew.bat :desktop:packageDistributionForCurrentOS --no-daemon --stacktrace
+            command: .\gradlew.bat :desktop:createDistributable --no-daemon --stacktrace
     runs-on: ${{ matrix.runner }}
 
     steps:
@@ -60,20 +62,51 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Package desktop application
+      - name: Create desktop application staging image
         run: ${{ matrix.command }}
 
-      - name: Create Linux app image for startup test
+      - name: Create thin Linux bundle
         if: matrix.platform == 'Linux'
-        run: ./gradlew :desktop:createDistributable --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/.*versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          stage=dist/NCMD-linux-x64
+          mkdir -p "$stage/bin" "$stage/lib"
+          cp -r desktop/build/compose/binaries/main/app/NCMD/lib/app "$stage/lib/app"
+          sed "s/@NCMD_VERSION@/${version}/" packaging/arch/ncmd > "$stage/bin/ncmd"
+          chmod 755 "$stage/bin/ncmd"
+          tar -C dist -czf "dist/ncmd-${version}-linux-x64.tar.gz" NCMD-linux-x64
+          rm -rf "$stage"
+
+      - name: Create thin Windows bundle
+        if: matrix.platform == 'Windows'
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path app/build.gradle.kts -Pattern 'versionName\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          $stage = Join-Path $env:RUNNER_TEMP 'NCMD'
+          New-Item -ItemType Directory -Force -Path "$stage\lib" | Out-Null
+          Copy-Item desktop\build\compose\binaries\main\app\NCMD\lib\app "$stage\lib\app" -Recurse
+          $source = (Get-Content packaging\windows\ncmd_launcher.cpp -Raw).Replace('@NCMD_VERSION@', $version)
+          $launcherSource = Join-Path $env:RUNNER_TEMP 'ncmd_launcher.cpp'
+          Set-Content -Path $launcherSource -Value $source -NoNewline
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $visualStudio) { throw 'Visual Studio C++ build tools were not found.' }
+          $devCommand = "`"$visualStudio\Common7\Tools\VsDevCmd.bat`" -no_logo -arch=x64 && cl.exe /nologo /std:c++17 /O2 /MT /DUNICODE /D_UNICODE /EHsc `"$launcherSource`" /Fe:`"$stage\NCMD.exe`" /link /SUBSYSTEM:WINDOWS"
+          cmd.exe /c $devCommand
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "$stage\*" -DestinationPath "dist\ncmd-$version-windows-x64.zip" -Force
 
       - name: Smoke test Linux application startup
         if: matrix.platform == 'Linux'
         shell: bash
         run: |
           set +e
-          timeout --signal=TERM 10s xvfb-run -a \
-            desktop/build/compose/binaries/main/app/NCMD/bin/NCMD
+          NCMD_JAVA_HOME="$JAVA_HOME" \
+            NCMD_APP_HOME="$PWD/desktop/build/compose/binaries/main/app/NCMD" \
+            timeout --signal=TERM 10s xvfb-run -a packaging/arch/ncmd
           status=$?
           if [[ "$status" -ne 124 && "$status" -ne 143 ]]; then
             exit "$status"
@@ -83,7 +116,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ncmd-desktop-${{ matrix.platform }}-${{ github.sha }}
-          path: desktop/build/compose/binaries/main/**
+          path: dist/*
           if-no-files-found: error
           retention-days: 14
 
@@ -122,10 +155,14 @@ jobs:
             --workdir /workspace/packaging/arch \
             archlinux:base-devel \
             bash -lc '
+              set -euo pipefail
               pacman -Syu --noconfirm
               useradd --create-home builder
               chown -R builder:builder /workspace
               su builder -c "cd /workspace/packaging/arch && NCMD_VERSION=${NCMD_VERSION} makepkg --noconfirm --cleanbuild --nodeps"
+              package_file=$(find /workspace/packaging/arch -maxdepth 1 -type f -name 'ncmd-*.pkg.tar.zst' -print -quit)
+              test -n "$package_file"
+              ! bsdtar -tf "$package_file" | grep -q '^opt/ncmd/lib/runtime/'
             '
 
       - name: Upload Arch Linux package
