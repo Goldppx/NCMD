@@ -78,6 +78,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -146,6 +147,17 @@ fun PlayerScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val activity = context as? Activity
+
+    // The player always draws a dark, cover-derived background. Keep system icons light even
+    // when the application uses the light Material theme.
+    SideEffect {
+        activity?.window?.let { window ->
+            WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+            }
+        }
+    }
     
     // Immersive mode and Auto-rotation support
     LaunchedEffect(isLandscape) {
