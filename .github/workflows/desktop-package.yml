@@ -109,8 +109,8 @@ jobs:
           $wixSource = Join-Path $wixTemp 'NCMD.wxs'
           $wixTemplate = Get-Content packaging\windows\NCMD.wxs -Raw
           Set-Content -Path $wixSource -Value $wixTemplate.Replace('@NCMD_MSI_VERSION@', $version) -NoNewline
-          heat.exe dir "$stage" -cg ApplicationFiles -dr INSTALLFOLDER -gg -srd -scom -sreg -out "$wixTemp\NcmdFiles.wxs"
-          candle.exe -nologo -out "$wixTemp\" "$wixSource" "$wixTemp\NcmdFiles.wxs"
+          heat.exe dir "$stage" -var var.NcmdSourceDir -cg ApplicationFiles -dr INSTALLFOLDER -gg -srd -scom -sreg -out "$wixTemp\NcmdFiles.wxs"
+          candle.exe -nologo "-dNcmdSourceDir=$stage" -out "$wixTemp\" "$wixSource" "$wixTemp\NcmdFiles.wxs"
           light.exe -nologo -out "dist\ncmd-$version-windows-x64.msi" "$wixTemp\NCMD.wixobj" "$wixTemp\NcmdFiles.wixobj"
 
       - name: Smoke test Linux application startup
