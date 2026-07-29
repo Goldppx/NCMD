@@ -57,7 +57,7 @@ jobs:
           echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build Android and Arch Linux release assets
+    name: Build Android and Linux release assets
     needs: prepare
     runs-on: ubuntu-latest
     outputs:
@@ -116,10 +116,14 @@ jobs:
             --workdir /workspace/packaging/arch \
             archlinux:base-devel \
             bash -lc '
+              set -euo pipefail
               pacman -Syu --noconfirm
               useradd --create-home builder
               chown -R builder:builder /workspace
               su builder -c "cd /workspace/packaging/arch && NCMD_VERSION=${NCMD_VERSION} makepkg --noconfirm --cleanbuild --nodeps"
+              package_file=$(find /workspace/packaging/arch -maxdepth 1 -type f -name 'ncmd-*.pkg.tar.zst' -print -quit)
+              test -n "$package_file"
+              ! bsdtar -tf "$package_file" | grep -q "^opt/ncmd/lib/runtime/"
             '
 
       - name: Package release assets
@@ -140,6 +144,15 @@ jobs:
           cp "$arch_package" dist/
           sha256sum "dist/$(basename "$arch_package")" > "dist/$(basename "$arch_package").sha256"
           version_name=$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
+          linux_stage=dist/NCMD-linux-x64
+          mkdir -p "$linux_stage/bin" "$linux_stage/lib"
+          cp -r desktop/build/compose/binaries/main/app/NCMD/lib/app "$linux_stage/lib/app"
+          sed "s/@NCMD_VERSION@/${version_name}/" packaging/arch/ncmd > "$linux_stage/bin/ncmd"
+          chmod 755 "$linux_stage/bin/ncmd"
+          linux_bundle="dist/ncmd-${RELEASE_TAG}-linux-x64.tar.gz"
+          tar -C dist -czf "$linux_bundle" NCMD-linux-x64
+          rm -rf "$linux_stage"
+          sha256sum "$linux_bundle" > "$linux_bundle.sha256"
           commit_sha=$(git rev-parse HEAD)
           cat > dist/update.json <<EOF
           {
@@ -160,9 +173,63 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  build-windows:
+    name: Build Windows thin desktop release asset
+    needs: prepare
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Set up JetBrains Runtime 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: jetbrains
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Create desktop application staging image
+        run: .\gradlew.bat :desktop:createDistributable --no-daemon --stacktrace
+
+      - name: Create native bootstrapper and thin bundle
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path app/build.gradle.kts -Pattern 'versionName\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          $stage = Join-Path $env:RUNNER_TEMP 'NCMD'
+          New-Item -ItemType Directory -Force -Path "$stage\lib" | Out-Null
+          Copy-Item desktop\build\compose\binaries\main\app\NCMD\lib\app "$stage\lib\app" -Recurse
+          $source = (Get-Content packaging\windows\ncmd_launcher.cpp -Raw).Replace('@NCMD_VERSION@', $version)
+          $launcherSource = Join-Path $env:RUNNER_TEMP 'ncmd_launcher.cpp'
+          Set-Content -Path $launcherSource -Value $source -NoNewline
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $visualStudio) { throw 'Visual Studio C++ build tools were not found.' }
+          $devCommand = "`"$visualStudio\Common7\Tools\VsDevCmd.bat`" -no_logo -arch=x64 && cl.exe /nologo /std:c++17 /O2 /MT /DUNICODE /D_UNICODE /EHsc `"$launcherSource`" /Fe:`"$stage\NCMD.exe`" /link /SUBSYSTEM:WINDOWS Advapi32.lib Shell32.lib"
+          cmd.exe /c $devCommand
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "$stage\*" -DestinationPath "dist\ncmd-${{ needs.prepare.outputs.tag }}-windows-x64.zip" -Force
+          Get-FileHash "dist\ncmd-${{ needs.prepare.outputs.tag }}-windows-x64.zip" -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)" } |
+            Set-Content "dist\ncmd-${{ needs.prepare.outputs.tag }}-windows-x64.zip.sha256"
+
+      - name: Upload Windows release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-${{ needs.prepare.outputs.tag }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
   publish:
     name: Publish GitHub Release
-    needs: [prepare, build]
+    needs: [prepare, build, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -172,6 +239,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-assets-${{ needs.prepare.outputs.tag }}
+          path: dist
+
+      - name: Download Windows release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows-${{ needs.prepare.outputs.tag }}
           path: dist
 
       - name: Create release and upload assets
@@ -185,4 +258,6 @@ jobs:
             dist/*.apk
             dist/*.sha256
             dist/*.pkg.tar.zst
+            dist/*.tar.gz
+            dist/*.zip
             dist/update.json

@@ -30,10 +30,11 @@ NCMD 是一款现代音乐客户端。不追求功能的堆砌，只为带给你
 
 ### 🌐 Kotlin Multiplatform 迁移进度
 - **已共享**：歌词解析、播放队列与播放请求策略、睡眠计时策略、领域模型与播放控制契约。
-- **已验证**：共享模块同时进行 Android 与 Desktop JVM 测试，并由 CI 持续校验。
-- **下一步**：建立 Windows/Linux 的 Compose Desktop 客户端，将页面状态与通用 UI 逐步迁入共享模块。
+- **桌面端可用**：Windows 与 Linux 版支持本地音乐库、元数据/封面读取、播放、封面取色与 HiDPI。
+- **原生 Wayland**：Linux 在 JetBrains Runtime 下使用 `WLToolkit`，而非 XWayland 回退。
+- **持续校验**：CI 会构建 Android、Linux、Windows 和 Arch Linux 薄包，并执行 Linux 启动烟雾测试。
 
-> 当前可供最终用户使用的是 Android 客户端；Desktop 客户端仍在开发中，尚未发布。
+> 桌面端正在持续完善在线曲库与登录；当前可稳定使用本地音乐播放功能。
 
 ---
 
@@ -61,14 +62,15 @@ cd NCMD
 ./gradlew assembleDebug
 ```
 
-### Desktop 预览（Windows / Linux）
+### Desktop（Windows / Linux）
 ```bash
 ./gradlew :desktop:run
 ```
 
-在 Windows 上可用 `:desktop:packageMsi` 打包 MSI；在 Linux 上可用
-`:desktop:packageDeb` 或 `:desktop:packageRpm` 打包。Desktop 当前是共享状态与 UI 的预览，
-实际账号登录、网络与音频引擎会在后续迁移中接入。
+发布的桌面包均**不内置 Java**。请用系统包管理器安装 Java 21 或更新版本；Windows 启动器
+在未找到运行时时会弹窗打开 JetBrains Runtime 下载页。Linux 的原生 Wayland 支持必须使用
+JetBrains Runtime 21；普通 OpenJDK 会走 XWayland。Arch 用户请参阅
+[packaging/arch/README.md](packaging/arch/README.md)。
 
 ---
 

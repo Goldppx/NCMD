@@ -30,10 +30,11 @@ The soul of NCMD. When you rotate your phone, a whole new vision unfolds:
 
 ### 🌐 Kotlin Multiplatform migration status
 - **Shared now**: lyric parsing, playback queue and request policies, sleep timer policy, domain models, and the playback-controller contract.
-- **Verified now**: the shared module is tested on Android and Desktop JVM in continuous integration.
-- **Next**: build a Compose Desktop client for Windows and Linux, then progressively move screen state and reusable UI into the shared module.
+- **Desktop available**: Windows and Linux support a local music library, metadata/artwork extraction, playback, artwork-derived color, and HiDPI.
+- **Native Wayland**: Linux uses `WLToolkit` with JetBrains Runtime instead of falling back to XWayland.
+- **Continuously verified**: CI builds Android, Linux, Windows, and Arch Linux thin packages and performs a Linux startup smoke test.
 
-> The Android client is the current end-user product. The Desktop client is under development and has not been released yet.
+> The desktop client is still gaining online-library and login support; local music playback is ready to use.
 
 ---
 
@@ -61,14 +62,15 @@ cd NCMD
 ./gradlew assembleDebug
 ```
 
-### Desktop preview (Windows / Linux)
+### Desktop (Windows / Linux)
 ```bash
 ./gradlew :desktop:run
 ```
 
-Use `:desktop:packageMsi` on Windows, or `:desktop:packageDeb` / `:desktop:packageRpm`
-on Linux. The Desktop client currently previews the shared state and UI; account login,
-networking, and the audio engine will be connected in subsequent migration work.
+Released desktop bundles **do not include Java**. Install Java 21 or newer through the
+system package manager. The Windows launcher opens the JetBrains Runtime download page
+when a runtime is missing. Native Wayland on Linux requires JetBrains Runtime 21; ordinary
+OpenJDK uses XWayland. Arch users should see [packaging/arch/README.md](../packaging/arch/README.md).
 
 ---
 
