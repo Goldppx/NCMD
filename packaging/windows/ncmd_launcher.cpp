@@ -172,7 +172,7 @@ std::filesystem::path executableDirectory() {
         length = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
         if (length < path.size() - 1) {
             path.resize(length);
-            return std::filesystem::path(path).parent_path();
+            return std::filesystem::path(std::wstring(path.data(), path.size())).parent_path();
         }
         path.resize(path.size() * 2);
     } while (path.size() <= 32768);
