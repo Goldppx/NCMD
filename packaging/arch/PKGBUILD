@@ -1,0 +1,45 @@
+# Maintained by the NCMD repository. The bundled runtime makes a system JDK unnecessary.
+pkgname=ncmd
+pkgver=${NCMD_VERSION:-0.0.7}
+pkgrel=1
+pkgdesc='A Kotlin Multiplatform music client'
+arch=('x86_64')
+url='https://github.com/Goldppx/NCMD'
+license=('MIT')
+depends=(
+  'alsa-lib'
+  'fontconfig'
+  'freetype2'
+  'libglvnd'
+  'libx11'
+  'libxext'
+  'libxi'
+  'libxrender'
+  'libxtst'
+  'xdg-utils'
+)
+options=('!strip')
+
+package() {
+  local app_dir="${startdir}/../../desktop/build/compose/binaries/main/app/NCMD"
+
+  if [[ ! -x "${app_dir}/bin/NCMD" ]]; then
+    printf 'Missing Compose Desktop app image at %s\n' "${app_dir}" >&2
+    return 1
+  fi
+
+  install -d "${pkgdir}/opt/ncmd"
+  cp -a "${app_dir}/." "${pkgdir}/opt/ncmd/"
+  install -d "${pkgdir}/usr/bin"
+  ln -s /opt/ncmd/bin/NCMD "${pkgdir}/usr/bin/ncmd"
+
+  if [[ -f "${pkgdir}/opt/ncmd/lib/ncmd-NCMD.desktop" ]]; then
+    install -Dm644 "${pkgdir}/opt/ncmd/lib/ncmd-NCMD.desktop" \
+      "${pkgdir}/usr/share/applications/ncmd.desktop"
+  fi
+
+  if [[ -f "${pkgdir}/opt/ncmd/lib/NCMD.png" ]]; then
+    install -Dm644 "${pkgdir}/opt/ncmd/lib/NCMD.png" \
+      "${pkgdir}/usr/share/pixmaps/ncmd.png"
+  fi
+}
