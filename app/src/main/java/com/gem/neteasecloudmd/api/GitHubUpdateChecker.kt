@@ -58,9 +58,12 @@ object GitHubUpdateChecker {
             val currentSha = BuildConfig.GIT_SHA
             require(currentSha != "unknown") { "This build does not contain a Git commit hash." }
 
-            val release = runCatching { latestReleaseFromApi() }
+            val release = runCatching { latestReleaseFromMetadata() }
+                .recoverCatching {
+                    latestReleaseFromApi()
+                }
                 .getOrElse { apiError ->
-                    Logger.w(TAG, "GitHub API unavailable (${apiError.message}); falling back to GitHub web.")
+                    Logger.w(TAG, "GitHub metadata and API unavailable (${apiError.message}); falling back to GitHub web.")
                     latestReleaseFromWeb()
                 }
 
@@ -92,6 +95,19 @@ object GitHubUpdateChecker {
             tag = tag,
             sha = resolveTagCommit(tag),
             url = release.string("html_url")
+        )
+    }
+
+    /**
+     * Published by the release workflow as a static asset. Unlike the REST API,
+     * this download endpoint is CDN-backed and does not consume GitHub API quota.
+     */
+    private fun latestReleaseFromMetadata(): LatestRelease {
+        val metadata = requestJson("$WEB_BASE_URL/releases/latest/download/update.json")
+        return LatestRelease(
+            tag = metadata.string("tag"),
+            sha = metadata.string("commitSha"),
+            url = metadata.string("releaseUrl")
         )
     }
 

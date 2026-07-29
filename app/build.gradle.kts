@@ -14,6 +14,14 @@ val gitSha = runCatching {
         .use { it.readText().trim() }
 }.getOrDefault("unknown").ifBlank { "unknown" }
 
+val releaseSigningValues = listOf(
+    providers.environmentVariable("SIGNING_STORE_FILE").orNull,
+    providers.environmentVariable("SIGNING_STORE_PASSWORD").orNull,
+    providers.environmentVariable("SIGNING_KEY_ALIAS").orNull,
+    providers.environmentVariable("SIGNING_KEY_PASSWORD").orNull
+)
+val hasReleaseSigning = releaseSigningValues.all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.gem.neteasecloudmd"
     compileSdk {
@@ -30,6 +38,15 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    if (hasReleaseSigning) {
+        signingConfigs.create("release") {
+            storeFile = file(requireNotNull(releaseSigningValues[0]))
+            storePassword = requireNotNull(releaseSigningValues[1])
+            keyAlias = requireNotNull(releaseSigningValues[2])
+            keyPassword = requireNotNull(releaseSigningValues[3])
+        }
     }
 
     val splitAbi = (project.findProperty("splitAbi") as String?)?.toBoolean() ?: false
@@ -59,6 +76,9 @@ android {
             )
             ndk {
                 debugSymbolLevel = "none"
+            }
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }

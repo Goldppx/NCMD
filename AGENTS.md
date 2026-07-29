@@ -161,6 +161,13 @@ This guide is for coding agents working in the NCMD repository.
 - Key dependencies: Compose BOM 2025.12.00, OkHttp 4.12.0, Coil 2.6.0, Media3 1.3.0, Room 2.8.4, material-kolor 3.0.1.
 - Room uses `fallbackToDestructiveMigration()` (deprecated variant) — data is lost on schema changes.
 
+## 10.1) GitHub Actions
+
+- `.github/workflows/ci.yml` verifies pull requests and `main` with Android debug build, JVM tests, desktop shared tests, and lint.
+- `.github/workflows/release.yml` publishes only version tags (`v*`) or an explicit manual release. It creates a signed arm64-v8a APK, SHA-256 sidecar, and `update.json` release asset.
+- Release signing is supplied only through GitHub Actions Secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Never commit a keystore or credential file.
+- `update.json` is the preferred update-check source; it is a CDN-backed Release asset and avoids GitHub REST API rate limits. The app falls back to API/web lookup for older releases without this asset.
+
 ## 11) Git and Change Hygiene
 
 - Do not commit generated caches (e.g., `.kotlin/`, `build/`).
