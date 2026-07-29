@@ -16,6 +16,8 @@ dependencies {
     implementation(libs.jaudiotagger)
     implementation(libs.material.kolor)
     implementation(libs.mp3spi)
+    implementation(libs.vorbisspi)
+    implementation(libs.jflac)
 }
 
 compose.desktop {

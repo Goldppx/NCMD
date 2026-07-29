@@ -2,6 +2,7 @@ package com.gem.neteasecloudmd.desktop
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,21 +21,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -104,9 +110,18 @@ fun main() {
                 onDispose(player::release)
             }
             val state by store.state.collectAsState()
-            DesktopTheme(artworkUri = state.playback.currentTrack?.albumPicUrl) {
+            val systemDark = isSystemInDarkTheme()
+            var darkTheme by remember { mutableStateOf(systemDark) }
+            DesktopTheme(artworkUri = state.playback.currentTrack?.albumPicUrl, darkTheme = darkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    DesktopApp(state = state, store = store, library = library, player = player)
+                    DesktopApp(
+                        state = state,
+                        store = store,
+                        library = library,
+                        player = player,
+                        darkTheme = darkTheme,
+                        onToggleTheme = { darkTheme = !darkTheme }
+                    )
                 }
             }
         }
@@ -119,7 +134,9 @@ private fun DesktopApp(
     state: LibraryUiState,
     store: LibraryStore,
     library: DesktopLocalLibrary,
-    player: DesktopPlaybackEngine
+    player: DesktopPlaybackEngine,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var statusMessage by remember { mutableStateOf("Import local music to start your desktop library.") }
@@ -178,7 +195,10 @@ private fun DesktopApp(
                     state.playback.currentTrack?.let { track ->
                         if (state.playback.isPlaying) player.pause() else player.play(track)
                     }
-                }
+                },
+                onPrevious = { store.selectPreviousTrack()?.let(player::play) },
+                onNext = { store.selectNextTrack()?.let(player::play) },
+                onSeek = player::seekTo
             )
         }
     ) { padding ->
@@ -189,7 +209,9 @@ private fun DesktopApp(
         ) {
             DesktopNavigation(
                 selected = state.destination,
-                onNavigate = store::navigate
+                onNavigate = store::navigate,
+                darkTheme = darkTheme,
+                onToggleTheme = onToggleTheme
             )
             Column(
                 modifier = Modifier
@@ -280,9 +302,11 @@ private fun EmptyLibraryContent(destination: LibraryDestination, importFiles: ()
 @Composable
 private fun DesktopNavigation(
     selected: LibraryDestination,
-    onNavigate: (LibraryDestination) -> Unit
+    onNavigate: (LibraryDestination) -> Unit,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit
 ) {
-    NavigationRail {
+    NavigationRail(modifier = Modifier.fillMaxHeight()) {
         NavigationRailItem(
             selected = selected == LibraryDestination.HOME,
             onClick = { onNavigate(LibraryDestination.HOME) },
@@ -301,6 +325,13 @@ private fun DesktopNavigation(
             icon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue") },
             label = { Text("Queue") }
         )
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onToggleTheme) {
+            Icon(
+                imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                contentDescription = if (darkTheme) "Switch to light theme" else "Switch to dark theme"
+            )
+        }
     }
 }
 
@@ -383,18 +414,39 @@ private fun formatDuration(durationMs: Int): String {
 @Composable
 private fun DesktopPlayerBar(
     state: LibraryUiState,
-    onTogglePlayback: () -> Unit
+    onTogglePlayback: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onSeek: (Long) -> Unit
 ) {
     val track = state.playback.currentTrack
-    val progress = state.playback.durationMs.takeIf { it > 0L }
-        ?.let { state.playback.positionMs.toFloat() / it }
-        ?.coerceIn(0f, 1f)
-        ?: 0f
+    val durationMs = state.playback.durationMs
+    var isSeeking by remember(track?.id) { mutableStateOf(false) }
+    var sliderPosition by remember(track?.id) { mutableFloatStateOf(0f) }
+    LaunchedEffect(state.playback.positionMs, durationMs, isSeeking) {
+        if (!isSeeking) {
+            sliderPosition = if (durationMs > 0L) {
+                state.playback.positionMs.toFloat() / durationMs
+            } else {
+                0f
+            }.coerceIn(0f, 1f)
+        }
+    }
     Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth()
+            Slider(
+                value = sliderPosition,
+                onValueChange = {
+                    isSeeking = true
+                    sliderPosition = it
+                },
+                onValueChangeFinished = {
+                    if (durationMs > 0L) onSeek((sliderPosition * durationMs).toLong())
+                    isSeeking = false
+                },
+                enabled = track != null && durationMs > 0L,
+                valueRange = 0f..1f,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
             Row(
                 modifier = Modifier
@@ -411,12 +463,26 @@ private fun DesktopPlayerBar(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        text = "${formatDuration(state.playback.positionMs.toInt())} / ${formatDuration(durationMs.toInt())}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onPrevious, enabled = state.playback.queue.currentIndex > 0) {
+                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous track")
                 }
                 IconButton(onClick = onTogglePlayback, enabled = track != null) {
                     Icon(
                         imageVector = if (state.playback.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (state.playback.isPlaying) "Pause" else "Play"
                     )
+                }
+                IconButton(
+                    onClick = onNext,
+                    enabled = state.playback.queue.currentIndex < state.playback.queue.items.lastIndex
+                ) {
+                    Icon(Icons.Default.SkipNext, contentDescription = "Next track")
                 }
             }
         }

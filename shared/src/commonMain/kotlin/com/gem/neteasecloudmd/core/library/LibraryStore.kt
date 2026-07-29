@@ -3,6 +3,7 @@ package com.gem.neteasecloudmd.core.library
 import com.gem.neteasecloudmd.core.model.Track
 import com.gem.neteasecloudmd.core.playback.PlaybackState
 import com.gem.neteasecloudmd.core.playback.PlaybackStatus
+import com.gem.neteasecloudmd.core.playback.QueuePolicy
 import com.gem.neteasecloudmd.core.playback.QueueState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -116,6 +117,30 @@ class LibraryStore(initialCatalog: List<Track>) {
                 )
             )
         }
+    }
+
+    fun selectNextTrack(): Track? = selectAdjacentTrack(QueuePolicy::nextSequential)
+
+    fun selectPreviousTrack(): Track? = selectAdjacentTrack(QueuePolicy::previousSequential)
+
+    private fun selectAdjacentTrack(nextIndex: (QueueState<Track>) -> Int?): Track? {
+        var selectedTrack: Track? = null
+        _state.update { state ->
+            val queue = state.playback.queue
+            val targetIndex = nextIndex(queue) ?: return@update state
+            selectedTrack = queue.items[targetIndex]
+            state.copy(
+                playback = state.playback.copy(
+                    queue = queue.copy(currentIndex = targetIndex),
+                    status = PlaybackStatus.READY,
+                    isPlaying = true,
+                    positionMs = 0L,
+                    durationMs = selectedTrack?.duration?.toLong() ?: 0L,
+                    errorMessage = null
+                )
+            )
+        }
+        return selectedTrack
     }
 
     /**

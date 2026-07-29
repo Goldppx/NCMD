@@ -19,6 +19,8 @@ navigationCompose = "2.8.5"
 animationCore = "1.11.0"
 composeMultiplatform = "1.6.11"
 mp3spi = "1.9.5.4"
+vorbisspi = "1.0.3.3"
+jflac = "1.5.2"
 jaudiotagger = "3.0.1"
 materialKolor = "1.6.2"
 
@@ -51,6 +53,8 @@ media3-session = { group = "androidx.media3", name = "media3-session", version.r
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-compose-animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCore" }
 mp3spi = { group = "com.googlecode.soundlibs", name = "mp3spi", version.ref = "mp3spi" }
+vorbisspi = { group = "com.googlecode.soundlibs", name = "vorbisspi", version.ref = "vorbisspi" }
+jflac = { group = "org.jflac", name = "jflac-codec", version.ref = "jflac" }
 jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
 material-kolor = { group = "com.materialkolor", name = "material-kolor", version.ref = "materialKolor" }
 

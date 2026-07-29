@@ -13,7 +13,17 @@ import kotlin.io.path.name
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 
-private val supportedAudioExtensions = setOf("aac", "flac", "m4a", "mp3", "ogg", "opus", "wav")
+private val supportedAudioExtensions = setOf(
+    "aif",
+    "aiff",
+    "au",
+    "flac",
+    "mp3",
+    "oga",
+    "ogg",
+    "wav",
+    "wave"
+)
 
 data class ImportResult(
     val addedTrackCount: Int,
@@ -179,21 +189,44 @@ private class LocalArtworkRepository {
     }.getOrNull()
 }
 
-fun selectAudioFiles(): List<Path> {
-    val dialog = java.awt.FileDialog(null as java.awt.Frame?, "Add music files", java.awt.FileDialog.LOAD)
-    dialog.isMultipleMode = true
-    dialog.isVisible = true
-    return dialog.files.orEmpty().map(File::toPath)
-}
+fun selectAudioFiles(): List<Path> = DesktopSystemFilePicker.select(
+    title = "Add music files",
+    allowMultiple = true,
+    selectDirectories = false
+)
 
-fun selectMusicFolder(): List<Path> {
-    val chooser = javax.swing.JFileChooser().apply {
-        fileSelectionMode = javax.swing.JFileChooser.DIRECTORIES_ONLY
-        isMultiSelectionEnabled = false
-    }
-    return if (chooser.showOpenDialog(null) == javax.swing.JFileChooser.APPROVE_OPTION) {
-        listOf(chooser.selectedFile.toPath())
-    } else {
-        emptyList()
+fun selectMusicFolder(): List<Path> = DesktopSystemFilePicker.select(
+    title = "Add music folder",
+    allowMultiple = false,
+    selectDirectories = true
+)
+
+/** AWT FileDialog delegates to the platform file chooser instead of a Swing look-and-feel dialog. */
+private object DesktopSystemFilePicker {
+    fun select(title: String, allowMultiple: Boolean, selectDirectories: Boolean): List<Path> {
+        val directorySelectionProperty = "apple.awt.fileDialogForDirectories"
+        val previousDirectorySelection = System.getProperty(directorySelectionProperty)
+        return try {
+            if (selectDirectories) System.setProperty(directorySelectionProperty, "true")
+            val dialog = java.awt.FileDialog(null as java.awt.Frame?, title, java.awt.FileDialog.LOAD)
+            try {
+                dialog.isMultipleMode = allowMultiple
+                if (!selectDirectories) {
+                    dialog.filenameFilter = java.io.FilenameFilter { _, name ->
+                        name.substringAfterLast('.', missingDelimiterValue = "").lowercase() in supportedAudioExtensions
+                    }
+                }
+                dialog.isVisible = true
+                dialog.files.orEmpty().map(File::toPath)
+            } finally {
+                dialog.dispose()
+            }
+        } finally {
+            if (previousDirectorySelection == null) {
+                System.clearProperty(directorySelectionProperty)
+            } else {
+                System.setProperty(directorySelectionProperty, previousDirectorySelection)
+            }
+        }
     }
 }

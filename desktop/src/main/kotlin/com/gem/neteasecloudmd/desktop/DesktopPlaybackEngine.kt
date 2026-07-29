@@ -34,6 +34,7 @@ class DesktopPlaybackEngine(
 
     private var sessionId = 0L
     private var activeTrackId: Long? = null
+    private var activeTrackPath: Path? = null
     private var isPaused = false
     private var activeLine: SourceDataLine? = null
     private var currentPositionMs = 0L
@@ -64,6 +65,7 @@ class DesktopPlaybackEngine(
 
             sessionId += 1L
             activeTrackId = track.id
+            activeTrackPath = path
             isPaused = false
             currentPositionMs = 0L
             currentDurationMs = 0L
@@ -89,10 +91,24 @@ class DesktopPlaybackEngine(
         onUpdate(update)
     }
 
+    fun seekTo(positionMs: Long) {
+        synchronized(lock) {
+            val trackId = activeTrackId ?: return
+            val path = activeTrackPath ?: return
+            val targetPositionMs = positionMs.coerceIn(0L, currentDurationMs)
+            sessionId += 1L
+            currentPositionMs = targetPositionMs
+            activeLine?.close()
+            val newSessionId = sessionId
+            executor.execute { playSession(newSessionId, trackId, path, targetPositionMs) }
+        }
+    }
+
     fun release() {
         synchronized(lock) {
             sessionId += 1L
             activeTrackId = null
+            activeTrackPath = null
             isPaused = false
             activeLine?.close()
             activeLine = null
@@ -101,13 +117,18 @@ class DesktopPlaybackEngine(
         executor.shutdownNow()
     }
 
-    private fun playSession(currentSessionId: Long, trackId: Long, path: Path) {
+    private fun playSession(currentSessionId: Long, trackId: Long, path: Path, initialPositionMs: Long = 0L) {
         var durationMs = 0L
-        var positionMs = 0L
+        var positionMs = initialPositionMs
         try {
             openDecodedStream(path).use { stream ->
                 durationMs = stream.durationMs()
-                synchronized(lock) { currentDurationMs = durationMs }
+                val startPositionMs = initialPositionMs.coerceIn(0L, durationMs.takeIf { it > 0L } ?: initialPositionMs)
+                stream.skipToPosition(startPositionMs)
+                synchronized(lock) {
+                    currentDurationMs = durationMs
+                    currentPositionMs = startPositionMs
+                }
                 val line = AudioSystem.getLine(DataLine.Info(SourceDataLine::class.java, stream.format)) as SourceDataLine
                 line.use {
                     synchronized(lock) {
@@ -115,15 +136,16 @@ class DesktopPlaybackEngine(
                         activeLine = line
                     }
                     line.open(stream.format)
-                    line.start()
-                    emitIfCurrent(currentSessionId, trackId, PlaybackStatus.READY, true, 0L, durationMs)
+                    val playing = synchronized(lock) { !isPaused }
+                    if (playing) line.start()
+                    emitIfCurrent(currentSessionId, trackId, PlaybackStatus.READY, playing, startPositionMs, durationMs)
 
                     val buffer = ByteArray(BUFFER_SIZE)
                     var lastReportedAt = 0L
                     while (true) {
                         synchronized(lock) {
                             while (isPaused && isCurrentSession(currentSessionId, trackId)) {
-                                val currentPosition = line.positionMs(stream.format)
+                                val currentPosition = startPositionMs + line.positionMs(stream.format)
                                 emitIfCurrent(
                                     currentSessionId,
                                     trackId,
@@ -140,7 +162,7 @@ class DesktopPlaybackEngine(
                         val bytesRead = stream.read(buffer)
                         if (bytesRead < 0) break
                         line.write(buffer, 0, bytesRead)
-                        positionMs = line.positionMs(stream.format)
+                        positionMs = startPositionMs + line.positionMs(stream.format)
                         synchronized(lock) { currentPositionMs = positionMs }
                         val now = System.nanoTime()
                         if (now - lastReportedAt >= PROGRESS_INTERVAL_NANOS) {
@@ -149,7 +171,7 @@ class DesktopPlaybackEngine(
                         }
                     }
                     line.drain()
-                    positionMs = if (durationMs > 0L) durationMs else line.positionMs(stream.format)
+                    positionMs = if (durationMs > 0L) durationMs else startPositionMs + line.positionMs(stream.format)
                 }
             }
             emitIfCurrent(currentSessionId, trackId, PlaybackStatus.READY, false, positionMs, durationMs)
@@ -168,6 +190,7 @@ class DesktopPlaybackEngine(
                 if (isCurrentSession(currentSessionId, trackId)) {
                     activeLine = null
                     activeTrackId = null
+                    activeTrackPath = null
                     isPaused = false
                 }
             }
@@ -194,6 +217,16 @@ class DesktopPlaybackEngine(
     private fun AudioInputStream.durationMs(): Long {
         if (frameLength == AudioSystem.NOT_SPECIFIED.toLong() || format.frameRate <= 0f) return 0L
         return (frameLength * MILLIS_PER_SECOND / format.frameRate).toLong()
+    }
+
+    private fun AudioInputStream.skipToPosition(positionMs: Long) {
+        if (positionMs <= 0L || format.frameRate <= 0f || format.frameSize <= 0) return
+        var remainingBytes = (positionMs * format.frameRate / MILLIS_PER_SECOND).toLong() * format.frameSize
+        while (remainingBytes > 0L) {
+            val skipped = skip(remainingBytes)
+            if (skipped <= 0L) break
+            remainingBytes -= skipped
+        }
     }
 
     private fun SourceDataLine.positionMs(format: AudioFormat): Long {

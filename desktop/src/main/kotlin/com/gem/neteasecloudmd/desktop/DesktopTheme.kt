@@ -2,7 +2,6 @@ package com.gem.neteasecloudmd.desktop
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -23,18 +22,17 @@ import kotlin.math.min
 
 /** Uses the current cover as the seed for the same Material Kolor system used on Android. */
 @Composable
-fun DesktopTheme(artworkUri: String?, content: @Composable () -> Unit) {
-    val isDark = isSystemInDarkTheme()
+fun DesktopTheme(artworkUri: String?, darkTheme: Boolean, content: @Composable () -> Unit) {
     val seedColor by produceState<Color?>(initialValue = null, artworkUri) {
         value = withContext(Dispatchers.IO) { DesktopArtworkColorExtractor.seedColor(artworkUri) }
     }
     val targetScheme = seedColor?.let { seed ->
         dynamicColorScheme(
             seedColor = seed,
-            isDark = isDark,
+            isDark = darkTheme,
             contrastLevel = Contrast.Default.value
         )
-    } ?: if (isDark) {
+    } ?: if (darkTheme) {
         darkColorScheme()
     } else {
         lightColorScheme()
