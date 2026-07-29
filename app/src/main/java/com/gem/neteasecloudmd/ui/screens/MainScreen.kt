@@ -1,6 +1,7 @@
 package com.gem.neteasecloudmd.ui.screens
 
 import com.gem.neteasecloudmd.ui.common.Toast
+import com.gem.neteasecloudmd.ui.common.LocalPlaybackBarInset
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -286,7 +287,12 @@ fun MainScreen(
                             else -> {
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(16.dp),
+                                    contentPadding = PaddingValues(
+                                        start = 16.dp,
+                                        top = 16.dp,
+                                        end = 16.dp,
+                                        bottom = 16.dp + LocalPlaybackBarInset.current
+                                    ),
                                     verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     item {

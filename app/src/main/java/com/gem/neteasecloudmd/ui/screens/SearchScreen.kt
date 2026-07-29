@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import com.gem.neteasecloudmd.ui.common.Toast
+import com.gem.neteasecloudmd.ui.common.LocalPlaybackBarInset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -199,7 +200,12 @@ fun SearchScreen(
                 uiState.suggestions.isNotEmpty() && !uiState.hasSearched -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            top = 16.dp,
+                            end = 16.dp,
+                            bottom = 16.dp + LocalPlaybackBarInset.current
+                        ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         item {
@@ -332,7 +338,12 @@ private fun SongSearchResults(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 16.dp + LocalPlaybackBarInset.current
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (songs.isEmpty()) {
@@ -387,7 +398,12 @@ private fun PlaylistSearchResults(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 16.dp + LocalPlaybackBarInset.current
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (playlists.isEmpty()) {
@@ -433,7 +449,12 @@ private fun AlbumSearchResults(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 16.dp + LocalPlaybackBarInset.current
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (albums.isEmpty()) {

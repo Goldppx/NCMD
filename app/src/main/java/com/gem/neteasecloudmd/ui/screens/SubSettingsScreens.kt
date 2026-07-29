@@ -68,6 +68,7 @@ import com.gem.neteasecloudmd.api.PlayerManager
 import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.UpdateCheckResult
 import com.gem.neteasecloudmd.ui.common.Toast
+import com.gem.neteasecloudmd.ui.common.LocalPlaybackBarInset
 import com.gem.neteasecloudmd.utils.Logger
 import kotlinx.coroutines.launch
 
@@ -233,6 +234,7 @@ fun PlaybackSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .padding(bottom = LocalPlaybackBarInset.current)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
@@ -275,6 +277,7 @@ fun StorageSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .padding(bottom = LocalPlaybackBarInset.current)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
@@ -378,6 +381,7 @@ fun DisplaySettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .padding(bottom = LocalPlaybackBarInset.current)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             item {
@@ -511,6 +515,7 @@ fun AccountSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .padding(bottom = LocalPlaybackBarInset.current)
         ) {
             if (!isLoggedIn) {
                 item {
@@ -653,7 +658,8 @@ fun AboutSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .padding(bottom = LocalPlaybackBarInset.current),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             item { Spacer(modifier = Modifier.height(32.dp)) }
@@ -956,6 +962,7 @@ fun LicensesSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .padding(bottom = LocalPlaybackBarInset.current)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             items(licenses) { license ->

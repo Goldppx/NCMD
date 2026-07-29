@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gem.neteasecloudmd.R
+import com.gem.neteasecloudmd.ui.common.LocalPlaybackBarInset
 import com.gem.neteasecloudmd.utils.LogLevel
 import com.gem.neteasecloudmd.utils.Logger
 import java.text.SimpleDateFormat
@@ -156,7 +157,12 @@ fun LogScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.surface),
-            contentPadding = PaddingValues(8.dp),
+            contentPadding = PaddingValues(
+                start = 8.dp,
+                top = 8.dp,
+                end = 8.dp,
+                bottom = 8.dp + LocalPlaybackBarInset.current
+            ),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(filteredLogs) { entry ->

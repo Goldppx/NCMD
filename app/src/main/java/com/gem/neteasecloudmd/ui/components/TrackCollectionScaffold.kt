@@ -1,6 +1,7 @@
 package com.gem.neteasecloudmd.ui.components
 
 import com.gem.neteasecloudmd.ui.common.Toast
+import com.gem.neteasecloudmd.ui.common.LocalPlaybackBarInset
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -324,7 +325,12 @@ fun TrackCollectionScaffold(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            top = 16.dp,
+                            end = 16.dp,
+                            bottom = 16.dp + LocalPlaybackBarInset.current
+                        ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         item {

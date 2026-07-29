@@ -12,6 +12,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.media3.common.util.UnstableApi
@@ -26,6 +28,7 @@ import com.gem.neteasecloudmd.api.SessionManager
 import com.gem.neteasecloudmd.api.rememberPlayerManager
 import com.gem.neteasecloudmd.ui.navigation.NavGraph
 import com.gem.neteasecloudmd.ui.navigation.Screen
+import com.gem.neteasecloudmd.ui.common.LocalPlaybackBarInset
 import com.gem.neteasecloudmd.ui.screens.PlaybackBar
 import com.gem.neteasecloudmd.ui.theme.NeteaseCloudMDTheme
 
@@ -72,18 +75,22 @@ fun NCMDApp() {
 
             SharedTransitionLayout {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    NavGraph(
-                        sharedTransitionScope = this@SharedTransitionLayout,
-                        navController = navController,
-                        startDestination = startDestination,
-                        onThemeModeChanged = { mode ->
-                            themeMode = mode
-                        },
-                        onLanguageModeChanged = { mode ->
-                            languageMode = mode
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    CompositionLocalProvider(
+                        LocalPlaybackBarInset provides if (showPlaybackBar) 72.dp else 0.dp
+                    ) {
+                        NavGraph(
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            navController = navController,
+                            startDestination = startDestination,
+                            onThemeModeChanged = { mode ->
+                                themeMode = mode
+                            },
+                            onLanguageModeChanged = { mode ->
+                                languageMode = mode
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
 
                     AnimatedVisibility(
                         visible = showPlaybackBar,

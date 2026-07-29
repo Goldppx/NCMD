@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gem.neteasecloudmd.R
+import com.gem.neteasecloudmd.ui.common.LocalPlaybackBarInset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,6 +100,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .padding(bottom = LocalPlaybackBarInset.current)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             items(menuItems) { item ->
