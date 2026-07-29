@@ -7,13 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -48,7 +45,8 @@ import com.gem.neteasecloudmd.api.PlayerManager
 import com.gem.neteasecloudmd.api.PlayMode
 import com.gem.neteasecloudmd.api.TrackItem
 
-@OptIn(ExperimentalMaterial3Api::class, UnstableApi::class)
+@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaybackQueueSheet(
     player: PlayerManager,
@@ -73,15 +71,16 @@ fun PlaybackQueueSheet(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class, UnstableApi::class)
+@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlaybackQueueContent(
     player: PlayerManager,
     onDismiss: () -> Unit,
     onTrackLongClick: (TrackItem) -> Unit,
+    modifier: Modifier = Modifier,
     likedSongIds: Set<Long> = emptySet(),
     onLikeToggle: ((Long) -> Unit)? = null,
-    modifier: Modifier = Modifier,
     maxHeight: Boolean = true
 ) {
     Column(modifier = modifier) {
