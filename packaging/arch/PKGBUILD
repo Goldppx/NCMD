@@ -1,7 +1,7 @@
-# Maintained by the NCMD repository. The bundled runtime makes a system JDK unnecessary.
+# Maintained by the NCMD repository. Java is intentionally supplied by the system.
 pkgname=ncmd
 pkgver=${NCMD_VERSION:-0.0.7}
-pkgrel=2
+pkgrel=3
 pkgdesc='A Kotlin Multiplatform music client'
 arch=('x86_64')
 url='https://github.com/Goldppx/NCMD'
@@ -16,31 +16,40 @@ depends=(
   'libxi'
   'libxrender'
   'libxtst'
+  'java-runtime>=21'
   'wayland'
   'xdg-utils'
+)
+optdepends=(
+  'jre21-jetbrains-git: native Wayland runtime (AUR)'
+  'zenity: graphical runtime error dialogs for GTK desktops'
+  'kdialog: graphical runtime error dialogs for KDE Plasma'
 )
 options=('!strip')
 
 package() {
   local app_dir="${startdir}/../../desktop/build/compose/binaries/main/app/NCMD"
 
-  if [[ ! -x "${app_dir}/bin/NCMD" ]]; then
+  if [[ ! -d "${app_dir}/lib/app" ]]; then
     printf 'Missing Compose Desktop app image at %s\n' "${app_dir}" >&2
     return 1
   fi
 
-  install -d "${pkgdir}/opt/ncmd"
-  cp -a "${app_dir}/." "${pkgdir}/opt/ncmd/"
+  install -d "${pkgdir}/opt/ncmd/lib"
+  cp -r "${app_dir}/lib/app" "${pkgdir}/opt/ncmd/lib/app"
+  install -d "${pkgdir}/opt/ncmd/bin"
+  sed "s/@NCMD_VERSION@/${pkgver}/" "${startdir}/ncmd" > "${pkgdir}/opt/ncmd/bin/ncmd"
+  chmod 755 "${pkgdir}/opt/ncmd/bin/ncmd"
   install -d "${pkgdir}/usr/bin"
-  ln -s /opt/ncmd/bin/NCMD "${pkgdir}/usr/bin/ncmd"
+  ln -s /opt/ncmd/bin/ncmd "${pkgdir}/usr/bin/ncmd"
 
-  if [[ -f "${pkgdir}/opt/ncmd/lib/ncmd-NCMD.desktop" ]]; then
-    install -Dm644 "${pkgdir}/opt/ncmd/lib/ncmd-NCMD.desktop" \
-      "${pkgdir}/usr/share/applications/ncmd.desktop"
+  if [[ -f "${app_dir}/lib/ncmd-NCMD.desktop" ]]; then
+    install -d "${pkgdir}/usr/share/applications"
+    sed 's#Exec=.*#Exec=ncmd#' "${app_dir}/lib/ncmd-NCMD.desktop" > "${pkgdir}/usr/share/applications/ncmd.desktop"
   fi
 
-  if [[ -f "${pkgdir}/opt/ncmd/lib/NCMD.png" ]]; then
-    install -Dm644 "${pkgdir}/opt/ncmd/lib/NCMD.png" \
+  if [[ -f "${app_dir}/lib/NCMD.png" ]]; then
+    install -Dm644 "${app_dir}/lib/NCMD.png" \
       "${pkgdir}/usr/share/pixmaps/ncmd.png"
   fi
 }
