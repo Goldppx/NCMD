@@ -1,0 +1,68 @@
+name: Package Desktop
+
+on:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "shared/**"
+      - "gradle/**"
+      - "gradlew*"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "shared/**"
+      - "gradle/**"
+      - "gradlew*"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Package ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux
+            runner: ubuntu-latest
+            command: ./gradlew :desktop:packageDistributionForCurrentOS --no-daemon --stacktrace
+          - platform: Windows
+            runner: windows-latest
+            command: .\gradlew.bat :desktop:packageDistributionForCurrentOS --no-daemon --stacktrace
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Package desktop application
+        run: ${{ matrix.command }}
+
+      - name: Upload ${{ matrix.platform }} packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: ncmd-desktop-${{ matrix.platform }}-${{ github.sha }}
+          path: desktop/build/compose/binaries/main/**
+          if-no-files-found: error
+          retention-days: 14
