@@ -62,9 +62,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Set up WiX Toolset
+      - name: Install WiX Toolset
         if: matrix.platform == 'Windows'
-        uses: wixtoolset/setup-wix@v1
+        shell: pwsh
+        run: choco install wixtoolset --version=3.14.1 --yes --no-progress
 
       - name: Create desktop application staging image
         run: ${{ matrix.command }}
