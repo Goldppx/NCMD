@@ -8,10 +8,10 @@ import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
@@ -22,26 +22,27 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
-import androidx.media3.ui.PlayerNotificationManager
 import com.gem.neteasecloudmd.R
+import com.gem.neteasecloudmd.core.playback.PlaybackRequestPolicy
+import com.gem.neteasecloudmd.core.playback.PlaybackController
+import com.gem.neteasecloudmd.core.playback.PlaybackState
+import com.gem.neteasecloudmd.core.playback.PlaybackStatus
+import com.gem.neteasecloudmd.core.playback.PrefetchedUrl
+import com.gem.neteasecloudmd.core.playback.QueuePolicy
+import com.gem.neteasecloudmd.core.playback.QueueState
 import com.gem.neteasecloudmd.data.local.AppDatabase
 import com.gem.neteasecloudmd.data.repository.MusicRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-data class TrackItem(
-    val id: Long,
-    val name: String,
-    val artists: String,
-    val albumName: String,
-    val albumPicUrl: String?,
-    val duration: Int = 0
-)
 
 data class SleepTimerState(
     val isActive: Boolean = false,
@@ -50,21 +51,16 @@ data class SleepTimerState(
     val targetAtMs: Long = 0L
 )
 
-enum class PlayMode {
-    SEQUENTIAL,
-    SHUFFLE,
-    REPEAT_ONE
-}
-
 private fun Long.toIntSafe(): Int = coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
 @UnstableApi
-class PlayerManager private constructor(private val context: Context) {
+@Suppress("StaticFieldLeak")
+class PlayerManager private constructor(private val context: Context) : PlaybackController {
     var isPlaying by mutableStateOf(false)
         private set
     var currentPlaylist by mutableStateOf<List<TrackItem>>(emptyList())
         private set
-    var currentTrackIndex by mutableStateOf(0)
+    var currentTrackIndex by mutableIntStateOf(0)
         private set
     var currentUrl by mutableStateOf<String?>(null)
         private set
@@ -76,12 +72,12 @@ class PlayerManager private constructor(private val context: Context) {
     var currentLyric by mutableStateOf<String?>(null)
         private set
 
-    var currentPosition by mutableStateOf(0)
+    var currentPosition by mutableIntStateOf(0)
         private set
-    var duration by mutableStateOf(0)
+    var duration by mutableIntStateOf(0)
         private set
 
-    var themeSeedArgb by mutableStateOf(0)
+    var themeSeedArgb by mutableIntStateOf(0)
         private set
 
     var playMode by mutableStateOf(PlayMode.SEQUENTIAL)
@@ -96,12 +92,19 @@ class PlayerManager private constructor(private val context: Context) {
     var likedSongIds by mutableStateOf<Set<Long>>(emptySet())
         private set
 
+    private val _state = MutableStateFlow(PlaybackState())
+    override val state: StateFlow<PlaybackState> = _state.asStateFlow()
+
     fun updateLikedSongIds(ids: Set<Long>) {
         likedSongIds = ids
     }
 
-    private var prefetchedNextUrl: String? = null
-    private var prefetchedTrackIndex: Int = -1
+    private var queueRevision = 0L
+    private var playbackRequestId = 0L
+    private var prefetchedUrl: PrefetchedUrl? = null
+    private var urlLoadJob: Job? = null
+    private var lyricLoadJob: Job? = null
+    private var prefetchJob: Job? = null
 
     var sleepTimerState by mutableStateOf(SleepTimerState())
         private set
@@ -112,7 +115,6 @@ class PlayerManager private constructor(private val context: Context) {
 
     private var exoPlayer: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
-    private var notificationManager: PlayerNotificationManager? = null
     private var notificationPlayer: Player? = null
     private var currentCookie: String = ""
     private var currentApiService: NeteaseApiService? = null
@@ -124,6 +126,7 @@ class PlayerManager private constructor(private val context: Context) {
                 if (player.isPlaying) {
                     currentPosition = player.currentPosition.toIntSafe()
                     duration = player.duration.toIntSafe()
+                    publishPlaybackState()
                 }
             }
             mainHandler.postDelayed(this, 1000)
@@ -137,6 +140,24 @@ class PlayerManager private constructor(private val context: Context) {
     
     val currentTrack: TrackItem?
         get() = currentPlaylist.getOrNull(currentTrackIndex)
+
+    private fun publishPlaybackState() {
+        _state.value = PlaybackState(
+            queue = QueueState(currentPlaylist, currentTrackIndex, playMode),
+            status = when {
+                errorMessage != null -> PlaybackStatus.ERROR
+                isLoading -> PlaybackStatus.LOADING
+                currentPlaylist.isEmpty() -> PlaybackStatus.IDLE
+                else -> PlaybackStatus.READY
+            },
+            isPlaying = isPlaying,
+            positionMs = currentPosition.toLong(),
+            durationMs = duration.toLong(),
+            currentUrl = currentUrl,
+            lyric = currentLyric,
+            errorMessage = errorMessage
+        )
+    }
     
     private fun getOrCreatePlayer(): ExoPlayer {
         val existing = exoPlayer
@@ -159,15 +180,18 @@ class PlayerManager private constructor(private val context: Context) {
                             Player.STATE_ENDED -> {
                                 Logger.d("Player", "Playback ENDED")
                                 this@PlayerManager.isPlaying = false
-                                val sleepStop = sleepTimerWaitForQueueEnd && {
-                                    val isLastSequential = playMode == PlayMode.SEQUENTIAL && currentTrackIndex >= currentPlaylist.lastIndex
+                                val sleepStop = if (sleepTimerWaitForQueueEnd) {
+                                    val isLastSequential =
+                                        playMode == PlayMode.SEQUENTIAL && currentTrackIndex >= currentPlaylist.lastIndex
                                     val noMoreTrack = currentPlaylist.isEmpty() || isLastSequential
                                     if (noMoreTrack) {
                                         Logger.i("Player", "Sleep timer stopping at queue end")
                                         pauseBySleepTimer()
                                     }
                                     noMoreTrack
-                                }()
+                                } else {
+                                    false
+                                }
                                 if (!sleepStop) {
                                     this@PlayerManager.next()
                                 }
@@ -176,6 +200,7 @@ class PlayerManager private constructor(private val context: Context) {
                                 this@PlayerManager.isLoading = false
                             }
                         }
+                        this@PlayerManager.publishPlaybackState()
                     }
                 }
 
@@ -183,6 +208,7 @@ class PlayerManager private constructor(private val context: Context) {
                     mainHandler.post {
                         this@PlayerManager.isPlaying = playing
                         Logger.i("Player", "isPlaying: $playing")
+                        this@PlayerManager.publishPlaybackState()
                     }
                 }
 
@@ -195,17 +221,18 @@ class PlayerManager private constructor(private val context: Context) {
                         )
                         this@PlayerManager.isPlaying = false
                         this@PlayerManager.isLoading = false
+                        this@PlayerManager.publishPlaybackState()
                     }
                 }
             })
         }
         exoPlayer = newPlayer
-        setupMediaNotification(newPlayer)
+        setupMediaSession(newPlayer)
         mainHandler.post(updateRunnable)
         return newPlayer
     }
 
-    private fun setupMediaNotification(player: ExoPlayer) {
+    private fun setupMediaSession(player: ExoPlayer) {
         if (notificationPlayer == null) {
             notificationPlayer = object : ForwardingPlayer(player) {
                 private fun canSkipNext(): Boolean {
@@ -258,52 +285,16 @@ class PlayerManager private constructor(private val context: Context) {
             }
         }
 
-        if (notificationManager != null) {
-            notificationManager?.setPlayer(notificationPlayer)
-            return
-        }
-
         mediaSession = MediaSession.Builder(context, notificationPlayer ?: player).build()
+    }
 
-        notificationManager = PlayerNotificationManager.Builder(
-            context,
-            NOTIFICATION_ID,
-            NOTIFICATION_CHANNEL_ID
-        )
-            .setChannelNameResourceId(R.string.app_name)
-            .setChannelDescriptionResourceId(R.string.app_name)
-            .setSmallIconResourceId(R.drawable.ic_home)
-            .setMediaDescriptionAdapter(
-                object : PlayerNotificationManager.MediaDescriptionAdapter {
-                    override fun getCurrentContentTitle(player: Player): CharSequence {
-                        return currentTrack?.name ?: context.getString(R.string.app_name)
-                    }
+    internal fun mediaSessionForService(): MediaSession = mediaSession ?: run {
+        getOrCreatePlayer()
+        checkNotNull(mediaSession)
+    }
 
-                    override fun createCurrentContentIntent(player: Player) = null
-
-                    override fun getCurrentContentText(player: Player): CharSequence {
-                        return currentTrack?.artists ?: ""
-                    }
-
-                    override fun getCurrentLargeIcon(
-                        player: Player,
-                        callback: PlayerNotificationManager.BitmapCallback
-                    ) = null
-                }
-            )
-            .build()
-            .apply {
-                setUseFastForwardAction(false)
-                setUseRewindAction(false)
-                setUseStopAction(false)
-                setUsePreviousAction(true)
-                setUseNextAction(true)
-                setUseNextActionInCompactView(true)
-                setUsePreviousActionInCompactView(true)
-                setPlayer(notificationPlayer)
-            }
-
-        NotificationManagerCompat.from(context).areNotificationsEnabled()
+    internal fun releaseServiceResources() {
+        releasePlayer()
     }
     
     fun setApiService(service: NeteaseApiService) {
@@ -368,6 +359,7 @@ class PlayerManager private constructor(private val context: Context) {
     fun setPlaylist(tracks: List<TrackItem>, startIndex: Int = 0) {
         Logger.i("Player", "Set playlist: ${tracks.size} tracks, startIndex: $startIndex")
         isPersonalFmMode = false
+        updateQueueRevision()
         currentPlaylist = tracks
         currentTrackIndex = startIndex.coerceIn(0, maxOf(0, tracks.size - 1))
         isPlaying = true
@@ -383,9 +375,14 @@ class PlayerManager private constructor(private val context: Context) {
         loadAndPlayCurrentTrack()
     }
 
+    override fun replaceQueue(tracks: List<TrackItem>, startIndex: Int) {
+        setPlaylist(tracks, startIndex)
+    }
+
     fun setPersonalFmPlaylist(tracks: List<TrackItem>, startIndex: Int = 0) {
         Logger.i("Player", "Set Personal FM playlist")
         isPersonalFmMode = true
+        updateQueueRevision()
         currentPlaylist = tracks
         currentTrackIndex = startIndex.coerceIn(0, maxOf(0, tracks.size - 1))
         isPlaying = true
@@ -394,6 +391,24 @@ class PlayerManager private constructor(private val context: Context) {
         loadAndPlayCurrentTrack()
     }
     
+    private fun updateQueueRevision() {
+        queueRevision += 1
+        prefetchedUrl = null
+        prefetchJob?.cancel()
+        prefetchJob = null
+    }
+
+    private fun startPlaybackRequest(): Long {
+        playbackRequestId += 1
+        urlLoadJob?.cancel()
+        lyricLoadJob?.cancel()
+        return playbackRequestId
+    }
+
+    private fun isCurrentPlaybackRequest(requestId: Long, trackId: Long): Boolean {
+        return requestId == playbackRequestId && currentTrack?.id == trackId
+    }
+
     private fun loadAndPlayCurrentTrack() {
         val track = currentTrack ?: return
         val apiService = currentApiService ?: return
@@ -403,12 +418,17 @@ class PlayerManager private constructor(private val context: Context) {
             errorMessage = context.getString(R.string.player_error_not_logged_in)
             return
         }
+
+        context.startService(PlaybackService.intent(context))
         
         isLoading = true
         errorMessage = null
+        currentUrl = null
         currentPosition = 0
         duration = 0
         currentLyric = null
+        val requestId = startPlaybackRequest()
+        publishPlaybackState()
         
         managerScope.launch(Dispatchers.IO) {
             try {
@@ -418,82 +438,92 @@ class PlayerManager private constructor(private val context: Context) {
             }
         }
 
-        // Use pre-fetched URL if available for instant transition
-        if (currentTrackIndex == prefetchedTrackIndex) {
-            val url = prefetchedNextUrl ?: return
-            prefetchedNextUrl = null
-            prefetchedTrackIndex = -1
+        val cachedUrl = prefetchedUrl
+        if (PlaybackRequestPolicy.canUsePrefetchedUrl(cachedUrl, queueRevision, track.id)) {
+            prefetchedUrl = null
+            val url = requireNotNull(cachedUrl).url
             currentUrl = url
-            playFromUrl(url)
+            playFromUrl(url, track, requestId)
         } else {
-            managerScope.launch {
+            urlLoadJob = managerScope.launch {
                 try {
                     val urlResult = withContext(Dispatchers.IO) {
                         apiService.getSongUrl(track.id, currentCookie)
                     }
                     urlResult.fold(
                         onSuccess = { url ->
+                            if (!isCurrentPlaybackRequest(requestId, track.id)) return@fold
                             Logger.d("Player", "Got song URL: ${url.take(100)}...")
                             currentUrl = url
-                            playFromUrl(url)
+                            publishPlaybackState()
+                            playFromUrl(url, track, requestId)
                         },
                         onFailure = { e ->
+                            if (!isCurrentPlaybackRequest(requestId, track.id)) return@fold
                             Logger.e("Player", "Failed to get song URL: ${e.message}")
                             errorMessage = context.getString(
                                 R.string.player_error_url_failed,
                                 e.message ?: ""
                             )
                             isLoading = false
+                            publishPlaybackState()
                         }
                     )
                 } catch (e: Exception) {
+                    if (!isCurrentPlaybackRequest(requestId, track.id)) return@launch
                     Logger.e("Player", "Exception: ${e.message}")
                     errorMessage = e.message
                     isLoading = false
+                    publishPlaybackState()
                 }
             }
         }
 
-        fetchLyric(track.id)
+        fetchLyric(track.id, requestId)
     }
 
-    private fun fetchLyric(id: Long) {
+    private fun fetchLyric(id: Long, requestId: Long) {
         val apiService = currentApiService ?: return
         val cookie = currentCookie
         if (cookie.isEmpty()) return
 
-        managerScope.launch {
+        lyricLoadJob = managerScope.launch {
             val result = withContext(Dispatchers.IO) {
                 apiService.getLyric(id, cookie)
             }
             result.fold(
                 onSuccess = { response ->
+                    if (!isCurrentPlaybackRequest(requestId, id)) return@fold
                     currentLyric = response.lrc?.lyric
+                    publishPlaybackState()
                 },
                 onFailure = { e ->
+                    if (!isCurrentPlaybackRequest(requestId, id)) return@fold
                     Logger.e("Player", "Failed to fetch lyric: ${e.message}")
                     currentLyric = null
+                    publishPlaybackState()
                 }
             )
         }
     }
     
-    private fun playFromUrl(url: String) {
+    private fun playFromUrl(url: String, track: TrackItem, requestId: Long) {
         mainHandler.post {
+            if (!isCurrentPlaybackRequest(requestId, track.id)) return@post
             try {
                 val player = getOrCreatePlayer()
-                val track = currentTrack
                 val metadataBuilder = MediaMetadata.Builder()
-                    .setTitle(track?.name)
-                    .setArtist(track?.artists)
-                    .setAlbumTitle(track?.albumName)
+                    .setTitle(track.name)
+                    .setArtist(track.artists)
+                    .setAlbumTitle(track.albumName)
 
-                if (!track?.albumPicUrl.isNullOrBlank()) {
-                    metadataBuilder.setArtworkUri(track?.albumPicUrl?.toUri())
+                val albumPicUrl = track.albumPicUrl
+                if (!albumPicUrl.isNullOrBlank()) {
+                    metadataBuilder.setArtworkUri(albumPicUrl.toUri())
                 }
 
                 val mediaItem = MediaItem.Builder()
-                    .setMediaId(track?.id?.toString() ?: "")
+                    .setMediaId(track.id.toString())
                     .setUri(url)
                     .setMediaMetadata(metadataBuilder.build())
                     .build()
@@ -503,44 +533,58 @@ class PlayerManager private constructor(private val context: Context) {
                 player.play()
 
                 applyVolumeNormalization()
-                prefetchNextUrl()
+                prefetchNextUrl(track, requestId)
+                publishPlaybackState()
             } catch (e: Exception) {
                 Logger.e("Player", "Exception playing: ${e.message}")
                 errorMessage = e.message
                 isLoading = false
+                publishPlaybackState()
             }
         }
     }
 
-    private fun prefetchNextUrl() {
+    private fun prefetchNextUrl(currentTrack: TrackItem, requestId: Long) {
         val nextIdx = currentTrackIndex + 1
         if (nextIdx >= currentPlaylist.size) return
-        prefetchedTrackIndex = nextIdx
-        val nextTrack = currentPlaylist[nextIdx] ?: return
+        val nextTrack = currentPlaylist[nextIdx]
         val apiService = currentApiService ?: return
-        if (currentCookie.isEmpty()) return
+        val cookie = currentCookie
+        val currentQueueRevision = queueRevision
+        if (cookie.isEmpty()) return
 
-        managerScope.launch(Dispatchers.IO) {
-            val urlResult = apiService.getSongUrl(nextTrack.id, currentCookie)
-            urlResult.onSuccess { url -> prefetchedNextUrl = url }
+        prefetchJob = managerScope.launch {
+            val urlResult = withContext(Dispatchers.IO) {
+                apiService.getSongUrl(nextTrack.id, cookie)
+            }
+            urlResult.onSuccess { url ->
+                if (
+                    isCurrentPlaybackRequest(requestId, currentTrack.id) &&
+                    queueRevision == currentQueueRevision
+                ) {
+                    prefetchedUrl = PrefetchedUrl(currentQueueRevision, nextTrack.id, url)
+                }
+            }
         }
     }
     
-    fun play() {
+    override fun play() {
         if (currentPlaylist.isEmpty()) return
         exoPlayer?.let {
             if (!it.isPlaying) {
                 it.play()
                 isPlaying = true
+                publishPlaybackState()
             }
         } ?: loadAndPlayCurrentTrack()
     }
     
-    fun pause() {
+    override fun pause() {
         exoPlayer?.let {
             if (it.isPlaying) {
                 it.pause()
                 isPlaying = false
+                publishPlaybackState()
             }
         }
     }
@@ -613,8 +657,13 @@ class PlayerManager private constructor(private val context: Context) {
                 fetchMorePersonalFmAndPlay()
             } else {
                 isPlaying = false
+                publishPlaybackState()
             }
         }
+    }
+
+    override fun skipToNext() {
+        next()
     }
 
     fun seekToTrack(index: Int) {
@@ -635,6 +684,10 @@ class PlayerManager private constructor(private val context: Context) {
         loadAndPlayCurrentTrack()
     }
 
+    override fun seekToQueueItem(index: Int) {
+        seekToTrack(index)
+    }
+
     private fun fetchMorePersonalFmAndPlay() {
         val apiService = currentApiService ?: run {
             isPlaying = false
@@ -653,6 +706,7 @@ class PlayerManager private constructor(private val context: Context) {
             result.fold(
                 onSuccess = { newTracks ->
                     if (newTracks.isNotEmpty()) {
+                        updateQueueRevision()
                         val dedupedNewTracks = newTracks.filter { newTrack ->
                             currentPlaylist.none { it.id == newTrack.id }
                         }
@@ -729,17 +783,27 @@ class PlayerManager private constructor(private val context: Context) {
             loadAndPlayCurrentTrack()
         }
     }
+
+    override fun skipToPrevious() {
+        previous()
+    }
     
     fun seekTo(position: Int) {
         mainHandler.post {
             exoPlayer?.seekTo(position.toLong())
             currentPosition = position
+            publishPlaybackState()
         }
     }
 
-    fun updatePlayMode(mode: PlayMode) {
+    override fun seekTo(positionMs: Long) {
+        seekTo(positionMs.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt())
+    }
+
+    override fun updatePlayMode(mode: PlayMode) {
         Logger.i("Player", "Mode changed to: $mode")
         playMode = mode
+        publishPlaybackState()
     }
 
     fun updatePlaybackBarHidden(hidden: Boolean) {
@@ -757,6 +821,8 @@ class PlayerManager private constructor(private val context: Context) {
 
     fun clearPlaylist() {
         Logger.i("Player", "Clearing playlist")
+        updateQueueRevision()
+        startPlaybackRequest()
         currentPlaylist = emptyList()
         currentTrackIndex = 0
         currentUrl = null
@@ -764,6 +830,7 @@ class PlayerManager private constructor(private val context: Context) {
         isLoading = false
         currentPosition = 0
         duration = 0
+        publishPlaybackState()
         mainHandler.post {
             exoPlayer?.stop()
             exoPlayer?.clearMediaItems()
@@ -775,9 +842,10 @@ class PlayerManager private constructor(private val context: Context) {
         }
     }
 
-    fun appendToQueue(tracks: List<TrackItem>) {
+    override fun appendToQueue(tracks: List<TrackItem>) {
         if (tracks.isEmpty()) return
         Logger.i("Player", "Append ${tracks.size} tracks to queue")
+        updateQueueRevision()
 
         if (currentPlaylist.isEmpty()) {
             currentPlaylist = tracks
@@ -787,7 +855,9 @@ class PlayerManager private constructor(private val context: Context) {
             duration = 0
         } else {
             currentPlaylist = currentPlaylist + tracks
+            currentTrack?.let { track -> prefetchNextUrl(track, playbackRequestId) }
         }
+        publishPlaybackState()
 
         managerScope.launch(Dispatchers.IO) {
             runCatching {
@@ -799,27 +869,29 @@ class PlayerManager private constructor(private val context: Context) {
     fun removeTrackAt(index: Int) {
         if (index !in currentPlaylist.indices) return
         Logger.i("Player", "Remove track at index: $index")
+        updateQueueRevision()
 
-        val mutable = currentPlaylist.toMutableList()
         val removingCurrent = index == currentTrackIndex
-        mutable.removeAt(index)
+        val updatedQueue = QueuePolicy.afterRemoval(
+            QueueState(currentPlaylist, currentTrackIndex, playMode),
+            index
+        )
 
-        if (mutable.isEmpty()) {
+        if (updatedQueue.items.isEmpty()) {
             clearPlaylist()
             return
         }
 
-        currentPlaylist = mutable
+        currentPlaylist = updatedQueue.items
+        currentTrackIndex = updatedQueue.currentIndex
+        publishPlaybackState()
 
-        if (index < currentTrackIndex) {
-            currentTrackIndex -= 1
-        } else if (removingCurrent) {
-            if (currentTrackIndex >= currentPlaylist.size) {
-                currentTrackIndex = currentPlaylist.lastIndex
-            }
+        if (removingCurrent) {
             currentPosition = 0
             duration = 0
             loadAndPlayCurrentTrack()
+        } else {
+            currentTrack?.let { track -> prefetchNextUrl(track, playbackRequestId) }
         }
 
         managerScope.launch(Dispatchers.IO) {
@@ -828,12 +900,14 @@ class PlayerManager private constructor(private val context: Context) {
             }.onFailure { Logger.e("Player", "Database error: ${it.message}") }
         }
     }
+
+    override fun removeQueueItem(index: Int) {
+        removeTrackAt(index)
+    }
     
     private fun releasePlayer() {
         mainHandler.removeCallbacks(updateRunnable)
         clearSleepTimer()
-        notificationManager?.setPlayer(null)
-        notificationManager = null
         notificationPlayer = null
         mediaSession?.release()
         mediaSession = null
@@ -848,7 +922,8 @@ class PlayerManager private constructor(private val context: Context) {
         exoPlayer = null
     }
     
-    fun release() {
+    override fun release() {
+        startPlaybackRequest()
         releasePlayer()
         managerScope.cancel()
         currentPlaylist = emptyList()
@@ -857,6 +932,7 @@ class PlayerManager private constructor(private val context: Context) {
         currentUrl = null
         currentPosition = 0
         duration = 0
+        publishPlaybackState()
     }
     
     suspend fun getRecentPlays(): List<TrackItem> {
@@ -889,7 +965,7 @@ class PlayerManager private constructor(private val context: Context) {
             if (savedPlaylist.isNotEmpty()) {
                 val tracks = savedPlaylist.map { entity ->
                     TrackItem(
-                        id = entity.id,
+                        id = entity.trackId,
                         name = entity.name,
                         artists = entity.artists,
                         albumName = "",
@@ -899,8 +975,10 @@ class PlayerManager private constructor(private val context: Context) {
                 }
                 val savedPosition = musicRepository.getCurrentPosition()
                 withContext(Dispatchers.Main.immediate) {
+                    updateQueueRevision()
                     currentPlaylist = tracks
                     currentTrackIndex = savedPosition.coerceIn(0, tracks.lastIndex)
+                    publishPlaybackState()
                 }
                 true
             } else {
@@ -913,8 +991,6 @@ class PlayerManager private constructor(private val context: Context) {
     }
     
     companion object {
-        private const val NOTIFICATION_ID = 1001
-        private const val NOTIFICATION_CHANNEL_ID = "ncmd_playback"
         @Volatile
         private var instance: PlayerManager? = null
         

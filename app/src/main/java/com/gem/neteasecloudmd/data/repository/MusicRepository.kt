@@ -56,12 +56,12 @@ class MusicRepository(
     suspend fun saveCurrentPlaylist(tracks: List<TrackItem>, currentIndex: Int) {
         val entities = tracks.mapIndexed { index, track ->
             CurrentPlaylistEntity(
-                id = track.id,
+                position = index,
+                trackId = track.id,
                 name = track.name,
                 artists = track.artists,
                 albumPicUrl = track.albumPicUrl,
                 duration = track.duration,
-                position = index,
                 isCurrent = index == currentIndex
             )
         }

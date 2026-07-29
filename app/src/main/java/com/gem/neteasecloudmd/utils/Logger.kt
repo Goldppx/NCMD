@@ -18,6 +18,8 @@ private val dateFormat = ThreadLocal.withInitial {
     SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
 }
 
+private fun currentDateFormat(): SimpleDateFormat = requireNotNull(dateFormat.get())
+
 data class LogEntry(
     val timestamp: Long,
     val level: LogLevel,
@@ -25,7 +27,7 @@ data class LogEntry(
     val message: String
 ) {
     fun format(): String {
-        return "${dateFormat.get().format(Date(timestamp))} [${level.name}] $tag: $message"
+        return "${currentDateFormat().format(Date(timestamp))} [${level.name}] $tag: $message"
     }
 }
 
@@ -72,7 +74,7 @@ object Logger {
             val levelPart = parts[2].removeSurrounding("[", "]")
             val tagAndMsg = parts[3].split(": ", limit = 2)
             
-            val timestamp = dateFormat.get().parse(dateStr)?.time ?: System.currentTimeMillis()
+            val timestamp = currentDateFormat().parse(dateStr)?.time ?: System.currentTimeMillis()
             
             LogEntry(
                 timestamp = timestamp,
@@ -80,7 +82,7 @@ object Logger {
                 tag = tagAndMsg[0],
                 message = tagAndMsg.getOrNull(1) ?: ""
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

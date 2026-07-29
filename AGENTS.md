@@ -4,7 +4,7 @@ This guide is for coding agents working in the NCMD repository.
 
 ## 1) Project Overview
 
-- Platform: Android (minSdk 31, targetSdk 36).
+- Platform: Android (minSdk 31, targetSdk 36), with a Kotlin Multiplatform shared core targeting Android, iOS, and Desktop.
 - Language: Kotlin (Kotlin 2.0.0).
 - UI: Jetpack Compose + Material 3 (Compose BOM 2025.12.00).
 - Theme: Dynamic color (Material You) / custom seed color via `material-kolor`, with animated `ColorScheme` transitions.
@@ -22,6 +22,7 @@ This guide is for coding agents working in the NCMD repository.
   - `PlaybackQueueSheet.kt` / `SongLongPressMenu.kt` / `TrackCollectionScaffold.kt`
 - Custom Toast: `app/src/main/java/com/gem/neteasecloudmd/ui/common/ToastExt.kt`
 - Playback core: `app/src/main/java/com/gem/neteasecloudmd/api/PlayerManager.kt` — singleton with ExoPlayer + MediaSession + notification.
+- Background playback: `app/src/main/java/com/gem/neteasecloudmd/api/PlaybackService.kt` — `MediaSessionService` that owns the Android foreground media-service lifecycle.
 - API client: `app/src/main/java/com/gem/neteasecloudmd/api/NeteaseApiService.kt` — Netease Cloud Music weapi.
 - Crypto: `app/src/main/java/com/gem/neteasecloudmd/api/CryptoUtil.kt` — AES/RSA encryption for weapi.
 - Session/settings persistence: `app/src/main/java/com/gem/neteasecloudmd/api/SessionManager.kt`.
@@ -30,6 +31,7 @@ This guide is for coding agents working in the NCMD repository.
   - `MainViewModel.kt` / `PlaylistDetailViewModel.kt` / `PlaylistListViewModel.kt` / `RecentPlaysViewModel.kt` / `SearchViewModel.kt`
 - Local storage: Room (`AppDatabase.kt`) with tables `recent_plays` and `current_playlist`, DAOs in `data/local/dao/`, entities in `data/local/entity/`.
 - Repository: `com.gem.neteasecloudmd.data.repository.MusicRepository.kt`.
+- Shared KMP core: `shared/src/commonMain/kotlin/com/gem/neteasecloudmd/core/` — cross-platform models, lyrics, queue rules, playback contract, and request policies.
 - Utilities: `Logger.kt` (file + in-memory log) and `LyricParser.kt` (LRC parser).
 - i18n: 3 locales — `values/` (zh-CN), `values-zh-rTW/`, `values-en/`.
 - Dark theme colors for icons: `app/src/main/res/values-night/colors.xml`.
@@ -87,6 +89,7 @@ This guide is for coding agents working in the NCMD repository.
 - Route arguments that can contain special characters must be URI-encoded/decoded.
 - Keep business/network logic out of large composables; prefer ViewModel or manager classes.
 - Maintain existing playback architecture around `PlayerManager` singleton.
+- Keep platform media engines behind the shared `PlaybackController` contract. Android uses Media3 through `PlayerManager`; future iOS/Desktop implementations must not leak platform playback APIs into shared code.
 - LoginScreen is an exception — all login logic is in the composable, not a ViewModel.
 - `ApiProvider` is a simple singleton factory for `NeteaseApiService`.
 
