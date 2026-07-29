@@ -4,7 +4,7 @@
       Id="*"
       Name="NCMD"
       Language="1033"
-      Version="$(var.ProductVersion)"
+      Version="@NCMD_MSI_VERSION@"
       Manufacturer="NCMD"
       UpgradeCode="B6B4B0C0-1649-4A9D-BA2B-945DAAEBFA24">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" />
