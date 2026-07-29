@@ -1,6 +1,6 @@
 # Maintained by the NCMD repository. Java is intentionally supplied by the system.
 pkgname=ncmd
-pkgver=${NCMD_VERSION:-0.0.7}
+pkgver=${NCMD_VERSION:-0.0.8}
 pkgrel=3
 pkgdesc='A Kotlin Multiplatform music client'
 arch=('x86_64')

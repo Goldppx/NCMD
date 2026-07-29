@@ -2,6 +2,16 @@
 
 All notable changes to NCMD are documented in this file.
 
+## v0.0.8 — Desktop playback and installable packages
+
+Released: 2026-07-29
+
+- Added desktop local-library playback with seeking, previous/next track controls, and cover metadata.
+- Added MP3, FLAC, Ogg Vorbis, WAV, AIFF, and AU decoding for the desktop local library.
+- Unified desktop music and folder selection behind the system file-picker integration.
+- Added a live light/dark theme toggle to the desktop navigation rail.
+- Added thin Windows MSI packaging, alongside verified Linux and Arch Linux desktop packages.
+
 ## v0.0.7 — KMP foundation and verified releases
 
 Released: 2026-07-29

@@ -31,7 +31,7 @@ compose.desktop {
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Rpm
             )
             packageName = "NCMD"
-            packageVersion = "0.0.7"
+            packageVersion = "0.0.8"
             description = "A Kotlin Multiplatform music client"
             vendor = "NCMD"
         }
