@@ -63,6 +63,10 @@ jobs:
       - name: Package desktop application
         run: ${{ matrix.command }}
 
+      - name: Create Linux app image for startup test
+        if: matrix.platform == 'Linux'
+        run: ./gradlew :desktop:createDistributable --no-daemon --stacktrace
+
       - name: Smoke test Linux application startup
         if: matrix.platform == 'Linux'
         shell: bash
