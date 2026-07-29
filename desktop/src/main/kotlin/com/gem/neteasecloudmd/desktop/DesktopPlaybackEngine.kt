@@ -55,24 +55,32 @@ class DesktopPlaybackEngine(
             return
         }
 
+        var resumeUpdate: DesktopPlaybackUpdate? = null
         synchronized(lock) {
             if (activeTrackId == track.id && isPaused) {
                 isPaused = false
                 activeLine?.start()
+                resumeUpdate = DesktopPlaybackUpdate(
+                    status = PlaybackStatus.READY,
+                    isPlaying = true,
+                    positionMs = currentPositionMs,
+                    durationMs = currentDurationMs
+                )
                 notifyPlaybackThread()
-                return
+            } else {
+                sessionId += 1L
+                activeTrackId = track.id
+                activeTrackPath = path
+                isPaused = false
+                currentPositionMs = 0L
+                currentDurationMs = track.duration.toLong().coerceAtLeast(0L)
+                activeLine?.close()
+                val newSessionId = sessionId
+                val expectedDurationMs = currentDurationMs
+                executor.execute { playSession(newSessionId, track.id, path, expectedDurationMs = expectedDurationMs) }
             }
-
-            sessionId += 1L
-            activeTrackId = track.id
-            activeTrackPath = path
-            isPaused = false
-            currentPositionMs = 0L
-            currentDurationMs = 0L
-            activeLine?.close()
-            val newSessionId = sessionId
-            executor.execute { playSession(newSessionId, track.id, path) }
         }
+        resumeUpdate?.let(onUpdate)
     }
 
     fun pause() {
@@ -100,7 +108,16 @@ class DesktopPlaybackEngine(
             currentPositionMs = targetPositionMs
             activeLine?.close()
             val newSessionId = sessionId
-            executor.execute { playSession(newSessionId, trackId, path, targetPositionMs) }
+            val expectedDurationMs = currentDurationMs
+            executor.execute {
+                playSession(
+                    currentSessionId = newSessionId,
+                    trackId = trackId,
+                    path = path,
+                    initialPositionMs = targetPositionMs,
+                    expectedDurationMs = expectedDurationMs
+                )
+            }
         }
     }
 
@@ -117,12 +134,18 @@ class DesktopPlaybackEngine(
         executor.shutdownNow()
     }
 
-    private fun playSession(currentSessionId: Long, trackId: Long, path: Path, initialPositionMs: Long = 0L) {
+    private fun playSession(
+        currentSessionId: Long,
+        trackId: Long,
+        path: Path,
+        initialPositionMs: Long = 0L,
+        expectedDurationMs: Long = 0L
+    ) {
         var durationMs = 0L
         var positionMs = initialPositionMs
         try {
             openDecodedStream(path).use { stream ->
-                durationMs = stream.durationMs()
+                durationMs = stream.durationMs().takeIf { it > 0L } ?: expectedDurationMs
                 val startPositionMs = initialPositionMs.coerceIn(0L, durationMs.takeIf { it > 0L } ?: initialPositionMs)
                 stream.skipToPosition(startPositionMs)
                 synchronized(lock) {

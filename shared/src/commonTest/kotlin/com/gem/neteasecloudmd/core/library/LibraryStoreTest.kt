@@ -82,4 +82,36 @@ class LibraryStoreTest {
         assertEquals(1_500L, playback.positionMs)
         assertEquals(12_000L, playback.durationMs)
     }
+
+    @Test
+    fun removingTheCurrentQueueTrackSelectsTheNextTrackAndRequestsRestart() {
+        val store = LibraryStore(tracks)
+        store.selectTrack(tracks.first().id)
+
+        val result = store.removeQueueItem(0)
+
+        assertEquals(tracks.first(), result?.removedTrack)
+        assertEquals(tracks.last(), result?.replacementTrack)
+        assertTrue(result?.removedCurrentTrack == true)
+        assertTrue(result?.shouldRestartPlayback == true)
+        assertEquals(listOf(tracks.last()), store.state.value.playback.queue.items)
+        assertEquals(0, store.state.value.playback.queue.currentIndex)
+        assertFalse(store.state.value.playback.isPlaying)
+    }
+
+    @Test
+    fun zeroDurationEngineUpdateKeepsMetadataDurationAvailableForSeeking() {
+        val timedTrack = tracks.first().copy(duration = 180_000)
+        val store = LibraryStore(listOf(timedTrack))
+        store.selectTrack(timedTrack.id)
+
+        store.updatePlayback(
+            status = PlaybackStatus.READY,
+            isPlaying = true,
+            positionMs = 1_500L,
+            durationMs = 0L
+        )
+
+        assertEquals(180_000L, store.state.value.playback.durationMs)
+    }
 }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,12 +17,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -51,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
@@ -112,6 +118,7 @@ fun main() {
             val state by store.state.collectAsState()
             val systemDark = isSystemInDarkTheme()
             var darkTheme by remember { mutableStateOf(systemDark) }
+            var themeTransitionGeneration by remember { mutableIntStateOf(0) }
             DesktopTheme(artworkUri = state.playback.currentTrack?.albumPicUrl, darkTheme = darkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     DesktopApp(
@@ -120,7 +127,11 @@ fun main() {
                         library = library,
                         player = player,
                         darkTheme = darkTheme,
-                        onToggleTheme = { darkTheme = !darkTheme }
+                        themeTransitionGeneration = themeTransitionGeneration,
+                        onToggleTheme = {
+                            darkTheme = !darkTheme
+                            themeTransitionGeneration += 1
+                        }
                     )
                 }
             }
@@ -136,6 +147,7 @@ private fun DesktopApp(
     library: DesktopLocalLibrary,
     player: DesktopPlaybackEngine,
     darkTheme: Boolean,
+    themeTransitionGeneration: Int,
     onToggleTheme: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -165,41 +177,45 @@ private fun DesktopApp(
             }
         },
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("NCMD")
-                        Text(
-                            text = "Local music desktop alpha",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            ThemeWaveElement(themeTransitionGeneration, delayMillis = TOP_BAR_THEME_DELAY_MS) {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text("NCMD")
+                            Text(
+                                text = "Local music desktop alpha",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { importEntries(selectAudioFiles()) }) {
+                            Text("Add files")
+                        }
+                        TextButton(onClick = { importEntries(selectMusicFolder()) }) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Add folder")
+                        }
                     }
-                },
-                actions = {
-                    TextButton(onClick = { importEntries(selectAudioFiles()) }) {
-                        Text("Add files")
-                    }
-                    TextButton(onClick = { importEntries(selectMusicFolder()) }) {
-                        Icon(Icons.Default.FolderOpen, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Add folder")
-                    }
-                }
-            )
+                )
+            }
         },
         bottomBar = {
-            DesktopPlayerBar(
-                state = state,
-                onTogglePlayback = {
-                    state.playback.currentTrack?.let { track ->
-                        if (state.playback.isPlaying) player.pause() else player.play(track)
-                    }
-                },
-                onPrevious = { store.selectPreviousTrack()?.let(player::play) },
-                onNext = { store.selectNextTrack()?.let(player::play) },
-                onSeek = player::seekTo
-            )
+            ThemeWaveElement(themeTransitionGeneration, delayMillis = PLAYER_THEME_DELAY_MS) {
+                DesktopPlayerBar(
+                    state = state,
+                    onTogglePlayback = {
+                        state.playback.currentTrack?.let { track ->
+                            if (state.playback.isPlaying) player.pause() else player.play(track)
+                        }
+                    },
+                    onPrevious = { store.selectPreviousTrack()?.let(player::play) },
+                    onNext = { store.selectNextTrack()?.let(player::play) },
+                    onSeek = player::seekTo
+                )
+            }
         }
     ) { padding ->
         Row(
@@ -211,6 +227,7 @@ private fun DesktopApp(
                 selected = state.destination,
                 onNavigate = store::navigate,
                 darkTheme = darkTheme,
+                themeTransitionGeneration = themeTransitionGeneration,
                 onToggleTheme = onToggleTheme
             )
             Column(
@@ -231,35 +248,59 @@ private fun DesktopApp(
                     Spacer(Modifier.height(16.dp))
                 }
 
-                Text(
-                    text = when (state.destination) {
-                        LibraryDestination.HOME -> "Your library"
-                        LibraryDestination.SEARCH -> "Search results"
-                        LibraryDestination.QUEUE -> "Playback queue"
-                    },
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = statusMessage,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                ThemeWaveElement(themeTransitionGeneration, delayMillis = CONTENT_HEADER_THEME_DELAY_MS) {
+                    Column {
+                        Text(
+                            text = when (state.destination) {
+                                LibraryDestination.HOME -> "Your library"
+                                LibraryDestination.SEARCH -> "Search results"
+                                LibraryDestination.QUEUE -> "Playback queue"
+                            },
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = statusMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
 
                 if (state.visibleTracks.isEmpty()) {
                     EmptyLibraryContent(state.destination, importFiles = { importEntries(selectAudioFiles()) })
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(state.visibleTracks, key = Track::id) { track ->
-                            TrackRow(
-                                track = track,
-                                isCurrent = state.playback.currentTrack?.id == track.id,
-                                onClick = {
-                                    store.selectTrack(track.id)
-                                    player.play(track)
-                                }
-                            )
+                        itemsIndexed(state.visibleTracks, key = { _, track -> track.id }) { index, track ->
+                            ThemeWaveElement(
+                                generation = themeTransitionGeneration,
+                                delayMillis = trackThemeDelay(index, state.visibleTracks.size)
+                            ) {
+                                TrackRow(
+                                    track = track,
+                                    isCurrent = state.playback.currentTrack?.id == track.id,
+                                    onClick = {
+                                        store.selectTrack(track.id)
+                                        player.play(track)
+                                    },
+                                    onRemove = if (state.destination == LibraryDestination.QUEUE) {
+                                        {
+                                            store.removeQueueItem(index)?.let { result ->
+                                                if (result.removedCurrentTrack) {
+                                                    if (result.shouldRestartPlayback) {
+                                                        result.replacementTrack?.let(player::play)
+                                                    } else {
+                                                        player.release()
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        null
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -304,39 +345,53 @@ private fun DesktopNavigation(
     selected: LibraryDestination,
     onNavigate: (LibraryDestination) -> Unit,
     darkTheme: Boolean,
+    themeTransitionGeneration: Int,
     onToggleTheme: () -> Unit
 ) {
     NavigationRail(modifier = Modifier.fillMaxHeight()) {
-        NavigationRailItem(
-            selected = selected == LibraryDestination.HOME,
-            onClick = { onNavigate(LibraryDestination.HOME) },
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-            label = { Text("Home") }
-        )
-        NavigationRailItem(
-            selected = selected == LibraryDestination.SEARCH,
-            onClick = { onNavigate(LibraryDestination.SEARCH) },
-            icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-            label = { Text("Search") }
-        )
-        NavigationRailItem(
-            selected = selected == LibraryDestination.QUEUE,
-            onClick = { onNavigate(LibraryDestination.QUEUE) },
-            icon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue") },
-            label = { Text("Queue") }
-        )
-        Spacer(Modifier.weight(1f))
-        IconButton(onClick = onToggleTheme) {
-            Icon(
-                imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                contentDescription = if (darkTheme) "Switch to light theme" else "Switch to dark theme"
+        ThemeWaveElement(themeTransitionGeneration, NAVIGATION_HOME_THEME_DELAY_MS) {
+            NavigationRailItem(
+                selected = selected == LibraryDestination.HOME,
+                onClick = { onNavigate(LibraryDestination.HOME) },
+                icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                label = { Text("Home") }
             )
+        }
+        ThemeWaveElement(themeTransitionGeneration, NAVIGATION_SEARCH_THEME_DELAY_MS) {
+            NavigationRailItem(
+                selected = selected == LibraryDestination.SEARCH,
+                onClick = { onNavigate(LibraryDestination.SEARCH) },
+                icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                label = { Text("Search") }
+            )
+        }
+        ThemeWaveElement(themeTransitionGeneration, NAVIGATION_QUEUE_THEME_DELAY_MS) {
+            NavigationRailItem(
+                selected = selected == LibraryDestination.QUEUE,
+                onClick = { onNavigate(LibraryDestination.QUEUE) },
+                icon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue") },
+                label = { Text("Queue") }
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        ThemeWaveElement(themeTransitionGeneration, NAVIGATION_TOGGLE_THEME_DELAY_MS) {
+            IconButton(onClick = onToggleTheme) {
+                Icon(
+                    imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    contentDescription = if (darkTheme) "Switch to light theme" else "Switch to dark theme"
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun TrackRow(track: Track, isCurrent: Boolean, onClick: () -> Unit) {
+private fun TrackRow(
+    track: Track,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+    onRemove: (() -> Unit)? = null
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -364,6 +419,11 @@ private fun TrackRow(track: Track, isCurrent: Boolean, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+            if (onRemove != null) {
+                IconButton(onClick = onRemove) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remove from queue")
+                }
             }
         }
     }
@@ -403,10 +463,10 @@ private fun LocalArtwork(artworkUri: String?, modifier: Modifier = Modifier) {
 private fun trackSubtitle(track: Track): String = buildList {
     add(track.artists)
     add(track.albumName)
-    if (track.duration > 0) add(formatDuration(track.duration))
+    if (track.duration > 0) add(formatDuration(track.duration.toLong()))
 }.joinToString(" · ")
 
-private fun formatDuration(durationMs: Int): String {
+private fun formatDuration(durationMs: Long): String {
     val totalSeconds = durationMs / 1_000
     return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
@@ -464,7 +524,7 @@ private fun DesktopPlayerBar(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "${formatDuration(state.playback.positionMs.toInt())} / ${formatDuration(durationMs.toInt())}",
+                        text = "${formatDuration(state.playback.positionMs)} / ${formatDuration(durationMs)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -488,3 +548,41 @@ private fun DesktopPlayerBar(
         }
     }
 }
+
+@Composable
+private fun ThemeWaveElement(
+    generation: Int,
+    delayMillis: Int,
+    content: @Composable () -> Unit
+) {
+    val alpha = remember { Animatable(1f) }
+    LaunchedEffect(generation) {
+        if (generation == 0) return@LaunchedEffect
+        alpha.snapTo(THEME_WAVE_START_ALPHA)
+        alpha.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = THEME_WAVE_DURATION_MS, delayMillis = delayMillis)
+        )
+    }
+    Box(modifier = Modifier.graphicsLayer(alpha = alpha.value)) {
+        content()
+    }
+}
+
+private fun trackThemeDelay(index: Int, total: Int): Int {
+    val rowsFromBottom = (total - index - 1).coerceIn(0, MAX_TRACK_THEME_STEPS)
+    return TRACK_THEME_BASE_DELAY_MS + rowsFromBottom * TRACK_THEME_STEP_MS
+}
+
+private const val THEME_WAVE_START_ALPHA = 0.32f
+private const val THEME_WAVE_DURATION_MS = 260
+private const val PLAYER_THEME_DELAY_MS = 0
+private const val NAVIGATION_TOGGLE_THEME_DELAY_MS = 0
+private const val NAVIGATION_QUEUE_THEME_DELAY_MS = 70
+private const val NAVIGATION_SEARCH_THEME_DELAY_MS = 120
+private const val NAVIGATION_HOME_THEME_DELAY_MS = 170
+private const val TRACK_THEME_BASE_DELAY_MS = 100
+private const val TRACK_THEME_STEP_MS = 45
+private const val MAX_TRACK_THEME_STEPS = 8
+private const val CONTENT_HEADER_THEME_DELAY_MS = 490
+private const val TOP_BAR_THEME_DELAY_MS = 610

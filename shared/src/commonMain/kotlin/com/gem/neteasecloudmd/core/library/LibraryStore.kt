@@ -46,6 +46,13 @@ data class LibraryUiState(
         }
 }
 
+data class QueueRemovalResult(
+    val removedTrack: Track,
+    val replacementTrack: Track?,
+    val removedCurrentTrack: Boolean,
+    val shouldRestartPlayback: Boolean
+)
+
 class LibraryStore(initialCatalog: List<Track>) {
     private val _state = MutableStateFlow(
         LibraryUiState(
@@ -95,12 +102,15 @@ class LibraryStore(initialCatalog: List<Track>) {
         _state.update { state ->
             val index = state.playback.queue.items.indexOfFirst { it.id == trackId }
             if (index < 0) return@update state
+            val selectedTrack = state.playback.queue.items[index]
 
             state.copy(
                 playback = state.playback.copy(
                     queue = state.playback.queue.copy(currentIndex = index),
                     status = PlaybackStatus.READY,
                     isPlaying = true,
+                    positionMs = 0L,
+                    durationMs = selectedTrack.duration.toLong().coerceAtLeast(0L),
                     errorMessage = null
                 )
             )
@@ -122,6 +132,41 @@ class LibraryStore(initialCatalog: List<Track>) {
     fun selectNextTrack(): Track? = selectAdjacentTrack(QueuePolicy::nextSequential)
 
     fun selectPreviousTrack(): Track? = selectAdjacentTrack(QueuePolicy::previousSequential)
+
+    fun removeQueueItem(index: Int): QueueRemovalResult? {
+        var result: QueueRemovalResult? = null
+        _state.update { state ->
+            val queue = state.playback.queue
+            if (index !in queue.items.indices) return@update state
+
+            val removedTrack = queue.items[index]
+            val removedCurrentTrack = index == queue.currentIndex
+            val updatedQueue = QueuePolicy.afterRemoval(queue, index)
+            val replacementTrack = updatedQueue.currentItem
+            result = QueueRemovalResult(
+                removedTrack = removedTrack,
+                replacementTrack = replacementTrack,
+                removedCurrentTrack = removedCurrentTrack,
+                shouldRestartPlayback = removedCurrentTrack && state.playback.isPlaying && replacementTrack != null
+            )
+
+            state.copy(
+                playback = if (removedCurrentTrack) {
+                    state.playback.copy(
+                        queue = updatedQueue,
+                        status = if (replacementTrack == null) PlaybackStatus.IDLE else PlaybackStatus.READY,
+                        isPlaying = false,
+                        positionMs = 0L,
+                        durationMs = replacementTrack?.duration?.toLong() ?: 0L,
+                        errorMessage = null
+                    )
+                } else {
+                    state.playback.copy(queue = updatedQueue)
+                }
+            )
+        }
+        return result
+    }
 
     private fun selectAdjacentTrack(nextIndex: (QueueState<Track>) -> Int?): Track? {
         var selectedTrack: Track? = null
@@ -162,7 +207,7 @@ class LibraryStore(initialCatalog: List<Track>) {
                     status = status,
                     isPlaying = isPlaying,
                     positionMs = positionMs.coerceAtLeast(0L),
-                    durationMs = durationMs.coerceAtLeast(0L),
+                    durationMs = durationMs.takeIf { it > 0L } ?: state.playback.durationMs,
                     errorMessage = errorMessage
                 )
             )

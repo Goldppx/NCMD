@@ -46,8 +46,12 @@ fi
 java_properties=$("${java_bin}" -XshowSettings:properties -version 2>&1 || true)
 if [[ "${XDG_SESSION_TYPE:-}" == wayland && -n "${WAYLAND_DISPLAY:-}" ]] &&
   ! grep -q 'java.vendor = JetBrains s.r.o.' <<<"${java_properties}"; then
-  show_error 'NCMD needs JetBrains Runtime 21 for native Wayland support. On Arch, install an AUR JetBrains Runtime package (for example jre21-jetbrains-git), then set NCMD_JAVA_HOME if it is not the default Java.'
-  exit 1
+  if [[ -n "${DISPLAY:-}" ]]; then
+    printf '%s\n' 'NCMD: JetBrains Runtime enables native Wayland. Using the XWayland fallback with the selected Java runtime.' >&2
+  else
+    show_error 'NCMD needs JetBrains Runtime 21 for native Wayland when XWayland is unavailable. Install a JetBrains Runtime package, or start an XWayland-enabled session.'
+    exit 1
+  fi
 fi
 
 if [[ ! -d "${APP_DIR}" ]]; then
