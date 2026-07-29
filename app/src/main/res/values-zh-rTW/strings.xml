@@ -156,6 +156,8 @@
     <string name="settings_update_failure_message">請檢查網路後重試。</string>
     <string name="settings_update_open_release">檢視發布頁</string>
     <string name="settings_update_close">關閉</string>
+    <string name="search_failed">搜尋失敗，請檢查網路後重試</string>
+    <string name="search_retry">重試</string>
     <string name="settings_open_source_licenses">開放原始碼許可</string>
     <string name="settings_not_logged_in">未登入</string>
     <string name="settings_login_prompt">請先到首頁登入帳號</string>

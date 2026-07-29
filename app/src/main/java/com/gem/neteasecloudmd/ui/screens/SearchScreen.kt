@@ -197,6 +197,24 @@ fun SearchScreen(
                     }
                 }
 
+                uiState.searchFailed -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = stringResource(R.string.search_failed),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            TextButton(onClick = searchViewModel::performSearch) {
+                                Text(stringResource(R.string.search_retry))
+                            }
+                        }
+                    }
+                }
+
                 uiState.suggestions.isNotEmpty() && !uiState.hasSearched -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),

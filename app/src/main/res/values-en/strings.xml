@@ -156,6 +156,8 @@
     <string name="settings_update_failure_message">Check your network connection and try again.</string>
     <string name="settings_update_open_release">Open release</string>
     <string name="settings_update_close">Close</string>
+    <string name="search_failed">Search failed. Check your network and try again.</string>
+    <string name="search_retry">Retry</string>
     <string name="settings_open_source_licenses">Open Source Licenses</string>
     <string name="settings_not_logged_in">Not logged in</string>
     <string name="settings_login_prompt">Please log in on the home page first</string>

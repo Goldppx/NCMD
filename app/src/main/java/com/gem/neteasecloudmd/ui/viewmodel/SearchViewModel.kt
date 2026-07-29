@@ -31,7 +31,8 @@ data class SearchUiState(
     val suggestions: List<String> = emptyList(),
     val playlistsForMenu: List<PlaylistItem> = emptyList(),
     val isSearching: Boolean = false,
-    val hasSearched: Boolean = false
+    val hasSearched: Boolean = false,
+    val searchFailed: Boolean = false
 )
 
 class SearchViewModel(application: Application) : AndroidViewModel(application) {
@@ -43,12 +44,18 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
     private var suggestJob: Job? = null
+    private var searchJob: Job? = null
+    private var requestId = 0L
 
     fun updateQuery(query: String) {
+        requestId += 1
+        searchJob?.cancel()
         _uiState.update {
             it.copy(
                 query = query,
                 hasSearched = false,
+                isSearching = false,
+                searchFailed = false,
                 songResults = emptyList(),
                 playlistResults = emptyList(),
                 albumResults = emptyList()
@@ -61,12 +68,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
+        val suggestionRequestId = requestId
         suggestJob = viewModelScope.launch {
             delay(250)
             val suggestions = apiService.searchSuggest(query.trim())
                 .getOrDefault(emptyList())
                 .take(8)
-            _uiState.update { it.copy(suggestions = suggestions) }
+            if (suggestionRequestId == requestId) {
+                _uiState.update { it.copy(suggestions = suggestions) }
+            }
         }
     }
 
@@ -79,6 +89,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun selectSuggestion(suggestion: String) {
+        requestId += 1
         _uiState.update { it.copy(query = suggestion) }
         performSearch()
     }
@@ -88,32 +99,80 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         val query = state.query.trim()
         if (query.isBlank()) return
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(hasSearched = true, isSearching = true) }
+        searchJob?.cancel()
+        val searchRequestId = ++requestId
+        val selectedTab = state.selectedTab
+        searchJob = viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    hasSearched = true,
+                    isSearching = true,
+                    searchFailed = false,
+                    suggestions = emptyList()
+                )
+            }
 
-            when (_uiState.value.selectedTab) {
+            when (selectedTab) {
                 SearchTab.SONG -> {
-                    val songs = apiService.searchSongs(query, 30).getOrDefault(emptyList())
-                    val detailedSongs = if (songs.isNotEmpty()) {
-                        val ids = songs.map { it.id }
-                        val cookie = getCookie()
-                        apiService.getSongsDetails(ids, cookie).getOrDefault(songs)
-                    } else {
-                        songs
-                    }
-                    _uiState.update { it.copy(songResults = detailedSongs, isSearching = false) }
+                    apiService.searchSongs(query, 30).fold(
+                        onSuccess = { songs ->
+                            val detailedSongs = if (songs.isNotEmpty()) {
+                                apiService.getSongsDetails(songs.map { it.id }, getCookie())
+                                    .getOrDefault(songs)
+                            } else {
+                                songs
+                            }
+                            updateSearchResult(searchRequestId) {
+                                it.copy(songResults = detailedSongs, isSearching = false)
+                            }
+                        },
+                        onFailure = {
+                            updateSearchFailure(searchRequestId)
+                        }
+                    )
                 }
 
                 SearchTab.PLAYLIST -> {
-                    val playlists = apiService.searchPlaylists(query, 30).getOrDefault(emptyList())
-                    _uiState.update { it.copy(playlistResults = playlists, isSearching = false) }
+                    apiService.searchPlaylists(query, 30).fold(
+                        onSuccess = { playlists ->
+                            updateSearchResult(searchRequestId) {
+                                it.copy(playlistResults = playlists, isSearching = false)
+                            }
+                        },
+                        onFailure = {
+                            updateSearchFailure(searchRequestId)
+                        }
+                    )
                 }
 
                 SearchTab.ALBUM -> {
-                    val albums = apiService.searchAlbums(query, 30).getOrDefault(emptyList())
-                    _uiState.update { it.copy(albumResults = albums, isSearching = false) }
+                    apiService.searchAlbums(query, 30).fold(
+                        onSuccess = { albums ->
+                            updateSearchResult(searchRequestId) {
+                                it.copy(albumResults = albums, isSearching = false)
+                            }
+                        },
+                        onFailure = {
+                            updateSearchFailure(searchRequestId)
+                        }
+                    )
                 }
             }
+        }
+    }
+
+    private fun updateSearchResult(
+        searchRequestId: Long,
+        update: (SearchUiState) -> SearchUiState
+    ) {
+        if (searchRequestId == requestId) {
+            _uiState.update(update)
+        }
+    }
+
+    private fun updateSearchFailure(searchRequestId: Long) {
+        updateSearchResult(searchRequestId) {
+            it.copy(isSearching = false, searchFailed = true)
         }
     }
 
