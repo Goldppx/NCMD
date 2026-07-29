@@ -2,7 +2,6 @@ package com.gem.neteasecloudmd.desktop
 
 import com.gem.neteasecloudmd.core.library.LibraryStore
 import com.gem.neteasecloudmd.core.model.Track
-import java.awt.Desktop
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -45,13 +44,7 @@ class DesktopLocalLibrary(private val store: LibraryStore) {
         )
     }
 
-    fun openInSystemPlayer(trackId: Long): Result<Unit> = runCatching {
-        val file = pathsByTrackId[trackId]?.toFile()
-            ?: error("The selected track is not a local file.")
-        check(file.isFile) { "The selected file no longer exists." }
-        check(Desktop.isDesktopSupported()) { "System file opening is unavailable on this desktop." }
-        Desktop.getDesktop().open(file)
-    }
+    fun pathForTrack(trackId: Long): Path? = pathsByTrackId[trackId]
 
     private fun updateLibrary(paths: List<Path>) {
         val entries = paths

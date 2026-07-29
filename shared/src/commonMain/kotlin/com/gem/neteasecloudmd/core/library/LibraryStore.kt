@@ -117,4 +117,30 @@ class LibraryStore(initialCatalog: List<Track>) {
             )
         }
     }
+
+    /**
+     * Receives facts from a platform media engine. Queue selection remains owned by this store,
+     * while decoding, output and timing remain platform-specific.
+     */
+    fun updatePlayback(
+        status: PlaybackStatus,
+        isPlaying: Boolean,
+        positionMs: Long,
+        durationMs: Long,
+        errorMessage: String? = null
+    ) {
+        _state.update { state ->
+            if (state.playback.currentTrack == null) return@update state
+
+            state.copy(
+                playback = state.playback.copy(
+                    status = status,
+                    isPlaying = isPlaying,
+                    positionMs = positionMs.coerceAtLeast(0L),
+                    durationMs = durationMs.coerceAtLeast(0L),
+                    errorMessage = errorMessage
+                )
+            )
+        }
+    }
 }

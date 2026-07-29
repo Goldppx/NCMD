@@ -1,6 +1,7 @@
 package com.gem.neteasecloudmd.core.library
 
 import com.gem.neteasecloudmd.core.model.Track
+import com.gem.neteasecloudmd.core.playback.PlaybackStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -61,5 +62,24 @@ class LibraryStoreTest {
 
         assertFalse(store.state.value.playback.isPlaying)
         assertEquals(0, store.state.value.playback.queue.currentIndex)
+    }
+
+    @Test
+    fun playbackEngineUpdatesAreReflectedForTheSelectedTrack() {
+        val store = LibraryStore(tracks)
+        store.selectTrack(tracks.first().id)
+
+        store.updatePlayback(
+            status = PlaybackStatus.READY,
+            isPlaying = true,
+            positionMs = 1_500L,
+            durationMs = 12_000L
+        )
+
+        val playback = store.state.value.playback
+        assertEquals(PlaybackStatus.READY, playback.status)
+        assertTrue(playback.isPlaying)
+        assertEquals(1_500L, playback.positionMs)
+        assertEquals(12_000L, playback.durationMs)
     }
 }

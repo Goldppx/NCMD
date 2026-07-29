@@ -15,18 +15,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,8 +72,22 @@ fun main() = application {
             Surface(modifier = Modifier.fillMaxSize()) {
                 val store = remember { LibraryStore(emptyList()) }
                 val library = remember { DesktopLocalLibrary(store) }
+                val player = remember(library) {
+                    DesktopPlaybackEngine(library::pathForTrack) { update ->
+                        store.updatePlayback(
+                            status = update.status,
+                            isPlaying = update.isPlaying,
+                            positionMs = update.positionMs,
+                            durationMs = update.durationMs,
+                            errorMessage = update.errorMessage
+                        )
+                    }
+                }
+                DisposableEffect(player) {
+                    onDispose(player::release)
+                }
                 val state by store.state.collectAsState()
-                DesktopApp(state = state, store = store, library = library)
+                DesktopApp(state = state, store = store, library = library, player = player)
             }
         }
     }
@@ -83,7 +98,8 @@ fun main() = application {
 private fun DesktopApp(
     state: LibraryUiState,
     store: LibraryStore,
-    library: DesktopLocalLibrary
+    library: DesktopLocalLibrary,
+    player: DesktopPlaybackEngine
 ) {
     val scope = rememberCoroutineScope()
     var statusMessage by remember { mutableStateOf("Import local music to start your desktop library.") }
@@ -104,8 +120,9 @@ private fun DesktopApp(
     Scaffold(
         modifier = Modifier.onPreviewKeyEvent { event ->
             if (event.type == KeyEventType.KeyDown && event.key == Key.Spacebar) {
-                store.togglePlayback()
-                true
+                state.playback.currentTrack?.let { track ->
+                    if (state.playback.isPlaying) player.pause() else player.play(track)
+                } != null
             } else {
                 false
             }
@@ -137,14 +154,9 @@ private fun DesktopApp(
         bottomBar = {
             DesktopPlayerBar(
                 state = state,
-                onTogglePlayback = store::togglePlayback,
-                onOpenExternally = {
-                    state.playback.currentTrack?.id?.let { trackId ->
-                        statusMessage = library.openInSystemPlayer(trackId)
-                            .fold(
-                                onSuccess = { "Opened the selected track in your system player." },
-                                onFailure = { error -> error.message ?: "Could not open the selected track." }
-                            )
+                onTogglePlayback = {
+                    state.playback.currentTrack?.let { track ->
+                        if (state.playback.isPlaying) player.pause() else player.play(track)
                     }
                 }
             )
@@ -201,7 +213,11 @@ private fun DesktopApp(
                             TrackRow(
                                 track = track,
                                 isCurrent = state.playback.currentTrack?.id == track.id,
-                                onClick = { store.selectTrack(track.id) }
+                                isPlaying = state.playback.isPlaying,
+                                onClick = {
+                                    store.selectTrack(track.id)
+                                    player.play(track)
+                                }
                             )
                         }
                     }
@@ -263,14 +279,14 @@ private fun DesktopNavigation(
         NavigationRailItem(
             selected = selected == LibraryDestination.QUEUE,
             onClick = { onNavigate(LibraryDestination.QUEUE) },
-            icon = { Icon(Icons.Default.QueueMusic, contentDescription = "Queue") },
+            icon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue") },
             label = { Text("Queue") }
         )
     }
 }
 
 @Composable
-private fun TrackRow(track: Track, isCurrent: Boolean, onClick: () -> Unit) {
+private fun TrackRow(track: Track, isCurrent: Boolean, isPlaying: Boolean, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -288,7 +304,7 @@ private fun TrackRow(track: Track, isCurrent: Boolean, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = if (isCurrent) Icons.Default.Pause else Icons.Default.PlayArrow,
+                imageVector = if (isCurrent && isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                 contentDescription = null,
                 modifier = Modifier.size(28.dp)
             )
@@ -310,33 +326,39 @@ private fun TrackRow(track: Track, isCurrent: Boolean, onClick: () -> Unit) {
 @Composable
 private fun DesktopPlayerBar(
     state: LibraryUiState,
-    onTogglePlayback: () -> Unit,
-    onOpenExternally: () -> Unit
+    onTogglePlayback: () -> Unit
 ) {
     val track = state.playback.currentTrack
+    val progress = state.playback.durationMs.takeIf { it > 0L }
+        ?.let { state.playback.positionMs.toFloat() / it }
+        ?.coerceIn(0f, 1f)
+        ?: 0f
     Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(track?.name ?: "Choose a local track to start")
-                Text(
-                    text = track?.artists ?: "Space toggles queue state; open uses your system player.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            IconButton(onClick = onOpenExternally, enabled = track != null) {
-                Icon(Icons.Default.OpenInNew, contentDescription = "Open in system player")
-            }
-            IconButton(onClick = onTogglePlayback, enabled = track != null) {
-                Icon(
-                    imageVector = if (state.playback.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (state.playback.isPlaying) "Pause" else "Play"
-                )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(track?.name ?: "Choose a local track to start")
+                    Text(
+                        text = track?.artists ?: "Play music locally in NCMD.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onTogglePlayback, enabled = track != null) {
+                    Icon(
+                        imageVector = if (state.playback.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (state.playback.isPlaying) "Pause" else "Play"
+                    )
+                }
             }
         }
     }
